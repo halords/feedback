@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="/src/css/dashboard.css" rel="stylesheet">
+  <link href="/src/css/report.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+</head>
+<body>
+  <div class="sidebar" id="sidebar">
+    <div class="logo">Customer <br>Feedback</div>
+    <br><br>
+    <ul class="nav flex-column w-100 px-3">
+      <li class="nav-item active">
+        <a href="dashboard.html" class="nav-link" data-title="Dashboard">
+          <i class="bi bi-house"></i>
+          <span class="nav-text">Dashboard</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="responses.html" data-title="Analytics"><i class="bi bi-bar-chart"></i><span class="nav-text">Responses</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="report.html" data-title="Reports"><i class="bi bi-envelope"></i><span class="nav-text">Reports</span></a>
+      </li>
+      <li class="nav-item" id="report">
+        <a class="nav-link" href="users.html" data-title="Users"><i class="bi bi-gear"></i><span class="nav-text">Users</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#" onclick="logout()" data-title="Logout"><i class="bi bi-box-arrow-right"></i><span class="nav-text">Logout</span></a>
+      </li>
+    </ul>
+    <div class="toggle-btn-wrapper" id="toggleWrapper" onclick="toggleSidebar()">
+      <i class="bi-arrow-left-square" id="toggleIcon"></i>
+    </div>
+  </div>
+
+  <div class="topbar" id="topbar">
+    <h2 class="office-title">Report</h2>
+    <div>
+      <div class="dropdown d-inline me-3">
+        <a href="#" class="text-dark" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-bell fs-5"></i>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end p-2">
+          <li><strong>Notifications</strong></li>
+          <li><hr class="dropdown-divider"></li>
+          <li>No new notifications</li>
+        </ul>
+      </div>
+      <div class="dropdown d-inline me-3">
+      </div>
+      <div class="dropdown d-inline">
+        <a href="#" class="text-dark" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-person-circle fs-5"></i>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end p-2">
+          <li><strong>Profile</strong></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a href="#" class="dropdown-item">Settings</a></li>
+          <li><a href="#" class="dropdown-item">Logout</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-content" id="mainContent">
+    <div id="userInfo" class="mt-4">
+      <h4>Welcome, <span id="displayUsername"></span>!</h4>
+      <hr>
+
+      <!-- DATA TABLE -->  
+      <div class="d-flex gap-2">
+        <select id="filterMonth" class="form-select">
+          <!-- Add months dynamically -->
+        </select>
+    
+        <select id="filterYear" class="form-select">
+          <!-- Add years dynamically -->
+        </select>
+      </div><br>
+      <div style="display: flex; justify-content: space-around; gap: 20px;">
+        <!-- First Column (Left) -->
+        <div style="width: 500px; margin: auto;">
+          <center><h3>Customer Feedback Rating</h3></center><br>
+          <canvas id="myChart"></canvas>
+        </div>
+      
+        <!-- Second Column (Right) -->
+        <div style="width: 500px; margin: auto;">
+          <center><h3>Customer Feedback Responses</h3></center><br>
+          <canvas id="responses"></canvas>
+        </div>
+      </div>      
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="/src/js/dashboard.js"></script>
+  <script src="/src/js/toggle.js"></script>
+</body>
+</html>

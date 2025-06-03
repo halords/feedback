@@ -1,0 +1,127 @@
+#firestore-report {
+    /* You can add more specific styles here if needed */
+}
+#firestore-report .office-title {
+    color: #1e293b;
+    margin-bottom: 0.75rem;
+    font-size: 1.875rem;
+    font-weight: 600;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 0.5rem;
+}
+#firestore-report .data-category-title {
+    color: #334155;
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+#firestore-report .data-item {
+    margin-bottom: 0.25rem;
+    color: #4b5563;
+}
+#firestore-report .comment-item {
+    margin-bottom: 0.25rem;
+    color: #6b7280;
+    font-style: italic;
+}
+#firestore-report .table-container {
+    overflow-x: auto;
+    margin-top: 1rem;
+}
+#firestore-report .styled-table {
+    width: 100%;
+    border-collapse: collapse;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+#firestore-report .styled-table thead th {
+    background-color: #f0f4f8;
+    color: #6b7280;
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid #e2e8f0;
+}
+#firestore-report .styled-table tbody td {
+    padding: 1rem;
+    border-bottom: 1px solid #f0f0f0;
+    color: #4b5563;
+}
+#firestore-report .styled-table tbody tr:hover {
+    background-color: #f7fafc;
+}
+#firestore-report .styled-table tbody td:last-child {
+    border-right: none;
+}
+#firestore-report .no-data {
+    padding: 1rem;
+    text-align: center;
+    color: #9ca3af;
+    font-style: italic;
+}
+#firestore-report .pagination-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 1rem;
+}
+#firestore-report .pagination-button {
+    padding: 0.5rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    background-color: #f7fafc;
+    color: #4b5563;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin: 0 0.25rem;
+}
+#firestore-report .pagination-button:hover {
+    background-color: #edf2f7;
+}
+#firestore-report .pagination-button:disabled {
+    background-color: #f7fafc;
+    color: #cbd5e0;
+    cursor: not-allowed;
+    border-color: #e2e8f0;
+}
+#firestore-report .report-index {
+    margin-top: 1rem;
+    text-align: center;
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+/* Style for the tab buttons */
+.tabs {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+  }
+  
+  .tab-button {
+    padding: 10px 20px;
+    background-color: #f1f1f1;
+    border: 1px solid #ccc;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+  }
+  
+  .tab-button:hover {
+    background-color: #ddd;
+  }
+  
+  .tab-button.actives {
+    background-color: #036d44;
+    color: white;
+  }
+  
+  /* Style for the tab content */
+  .tab-content {
+    display: none;
+  }
+  
+  .tab-content.actives {
+    display: block;
+  }
+  
