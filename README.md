@@ -61,3 +61,6 @@ A full-featured feedback tracking and reporting web application built using HTML
 - `pdf-lib` for custom, client-side PDF generation
 
 ---
+
+### 🙋‍♂️ Author
+Created by Harold
