@@ -71,46 +71,54 @@ async function getUserData(db, offices) {
       }
   
       // Query Responses collection with the offices list (using 'in' query for multiple offices)
-      const snapshot = await db.collection('Responses').where('Office', 'in', offices).get(); 
-  
+      const chunkSize = 10;
       const data = [];
-  
-      // Check if snapshot exists and has docs
-      if (snapshot.empty) {
-        console.log("No documents found!");
-        return [];
-      }
-  
-      snapshot.docs.forEach((doc, index) => {
-        const docData = doc.data(); // Get data of the document
       
-        // Format the date to the desired format
-        const formattedDate = new Date(docData.Date).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        });
+      // Split offices into chunks of 10
+      for (let i = 0; i < offices.length; i += chunkSize) {
+        const officeChunk = offices.slice(i, i + chunkSize);
+        
+        try {
+          const snapshot = await db.collection('Responses')
+            .where('Office', 'in', officeChunk)
+            .get();
 
-        // Filter the necessary fields and add to the data array
-        const filteredData = {
-          docID: doc.id,
-          user: {
-          no: index + 1, // Row number starting from 1
-          Name: docData.Name,
-          Client_Type: docData.Client_Type,
-          Office: docData.Office,
-          Service_Availed: docData.Service_Availed,
-          Date: formattedDate, // Add formatted date
-          Comment: docData.Comment,
-          Class: docData.Class || "",
+          if (snapshot.empty) {
+            console.log(`No documents found for offices: ${officeChunk.join(', ')}`);
+            continue;
+          }
+
+          // Process each document in the snapshot
+          snapshot.docs.forEach((doc, index) => {
+            const docData = doc.data();
+            
+            const formattedDate = new Date(docData.Date).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            });
+
+            data.push({
+              docID: doc.id,
+              user: {
+                no: data.length + 1, // Continuous numbering across chunks
+                Name: docData.Name,
+                Client_Type: docData.Client_Type,
+                Office: docData.Office,
+                Service_Availed: docData.Service_Availed,
+                Date: formattedDate,
+                Comment: docData.Comment,
+                Class: docData.Class || "",
+              }
+            });
+          });
+        } catch (error) {
+          console.error(`Error fetching documents for offices ${officeChunk.join(', ')}:`, error);
+          // Continue with next chunk even if one fails
         }
-      };
-  
-        data.push(filteredData); // Add filtered data to the array
-        // console.log(filteredData);
-      });
-      
-      return data; // Return filtered data
+      }
+
+      return data;
     } catch (error) {
       console.error('Error fetching user data:', error);
       throw new Error('Error fetching user data');
@@ -302,13 +310,29 @@ async function analyzeResponsesByOffice(db, offices, month, year) {
         let collection = "";
         let collectRate = "";
         let collectDate = "";
-        let visitors = 0;
+        let visitors = dept1.visitor;
         if(Number(dept1.collection) === 0 && Number(dept2.collection) === 0){
           collection = "No Collection";
         }else if(Number(dept1.collection) === 0 && Number(dept2.collection) !== 0){
-          collection = dept2.collection;
-          collectRate = "100%";
-          collectDate = "Not Applicable";
+          if(dept1.visitor === 0){
+            collection = dept2.collection;
+            collectRate = "100%";
+            collectDate = "Not Applicable";
+          }else{
+            const totalCollect = dept1.collection + dept2.collection;
+            // collection = dept1.collection + dept2.collection;
+            if(totalCollect > dept1.visitor){
+              visitors = totalCollect;
+              collectRate = "100%";
+              collection = totalCollect;
+              collectDate = dept1.date_collected;
+            }else{
+              collection = totalCollect;
+              collectRate = (((dept1.collection + dept2.collection)/dept1.visitor)*100).toFixed(2)+"%";
+              collectDate = dept1.date_collected;
+              visitors = dept1.visitor;
+            }
+          }
         }else{
           const totalCollect = dept1.collection + dept2.collection;
           // collection = dept1.collection + dept2.collection;
@@ -707,22 +731,19 @@ async function getOnlineReport(db, offices, month, year) {
         if (comment) {
           // Step 1: Cleanse the comment (remove special characters, unwanted phrases, and single letters)
           const cleanseText = (comment) => {
-            if (!comment) return null;
-      
-            // Step 1a: Remove non-alphanumeric characters and trim
-            const cleanedComment = comment.replace(/[^a-zA-Z0-9\s]/g, '').trim();
-      
-            // Step 1b: Remove unwanted phrases (using the cleaned comment)
-            const unwantedPhrases = [
-              "None", "nothing", "No comment", "no comment", "N/A", "n/a", "N/a", "Nothing", "NA", "na"
-            ];
-            const regex = new RegExp(`\\b(${unwantedPhrases.join("|")})\\b`, "i");
-            if (regex.test(cleanedComment)) return null;
-      
-            // Step 1c: Remove single-letter comments (using the cleaned comment)
-            if (cleanedComment.length <= 1) return null;
-      
-            return cleanedComment;
+              if (!comment || comment.trim() === "") return null;
+              
+              // Allow basic Latin + Filipino/Spanish characters
+              const cleanedComment = comment.replace(/[^\w\sáéíóúñüÁÉÍÓÚÑÜ]/g, '').trim();
+              if (!cleanedComment) return null;
+
+              const unwantedPhrases = ["None", "nothing", "No comment", "N/A", "NA"];
+              const regex = new RegExp(`^(${unwantedPhrases.join("|")})$`, "i");
+              if (regex.test(cleanedComment)) return null;
+            
+              if (cleanedComment.length <= 1) return null;
+            
+              return cleanedComment;
           };
       
           // Step 2: Remove duplicate words within the comment
@@ -739,7 +760,9 @@ async function getOnlineReport(db, offices, month, year) {
       
           // Cleanse the comment
           const cleanedComment = cleanseText(comment);
-      
+          if(response.Office === "LIBRARY" && response.Class=== "Negative"){
+            console.log(cleanedComment);
+          }
           // If the comment is not null after cleansing, continue
           if (cleanedComment) {
             const uniqueComment = removeDuplicateWords(cleanedComment); // Remove duplicate words
@@ -786,17 +809,20 @@ async function getOnlineReport(db, offices, month, year) {
   return allResults;
 }
 function normalizeDateString(dateStr) {
-  // Check if already in "Month D, YYYY" format
-  const isFormatted = /^[A-Z][a-z]+ \d{1,2}, \d{4}$/.test(dateStr.trim());
-  if (isFormatted) {
-    return dateStr;
-  }
+  if (typeof dateStr !== 'string') return dateStr; // Handle non-string inputs
 
-  // Remove time zone in parentheses if present
-  const cleanedDateStr = dateStr.replace(/\s*\(.*\)$/, '');
+  const trimmed = dateStr.trim();
+
+  // Check if already in "Month D, YYYY" format (e.g., "May 5, 2025")
+  const isFormatted = /^[A-Z][a-z]+ \d{1,2}, \d{4}$/.test(trimmed);
+  if (isFormatted) return trimmed;
+
+  // Remove timezone info (e.g., "(Taiwan Standard Time)")
+  const cleanedDateStr = trimmed.replace(/\s*\(.*?\)\s*$/, '');
 
   const parsedDate = new Date(cleanedDateStr);
 
+  // If it's a valid date, return it in "Month D, YYYY" format
   if (!isNaN(parsedDate.getTime())) {
     return parsedDate.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -805,8 +831,10 @@ function normalizeDateString(dateStr) {
     });
   }
 
-  return dateStr; // Fallback
+  // If not parsable, return the original input
+  return dateStr;
 }
+
 async function getOfflineReport(db, offices, month, year) {
   const batchSize = 20;  // Max number of offices per query
   const officeBatches = chunkArray(offices, batchSize);
@@ -859,7 +887,7 @@ async function getOfflineReport(db, offices, month, year) {
           const docMonthYear = data.FOR_THE_MONTH_OF;
           const dept = data.DEPARTMENT?.trim();
           const originalOfficeName = offices.find(office => office.replace(/-/g, ' ') === dept);
-
+          console.log(data.VISITORS);
           if (docMonthYear === targetMonthYear && originalOfficeName) {
             if (!batchResults[originalOfficeName]) {
               // This should ideally not happen due to the initialization
@@ -935,9 +963,17 @@ async function getOfflineReport(db, offices, month, year) {
               };
           
               const cleansedComments = commentList.map(cleanseText);
-              // console.log(cleansedComments);
-              const classList = (data.CLASSIFY || "").split(',').map(c => c.trim()).filter(c => c.length > 0);
-          
+              // console.log(data.DEPARTMENT, data.DATE_COLLECTED);
+              // const classList = (data.CLASSIFY || "").split(',').map(c => c.trim()).filter(c => c.length > 0);
+              let classList = [];
+
+              if (Array.isArray(data.CLASSIFY)) {
+                classList = data.CLASSIFY;
+              } else if (typeof data.CLASSIFY === 'string') {
+                classList = data.CLASSIFY.split(',').map(item => item.trim()).filter(Boolean);
+              } else {
+                classList = []; // fallback if null, undefined, or unexpected
+              }
               commentList.forEach((comment, index) => {
                   if (comment) { // Process only if the comment is not null after cleansing
                       const classType = classList[index];
@@ -1254,7 +1290,18 @@ async function generatePDF(formData) {
       const lines = wrapText(cleanseText(text), helveticaFont, fontSize, maxWidth);
       return lines.length;
     };
-    
+    const splitCommentByLines = (text) => {
+      const maxWidth = 500;
+      const fontSize = 12;
+      const cleanedText = cleanseText(text);
+      const lines = wrapText(cleanedText, helveticaFont, fontSize, maxWidth);
+
+      if (lines.length >= 2) {
+        return lines; // returns an array of lines
+      }
+
+      return [cleanedText]; // return single-element array if only one line
+    };
     // Check if any comment is too long for the allowed lines
     let shouldUseAttachment = false;
 
@@ -1265,8 +1312,15 @@ async function generatePDF(formData) {
         form.getTextField('COM2').setText('');
         shouldUseAttachment = true;
       }else{
-        form.getTextField('COM1').setText('1. ' + cleanseText(comment));
-        form.getTextField('COM2').setText('');
+        if(lineCount(comment)==2){
+          const returnedComment = splitCommentByLines(comment);
+
+          form.getTextField('COM1').setText('1. ' + returnedComment[0]);
+          form.getTextField('COM2').setText('   ' + returnedComment[1]);                            
+        }else{
+          form.getTextField('COM1').setText('1. ' + cleanseText(comment));
+          form.getTextField('COM2').setText('');
+        }
       }
     } else if (positiveCount === 2 && negativeCount === 0 && suggestionsCount === 0 ) {
       if(lineCount(positive[0])>1 || lineCount(positive[1])>1 ){
@@ -1484,7 +1538,7 @@ async function removeOffice(db, officeName){
   // const snapshot = await db.collection('Responses').where('Office', 'in', offices).get(); 
   try{
 
-    console.log(officeName.office);
+    // console.log(officeName.office);
 
     const snapshot = await db.collection('office_assignment')
       .where('office', '==', officeName.office)
@@ -1605,7 +1659,7 @@ async function summaryPDF(formData, month) {
         { text: 'NUMBER OF REGISTERED CLIENTS', colspan: 1, rowspan: 3 },
         { text: 'GENDER', colspan: 4, rowspan: 1 },
         { text: 'CRITERIA', colspan: 3, rowspan: 1 },
-        { text: 'GENERAL RATING', colspan: 1, rowspan: 3, bgColor: rgb(0.718, 0.518, 0.961)},
+        { text: 'GENERAL RATING', colspan: 1, rowspan: 3, bgColor: rgb(1.000, 0.502, 0.502)},
         { text: 'COMMENTS', colspan: 3, rowspan: 1 },
       ],
       [
@@ -1746,7 +1800,7 @@ async function summaryPDF(formData, month) {
           { text: formData[key].qValues.Q1.RATE === "N/A" ? "" : formData[key].qValues.Q1.RATE, colspan: 1, rowspan: 1 },
           { text: formData[key].sysrate === "N/A" ? "" : formData[key].sysrate, colspan: 1, rowspan: 1 },
           { text: formData[key].staffrate === "N/A" ? "" : formData[key].staffrate, colspan: 1, rowspan: 1 },
-          { text: formData[key].overrate === "N/A" ? "" : formData[key].overrate, colspan: 1, rowspan: 1, bgColor: rgb(0.718, 0.518, 0.961) },
+          { text: formData[key].overrate === "N/A" ? "" : formData[key].overrate, colspan: 1, rowspan: 1, bgColor: rgb(1.000, 0.502, 0.502) },
           { text: Number(formData[key].comments.positive.length) === 0 ? "" : formData[key].comments.positive.length, colspan: 1, rowspan: 1, bgColor: rgb(0.000, 0.859, 0.145) },
           { text: Number(formData[key].comments.negative.length) === 0 ? "" : formData[key].comments.negative.length, colspan: 1, rowspan: 1, bgColor: rgb(1.000, 0.239, 0.353) },
           { text: Number(formData[key].comments.suggestions.length) === 0 ? "" : formData[key].comments.suggestions.length, colspan: 1, rowspan: 1, bgColor: rgb(1.000, 0.867, 0.000) },

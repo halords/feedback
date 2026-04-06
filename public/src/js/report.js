@@ -76,7 +76,7 @@ window.onload = async function() {
         body: JSON.stringify({ offices, month, year }),
       });
       const results = await response.json();
-      // console.log(results);
+      console.log(results);
       reportData = results;
       
       // console.log(reportData);
@@ -597,7 +597,7 @@ document.getElementById('generateReport').addEventListener('click', async () => 
         };
 
         insertIntoObject(reportData, newValue);
-
+        // console.log(reportData);
         const response = await fetch(`${window.location.origin}/api/generate-pdf`, {
             method: 'POST',
             headers: {
@@ -1024,7 +1024,7 @@ function renderChart(monthData, canvasId, month, code, type) {
        afterDraw: (chart) => {
          const { ctx, chartArea, options } = chart;
          const titleHeight = options.plugins.title.font?.size || 18; // Title height
-         const imageHeight = titleHeight*5;
+         const imageHeight = titleHeight*4;
          const imageWidth = imageHeight; // Image width as height (maintaining aspect ratio)
  
          // Calculate position for the image (adjusting to be placed near title)
@@ -1676,8 +1676,12 @@ async function init(offices) {
 
 async function changeFilter(month, year){
   // console.log(month, year);
-  const offices = ["PBO","OPAcc","PTO","OPAss","LUPTO","OPAg","OPVet","PEO","LEEIPO","PGENRO","PDRRMO","PSWDO","PHO","LUPJ","OPG","BACSU","ICTU","SSU","OPA","HRMU","PIO","LIBRARY","PGSO","PLO","PPDC","SPO","PESU","ASMU","PHO-Clinic","PHO-Warehouse","PTO-Cash","PTO-Assessor"];
-  
+  const offices = [
+        "OPG", "OPA", "SPO", "OPAss", "PTO", "PTO-Assessor", "PTO-Cash", "PBO", "OPAcc",
+        "PEO", "PGSO", "PLO", "PPDC", "PHO", "PHO-Clinic", "PHO-Warehouse", "PSWDO",
+        "OPAg", "OPVet", "PGENRO", "PIO", "LUPTO", "ICTU", "BACSU", "LEEIPO",
+        "HRMU", "ASMU", "SSU", "LUPJ", "PDRRMO", "PESU", "LIBRARY"
+    ];
   const graphStatus = document.getElementById('graphStatus');
   
   const showLoadingOverlay = () => {
