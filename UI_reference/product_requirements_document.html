@@ -1,0 +1,214 @@
+Okay, I understand. You're asking me to create a *template* or *framework* for a Project PRD or Brief, assuming I'll fill it in with "the following context" which isn't provided yet.
+
+This is a great approach! I'll create a comprehensive structure that can be scaled down for a brief or expanded for a full PRD, complete with guiding questions and placeholders for the information you'll eventually provide.
+
+---
+
+# Project Product Requirements Document (PRD) / Brief Template
+
+**Document Owner:** [Your Name/Team]
+**Date:** [YYYY-MM-DD]
+**Version:** 1.0
+**Status:** [Draft / Under Review / Approved]
+
+---
+
+## **1. Executive Summary**
+
+*   *This section should be a concise overview, suitable for a quick read by stakeholders.*
+*   **What is this project?** Briefly describe the project and its core deliverable.
+*   **Why are we doing it?** State the primary problem it solves or opportunity it addresses.
+*   **What are the key expected outcomes?** Summarize the main goals and benefits.
+*   **What's the high-level timeline?** Mention the target launch date or phase.
+
+---
+
+## **2. Introduction**
+
+### **2.1. Project Name**
+[e.g., "New User Onboarding Flow Redesign", "API Integration for Partner XYZ", "Mobile App Push Notification System"]
+
+### **2.2. Problem Statement / Opportunity**
+*   *Clearly articulate the pain point for users/business or the market opportunity.*
+*   **What is the current state?** Describe the existing challenge or inefficiency.
+*   **Who is affected by this problem/opportunity?** (Users, customers, internal teams, etc.)
+*   **What is the impact of *not* addressing this?** (e.g., lost revenue, churn, poor user experience)
+
+### **2.3. Vision & Objectives**
+*   *What does success look like? What specific, measurable goals are we aiming for?*
+*   **Project Vision:** A concise statement describing the desired future state once the project is complete.
+    *   *Example: "To provide a seamless and intuitive onboarding experience that increases user activation by 20% within the first month."*
+*   **Measurable Objectives (SMART Goals):**
+    *   **S**pecific: Clearly defined.
+    *   **M**easurable: Quantifiable success metrics.
+    *   **A**chievable: Realistic given resources.
+    *   **R**elevant: Aligns with broader business goals.
+    *   **T**ime-bound: Has a deadline.
+    *   **Objective 1:** [e.g., "Increase new user activation rate from 40% to 60% within 3 months of launch."]
+    *   **Objective 2:** [e.g., "Reduce customer support tickets related to X by 15% within 6 months."]
+    *   **Objective 3:** [e.g., "Improve API uptime to 99.9% for partner integrations."]
+
+### **2.4. Target Audience**
+*   *Who will use or be affected by this product/feature? Be specific.*
+*   **Primary Users:** [e.g., "First-time users during signup", "Existing users accessing X feature", "Internal sales team"]
+*   **Secondary Users (if any):** [e.g., "Customer support agents", "Admin users"]
+*   **User Persona(s) (optional but recommended for PRD):** Briefly describe key personas if relevant.
+
+---
+
+## **3. Scope**
+
+### **3.1. In-Scope Features / Functionality**
+*   *What *will* this project deliver? (List high-level for a brief, detail further for a PRD)*
+*   **High-Level Deliverables:**
+    *   [e.g., "Redesigned 5-step onboarding flow."]
+    *   [e.g., "New API endpoint for `GET /orders`."]
+    *   [e.g., "Admin panel for creating and sending push notifications."]
+*   **Detailed Functionality (for PRD):**
+    *   **Feature Group A:**
+        *   [Specific requirement 1, e.g., "User can sign up using email/password or Google SSO."]
+        *   [Specific requirement 2, e.g., "User is guided through a mandatory profile setup process."]
+    *   **Feature Group B:**
+        *   [Specific requirement 1, e.g., "API supports filtering orders by date range."]
+        *   [Specific requirement 2, e.g., "API returns order details including product list and total."]
+    *   *Use sub-sections or bullet points for clarity. Consider linking to wireframes, mockups, or user stories here.*
+
+### **3.2. Out-of-Scope**
+*   *What *will NOT* be delivered as part of this project? This is crucial for managing expectations.*
+*   [e.g., "No changes to the existing login flow (only new user signup)."]
+*   [e.g., "No real-time order updates via the API in this phase."]
+*   [e.g., "No personalized push notification content based on user behavior in V1."]
+
+---
+
+## **4. User Stories / Use Cases (Primarily for PRD)**
+
+*   *Describe how different users will interact with the new functionality. Use the "As a [type of user], I want [some goal], so that [some reason/benefit]" format.*
+*   **User Story 1:** As a *first-time user*, I want to *easily create an account*, so that *I can access the platform's features quickly*.
+    *   **Acceptance Criteria:**
+        *   User can register via email.
+        *   User receives a confirmation email.
+        *   User is redirected to the profile setup page upon successful registration.
+*   **User Story 2:** As a *partner developer*, I want to *retrieve a list of my orders*, so that *I can integrate my system with your order management*.
+    *   **Acceptance Criteria:**
+        *   API endpoint `/api/v1/orders` exists.
+        *   Endpoint requires API key authentication.
+        *   Response returns JSON array of orders with `id`, `status`, `total`, `items`.
+*   *Add as many user stories as needed to cover all key functionality.*
+
+---
+
+## **5. Technical & Design Requirements (Primarily for PRD)**
+
+### **5.1. Functional Requirements**
+*   *Detailed breakdown of what the system must *do*.*
+*   **Data Requirements:** [e.g., "Store user profile data (name, email, shipping address)."]
+*   **System Integrations:** [e.g., "Integrate with our existing CRM (Salesforce) for lead tracking."]
+*   **Error Handling:** [e.g., "Display clear error messages for invalid inputs."]
+*   **Security:** [e.g., "All user data must be encrypted at rest and in transit."]
+
+### **5.2. Non-Functional Requirements**
+*   *How well the system must perform (performance, reliability, usability, etc.).*
+*   **Performance:** [e.g., "Onboarding flow steps must load within 1 second."]
+*   **Scalability:** [e.g., "System must support 10,000 concurrent active users without degradation."]
+*   **Reliability:** [e.g., "API uptime must be 99.9%."
+*   **Usability:** [e.g., "Onboarding flow must be accessible to users with visual impairments (WCAG 2.1 AA)."]
+*   **Maintainability:** [e.g., "Codebase should follow existing architectural patterns and coding standards."]
+
+### **5.3. Design & UX Requirements**
+*   *Guidance for the design team.*
+*   **Wireframes/Mockups:** [Link to Figma, Sketch, or other design files]
+*   **User Flows:** [Link to user flow diagrams]
+*   **Brand Guidelines:** [e.g., "Adhere to existing brand style guide."]
+*   **Accessibility:** [e.g., "Meet WCAG 2.1 AA standards for all UI elements."]
+
+---
+
+## **6. Success Metrics & KPIs**
+
+*   *How will we measure the success of this project? Directly linked to objectives.*
+*   **Primary Metrics:**
+    *   [e.g., "New user activation rate (Objective 1)"]
+    *   [e.g., "Number of support tickets related to X (Objective 2)"]
+    *   [e.g., "API call success rate and latency (Objective 3)"]
+*   **Secondary Metrics:**
+    *   [e.g., "Time to complete onboarding."]
+    *   [e.g., "Conversion rate from signup to first purchase."]
+    *   [e.g., "Partner satisfaction scores."]
+*   **Reporting:** How often will we review these metrics? Who is responsible?
+
+---
+
+## **7. Dependencies & Risks**
+
+### **7.1. Dependencies**
+*   *What does this project rely on to be successful?*
+*   **Internal Dependencies:** [e.g., "Completion of backend API for user profiles (from Team Alpha)."]
+*   **External Dependencies:** [e.g., "Approval from legal for new terms of service."]
+*   **Resource Dependencies:** [e.g., "Availability of a dedicated QA engineer for 2 weeks."]
+
+### **7.2. Risks & Mitigation**
+*   *What could go wrong, and how will we address it?*
+*   **Risk 1:** [e.g., "Scope creep leading to project delays."]
+    *   **Mitigation:** [e.g., "Strict adherence to PRD; all new requests go through a formal change request process."]
+*   **Risk 2:** [e.g., "Performance issues with the new API under high load."]
+    *   **Mitigation:** [e.g., "Conduct thorough load testing with 2x expected peak traffic before launch."]
+*   **Risk 3:** [e.g., "Low user adoption due to poor UX."]
+    *   **Mitigation:** [e.g., "Conduct user testing with 10 target users; iterate on designs based on feedback."]
+
+---
+
+## **8. Timeline & Milestones**
+
+*   *High-level for a brief, more detailed for a PRD. Specific dates if possible.*
+*   **Phase 1: Discovery & Planning:** [e.g., "Weeks 1-2 - Requirements gathering, PRD finalization, initial design concepts."]
+*   **Phase 2: Design & Prototyping:** [e.g., "Weeks 3-5 - Wireframes, mockups, user flow creation, user testing."]
+*   **Phase 3: Development:** [e.g., "Weeks 6-12 - Frontend & Backend development."]
+*   **Phase 4: QA & Testing:** [e.g., "Weeks 13-14 - Internal QA, bug fixing, regression testing."]
+*   **Phase 5: Launch:** [e.g., "Week 15 - Production deployment, post-launch monitoring."]
+*   **Target Launch Date:** [YYYY-MM-DD]
+
+---
+
+## **9. Team & Stakeholders**
+
+*   **Product Manager:** [Your Name]
+*   **Engineering Lead:** [Name]
+*   **Design Lead:** [Name]
+*   **QA Lead:** [Name]
+*   **Key Stakeholders:**
+    *   [e.g., "Head of Product: [Name]"]
+    *   [e.g., "Head of Engineering: [Name]"]
+    *   [e.g., "Marketing Lead: [Name]"]
+    *   [e.g., "Customer Support Manager: [Name]"]
+
+---
+
+## **10. Open Questions & Future Considerations**
+
+*   *What still needs to be decided or explored? What's next after this project?*
+*   **Open Question 1:** [e.g., "Should we support social media login options in a future iteration?"]
+*   **Open Question 2:** [e.g., "Detailed plan for A/B testing variations of the onboarding flow."]
+*   **Future Consideration:** [e.g., "Integration with a new analytics platform post-launch."]
+
+---
+
+## **11. Appendix (Optional)**
+
+*   **Relevant Links:**
+    *   [Link to JIRA/Asana/Trello Board]
+    *   [Link to Research Findings]
+    *   [Link to Competitive Analysis]
+    *   [Link to Design System Documentation]
+*   **Glossary:** Define any specific terms or acronyms used.
+
+---
+
+### **How to Use This Document:**
+
+*   **For a Project Brief:** Focus primarily on sections 1, 2, 3.1 (high-level), 6, 7.2 (key risks), 8, and 9. Keep descriptions concise.
+*   **For a Full PRD:** Expand on all sections, providing as much detail as possible, especially in sections 3, 4, and 5. This document serves as the single source of truth for the development team.
+*   **Iterative Process:** A PRD is a living document. It should be updated as new information, requirements, or constraints emerge.
+*   **Collaboration:** Share this document with all relevant stakeholders for feedback and alignment *before* development begins.
+
+---
