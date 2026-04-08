@@ -4,57 +4,53 @@ plan: 3
 wave: 1
 ---
 
-# Plan 2.3: Vertical Slice: Dashboard Page
+# Plan 2.3: Dashboard Integration & Verification
 
 ## Objective
-Finalize the Dashboard vertical slice by assembling all components and connecting them to the live API, ensuring full feature parity and dynamic data binding.
+Assemble all 6 features into a cohesive dashboard vertical slice, ensuring that PTO/PHO sub-offices are correctly aggregated and displayed as per the updated specification.
 
-## Context
-- .gsd/SPEC.md
-- UI_reference/dashboard/screen.png
-- system_map.json (for dashboard features)
+## Features to Implement
+1. **Per-Office Rating (Bar)**: Satellite aggregation for PHO/PTO.
+2. **Rating Breakdown (Line/Trend)**: Individual sub-office performance.
+3. **Collection Rate (Line)**: Aggregated monthly trends.
+4. **Collection vs Logbook (Bar)**: Aggregated totals.
+5. **Detailed Collection Table (`tableCollect`)**: Row-by-row breakdown.
+6. **Charter Awareness Table (`tableCCQ`)**: Columnar metric report.
 
 ## Tasks
 
 <task type="auto">
-  <name>Assemble Dashboard Page</name>
-  <files>src/app/dashboard/page.tsx, src/components/layout/Shell.tsx</files>
+  <name>Finalize Dashboard Grid Layout</name>
+  <files>src/app/dashboard/page.tsx</files>
   <action>
-    - Create a main application `Shell` (including Sidebar and Navbar) as seen in `UI_reference`.
-    - Assemble the Dashboard Page with the `FilterBar` and `Chart` grid.
-    - Implement a protected route check (redirect to `/login` if not authenticated).
+    - Arrange all 6 features into an architectural grid following `UI_reference` (Editorial design).
+    - Connect all components to the enhanced `useDashboardData` hook.
   </action>
-  <verify>Test-Path "src/app/dashboard/page.tsx"</verify>
-  <done>Dashboard layout is complete and protected.</done>
+  <done>Full 6-feature dashboard layout is integrated.</done>
 </task>
 
 <task type="auto">
-  <name>Wire Charts to Real Data</name>
-  <files>src/app/dashboard/page.tsx</files>
+  <name>Wire Aggregation Logic to UI</name>
+  <files>src/app/dashboard/DashboardClient.tsx</files>
   <action>
-    - Populate charts using data from the `useDashboardData` hook.
-    - Implement the "Overall Feedback Rating" (Bar), "Breakdown Summary" (Bar), and "Monthly Collection Trend" (Line) as per original features.
-    - Ensure the logic correctly handles "All Offices" vs individual selections.
+    - Ensure when "PHO" is selected, the UI displays aggregated data across its 3 sub-offices.
+    - Implement the "Trend" views where sub-offices appear as individual lines.
   </action>
-  <verify>Get-Content "src/app/dashboard/page.tsx" | Select-String "useDashboardData"</verify>
-  <done>Charts visualize live Firestore data.</done>
+  <done>Parent-Child office logic is visible in the UI.</done>
 </task>
 
 <task type="checkpoint:human-verify">
-  <name>Dynamic Office List Verification</name>
+  <name>Verification of Section 212 (CC Awareness)</name>
   <files>src/app/dashboard/page.tsx</files>
   <action>
-    1. Log in as a Superadmin.
-    2. Navigate to Dashboard.
-    3. Verify all charts load (or show skeletons).
-    4. Change an office name in the Firestore `offices` collection.
-    5. Refresh dashboard and verify the new name appears in the filter dropdown without code changes.
+    1. Select "PTO" in the office filter.
+    2. Verify `tableCCQ` appears with rows for PTO, PTO-Cash, and PTO-Assessor.
+    3. Verify columns for AWARE, VISIBLE, HELPFUL, and CLIENTS contain data.
   </action>
-  <verify>User manual confirmation of dynamic binding</verify>
-  <done>Dynamic data requirement is validated.</done>
+  <done>New spec requirements are physically verified.</done>
 </task>
 
 ## Success Criteria
-- [ ] Dashboard is 100% data-driven (no hard-coded names).
-- [ ] Visual fidelity matches `UI_reference`.
-- [ ] Feature parity: All charts from the legacy dashboard are present.
+- [ ] 100% Feature parity with the updated `system_map.json`.
+- [ ] PHO/PTO specific aggregation logic works correctly.
+- [ ] Visual fidelity maintained at 100%.

@@ -1,7 +1,13 @@
 # ROADMAP.md
 
-> **Current Phase**: Phase 3: Analytics Engine & Reports
-> **Milestone**: v1.0 (Refactored Modular System)
+### Phase 2: Dynamic Core & Dashboard (Updated per Spec)
+**Status**: ⬜ Not Started
+**Objective**: Build the dynamic data layer and visual dashboard with satellite office aggregation (PTO/PHO) and trend analytics.
+**Requirements**: REQ-DATA-01, REQ-UI-02, REQ-DASH-01 (Aggregation), REQ-DASH-02 (Tables)
+- Implement satellite office grouping logic (PHO/PTO bundles) in `metricsService`.
+- Build Trend Line charts for rating components and collection rates.
+- Implement `tableCollect` and `tableCCQ` interactive data tables.
+- Synchronize all 6 dashboard features listed in system_map.json.
 
 ## Must-Haves (from SPEC)
 - [ ] 100% Feature parity with `system_map.json`
@@ -20,13 +26,14 @@
 - Implement shared UI components (Buttons, Inputs) from `UI_reference`.
 - Refactor `index.html` logic into a Next.js Login Page.
 
-### Phase 2: Dynamic Core & Dashboard
+### Phase 2: Dynamic Core & Dashboard (Updated per Spec)
 **Status**: ⬜ Not Started
-**Objective**: Build the dynamic data layer and the main visual dashboard.
-**Requirements**: REQ-DATA-01, REQ-DATA-02, REQ-UI-02
-- Implement `OfficeContext` and `UserContext` for shared dynamic state.
-- Create `/api/dashboard` route to optimize data retrieval.
-- Build Dashboard page with dynamic office filtering and Chart.js integration.
+**Objective**: Build the dynamic data layer and visual dashboard with satellite office aggregation (PTO/PHO) and trend analytics.
+**Requirements**: REQ-DATA-01, REQ-UI-02, REQ-DASH-01 (Aggregation), REQ-DASH-02 (Tables)
+- Implement satellite office grouping logic (PHO/PTO bundles) in `metricsService`.
+- Build Trend Line charts for rating components and collection rates.
+- Implement `tableCollect` and `tableCCQ` interactive data tables.
+- Synchronize all 6 dashboard features listed in system_map.json.
 
 ### Phase 3: Analytics Engine & Reports
 **Status**: ⬜ Not Started
