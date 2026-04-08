@@ -1,6 +1,6 @@
 # ROADMAP.md
 
-> **Current Phase**: Not started
+> **Current Phase**: Phase 2: Dynamic Core & Dashboard
 > **Milestone**: v1.0 (Refactored Modular System)
 
 ## Must-Haves (from SPEC)
@@ -13,7 +13,7 @@
 ## Phases
 
 ### Phase 1: Foundation & Auth
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Establish the Next.js foundation and complete the first vertical slice (Login).
 **Requirements**: REQ-MOD-01, REQ-UI-01, REQ-AUTH-01
 - Initialize Next.js project and Tailwind configuration.
