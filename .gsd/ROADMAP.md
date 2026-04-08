@@ -1,6 +1,6 @@
 # ROADMAP.md
 
-> **Current Phase**: Phase 2: Dynamic Core & Dashboard
+> **Current Phase**: Phase 3: Analytics Engine & Reports
 > **Milestone**: v1.0 (Refactored Modular System)
 
 ## Must-Haves (from SPEC)
