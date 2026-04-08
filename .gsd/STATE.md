@@ -1,21 +1,18 @@
-# Project State
+# STATE.md — Project Memory
 
-> Status: `MAPPING_COMPLETE`
+## Current Context
+The project has been initialized after a deep mapping of the legacy code. We have a clear mandate to refactor to Next.js + Tailwind using a vertical slice approach.
 
-## Last Session Summary
-Codebase mapping complete.
-- **5** core entry points (HTML/JS) identified.
-- **12+** Backend endpoints mapped in `auth/app.js`.
-- **Firestore** schema analyzed (users, Responses, office_assignment, etc.).
-- **Technical debt** documented in ARCHITECTURE.md.
+## Progress Summary
+- [x] Initial Codebase Mapping
+- [x] SPEC.md and ROADMAP.md defined
+- [x] Technology Stack identified (Next.js, Tailwind, Firestore)
+- [ ] Phase 1 initialization
 
-## Achievements
-- [x] Initial codebase scan
-- [x] Backend dependency trace
-- [x] Firestore collection mapping
-- [x] Feature-to-page mapping
+## Recent Decisions
+- **Framework**: Selected Next.js App Router for modularity.
+- **Styling**: Standardized on Tailwind CSS.
+- **Approach**: Vertical slices (Page by Page).
 
-## Pending
-- [ ] Initialize project specification (SPEC.md)
-- [ ] Create ROADMAP.md
-- [ ] Refactor call.js into smaller modules
+## Blockers
+*None currently.*

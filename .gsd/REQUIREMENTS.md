@@ -3,18 +3,14 @@
 ## Format
 | ID | Requirement | Source | Status |
 |----|-------------|--------|--------|
-| REQ-01 | **Vite/React Setup:** Initialize a new React project with Vite and Tailwind CSS. | SPEC goal 1 | Pending |
-| REQ-02 | **Material UI Integration:** Use `@mui/material` or a similar minimal Material-styled library for components. | SPEC goal 3 | Pending |
-| REQ-03 | **Optimized Auth Logic:** Refactor `functions/auth/call.js` to eliminate O(N) queries in user lists. | SPEC goal 2 | Pending |
-| REQ-04 | **Role-Based Routing:** Implement protected routes in React based on `user_type`. | SPEC goal 1, 2 | Pending |
-| REQ-05 | **Dashboard Charts:** Re-implement Chart.js logic using `react-chartjs-2`. | SPEC goal 1 | Pending |
-| REQ-06 | **Responsive Layouts:** Mobile-first layout with a sidebar (PC/Tablet) and bottom-nav or burger menu (Mobile). | SPEC goal 3 | Pending |
-| REQ-07 | **Cache Management:** Use `React Query` (TanStack Query) to manage API requests and caching. | SPEC goal 2 | Pending |
-| REQ-08 | **PDF Generation:** Re-implement PDF download logic in the React frontend (or call existing Function). | SPEC goal 1 | Pending |
-| REQ-09 | **Security Rules:** Update `firestore.rules` to restrict access by `role` and `office`. | SPEC goal 4 | Pending |
-| REQ-10 | **Environment Config:** Secure `serviceAccount.json` by moving to Firebase secrets/env vars. | SPEC goal 4 | Pending |
-
-## Rules:
-- Each requirement is testable.
-- Each maps to a SPEC goal.
-- Status starts as "Pending".
+| REQ-MOD-01 | Initialize Next.js App Router project with Tailwind CSS | SPEC Goal 1 | Pending |
+| REQ-MOD-02 | Create modular, reusable components for UI patterns (Charts, Tables, Forms) | SPEC Goal 1 | Pending |
+| REQ-UI-01 | Match Login screen exactly with `UI_reference/login_screen` | SPEC Goal 1, Goal 2 | Pending |
+| REQ-UI-02 | Match Dashboard layout with `UI_reference/dashboard` | SPEC Goal 1, Goal 2 | Pending |
+| REQ-UI-03 | Match Analytics Report view with `UI_reference/data_analytics` | SPEC Goal 1, Goal 2 | Pending |
+| REQ-DATA-01 | Fetch office lists dynamically from Firestore `offices` collection | SPEC Goal 3 | Pending |
+| REQ-DATA-02 | Fetch user-office assignments dynamically from `office_assignment` | SPEC Goal 3 | Pending |
+| REQ-OPT-01 | Implement client-side caching (e.g. SWR/React Query) for report data | SPEC Goal 4 | Pending |
+| REQ-LOGIC-01 | Implement Satisfaction Formula for weighted ratings (exact match) | SPEC Goal 5 | Pending |
+| REQ-LOGIC-02 | Preserve ADM-series document codes in PDF export | SPEC Goal 5 | Pending |
+| REQ-AUTH-01 | Implement session management matching current bcrypt/LocalStorage flow in React | SPEC Goal 5, Goal 1 | Pending |

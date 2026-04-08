@@ -1,0 +1,284 @@
+{
+  "pages": [
+    {
+      "page_name": "Login",
+      "route": "/",
+      "file_path": "public/index.html",
+      "access_control": {
+        "roles": [
+          "any"
+        ],
+        "auth_required": false,
+        "conditions": [
+          "Redirects to dashboard if loggedInUser exists in localStorage"
+        ]
+      },
+      "navigation": {
+        "entry_points": [
+          "index.html"
+        ],
+        "redirects": [
+          "dashboard.html (on success)"
+        ]
+      },
+      "features": [
+        {
+          "feature_name": "Authentication",
+          "feature_type": "form",
+          "description": "Secure login using username and password.",
+          "ui_elements": {
+            "type": "form",
+            "details": {
+              "fields": [
+                "username",
+                "password"
+              ]
+            }
+          },
+          "components_files": [
+            "public/src/js/index.js"
+          ],
+          "permissions": [
+            "public"
+          ],
+          "state_management": {
+            "local_state": [
+              "username",
+              "password",
+              "errorMsg"
+            ],
+            "global_state": [
+              "localStorage.loggedInUser"
+            ]
+          },
+          "interactions": [
+            "form_submit"
+          ],
+          "data_flow": {
+            "source": "User Input",
+            "api_calls": [
+              "/api/login"
+            ],
+            "transformations": [
+              "bcrypt.compare (backend)"
+            ],
+            "derived_data": [
+              "user_type",
+              "offices"
+            ]
+          },
+          "api": [
+            {
+              "endpoint": "/api/login",
+              "method": "POST",
+              "called_from": "index.js:login()",
+              "params": [],
+              "request_body": {
+                "username": "string",
+                "password": "password"
+              },
+              "response_schema": {
+                "status": 200,
+                "data": {
+                  "user": {
+                    "fullname": "string",
+                    "user_type": "string",
+                    "offices": "array"
+                  }
+                }
+              },
+              "error_cases": [
+                "User not found",
+                "Incorrect password"
+              ]
+            }
+          ],
+          "backend_mapping": {
+            "controller": "app.js",
+            "service_functions": [
+              "apiCalls.loginUser"
+            ],
+            "logic_summary": "Validates credentials against 'users' collection using bcrypt.",
+            "middleware": [
+              "bodyParser.json"
+            ]
+          },
+          "firestore": {
+            "collections": [
+              "users",
+              "user_data",
+              "office_assignment"
+            ],
+            "documents": [
+              "user entry matching username"
+            ],
+            "queries": [
+              "where('username', '==', username)"
+            ],
+            "relationships": [
+              "users joined with user_data by idno",
+              "users joined with office_assignment by idno"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "page_name": "Dashboard",
+      "route": "/dashboard.html",
+      "file_path": "public/dashboard.html",
+      "access_control": {
+        "roles": [
+          "user",
+          "superadmin"
+        ],
+        "auth_required": true,
+        "conditions": [
+          "Requires loggedInUser in localStorage"
+        ]
+      },
+      "navigation": {
+        "entry_points": [
+          "index.html",
+          "sidebar"
+        ],
+        "redirects": [
+          "index.html (if unauthorized)"
+        ]
+      },
+      "features": [
+        {
+          "feature_name": "Department KPIs",
+          "feature_type": "dashboard",
+          "description": "Visual overview of feedback ratings and collection counts per office.",
+          "ui_elements": {
+            "type": "canvas_grid",
+            "details": {
+              "charts": [
+                "myChart",
+                "responses"
+              ]
+            }
+          },
+          "components_files": [
+            "public/src/js/dashboard.js"
+          ],
+          "permissions": [
+            "assigned_offices"
+          ],
+          "state_management": {
+            "local_state": [
+              "officeData",
+              "monthFilter",
+              "yearFilter"
+            ],
+            "global_state": [
+              "loggedInUser.offices"
+            ]
+          },
+          "interactions": [
+            "filter_change",
+            "chart_hover"
+          ],
+          "data_flow": {
+            "source": "Firestore Aggregation",
+            "api_calls": [
+              "/api/fetchDashboard"
+            ],
+            "transformations": [
+              "Aggregating rating counts",
+              "Grouping by office and month"
+            ]
+          },
+          "charts": {
+            "chart_type": "bar_chart",
+            "library": "Chart.js",
+            "data_fields": [
+              "Environment",
+              "Systems and Procedures",
+              "Staff Service"
+            ],
+            "data_source": "fetchDashboard",
+            "transformations": [
+              "parseFloat(Q1.RATE)",
+              "weighted averages"
+            ]
+          },
+          "api": [
+            {
+              "endpoint": "/api/fetchDashboard",
+              "method": "POST",
+              "called_from": "dashboard.js:init()",
+              "request_body": {
+                "months": "Object"
+              }
+            }
+          ],
+          "firestore": {
+            "collections": [
+              "Responses",
+              "Offline_Response"
+            ],
+            "queries": [
+              "where('Office', 'in', offices)"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "page_name": "Analytics Report",
+      "route": "/report.html",
+      "file_path": "public/report.html",
+      "access_control": {
+        "roles": [
+          "superadmin"
+        ],
+        "auth_required": true,
+        "conditions": []
+      },
+      "features": [
+        {
+          "feature_name": "Consolidation Report",
+          "feature_type": "table",
+          "description": "Detailed multi-point satisfaction metrics including CC awareness.",
+          "ui_elements": {
+            "type": "tabbed_view",
+            "details": {
+              "tabs": [
+                "Data",
+                "Summary",
+                "Graphs"
+              ]
+            }
+          },
+          "components_files": [
+            "public/src/js/report.js"
+          ],
+          "data_flow": {
+            "api_calls": [
+              "/api/getReport",
+              "/api/generate-pdf"
+            ]
+          },
+          "charts": {
+            "chart_type": "line_chart",
+            "library": "Chart.js",
+            "data_fields": [
+              "General Rating",
+              "Monthly Trends"
+            ]
+          },
+          "api": [
+            {
+              "endpoint": "/api/generate-pdf",
+              "method": "POST",
+              "called_from": "report.js:generateReport listener",
+              "request_body": "Full reportData object"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -6,44 +6,46 @@
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| Node.js | ^18/20 (Functions) | Backend Runtime |
-| Browser | Modern Evergreens | Frontend Runtime |
+| Node.js | ^20 (implied) | Cloud Functions runtime |
+| Browser | Modern | Client-side execution |
 
 ## Dependencies
 
 ### Production (Backend)
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `firebase-functions` | Latest | Serverless API triggers |
-| `firebase-admin` | Latest | Firestore & Admin SDK |
-| `express` | ^4.x | API Routing |
-| `pdf-lib` | ^1.17.1 | PDF Document generation |
-| `bcryptjs` | Latest | Password hashing |
-| `body-parser` | Latest | Request parsing |
-| `dotenv` | ^17.2.0 | Environment management |
+| express | ^4.0.0 | API Framework |
+| firebase-admin | ^12.0.0 | Database/Auth Access |
+| firebase-functions | ^5.0.0 | Serverless Infrastructure |
+| pdf-lib | ^1.17.1 | PDF Generation |
+| bcryptjs | ^2.4.3 | Password Hashing |
+| dotenv | ^16.0.0 | Environment Variables |
 
 ### Production (Frontend)
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `Chart.js` | Via CDN | Data visualization |
-| `chartjs-plugin-datalabels` | Via CDN | Chart labels |
-| `jQuery` | Via CDN | DOM manipulation & AJAX |
-| `TailwindCSS` | Via CDN | Styling |
-| `Google Fonts` | Inter/Outfit | Typography |
+| Chart.js | ~4.0.0 | Data Visualization |
+| ChartDataLabels | - | Chart.js Plugin |
+| jQuery | - | DOM/AJAX utilities |
+| Tailwind CSS | ^4.2.2 | Styling |
 
 ## Infrastructure
 
 | Service | Provider | Purpose |
 |---------|----------|---------|
-| Firebase Hosting | Google Cloud | Static asset delivery |
-| Cloud Functions | Google Cloud | Serverless backend |
-| Cloud Firestore | Google Cloud | NoSQL Database |
-| Cloud Storage | Google Cloud | Assets/File storage |
+| Firebase Hosting | Google | Static Asset Serving |
+| Cloud Functions | Google | Server-side Logic |
+| Cloud Firestore | Google | NoSQL Database |
 
 ## Configuration
 
 | Variable | Purpose | Location |
 |----------|---------|----------|
-| `SERVICE_ACCOUNT`| DB Credentials | `functions/auth/serviceAccount.json` |
-| `.env` | Env vars | `functions/auth/.env` |
-| `firebase.json` | Project config | Root |
+| `loggedInUser` | Auth Session | LocalStorage |
+| `serviceAccount.json` | IAM Credentials | `functions/auth/` |
+| `firebase.json` | Hosting/Functions Config | Root |
+
+## Outdated Packages
+*(Manual audit recommended)*
+- `bcryptjs` is frequently replaced by `bcrypt` in newer environments.
+- `tailwindcss` ^4.2.2 is very recent/bleeding edge.
