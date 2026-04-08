@@ -1,11 +1,17 @@
-## Phase 2 Verification
+## Phase 2 Verification (Spec 2.0)
 
-### Must-Haves
-- [x] Dynamic Office Metadata — **VERIFIED** (Evidence: `/api/offices` correctly queries Firestore, used in `FilterBar`).
-- [x] Analytical Metrics Engine — **VERIFIED** (Evidence: `metricsService.ts` correctly ports legacy aggregation and satisfaction formulas).
-- [x] URL-Synced Dashboard State — **VERIFIED** (Evidence: `DashboardContext` uses `useSearchParams` to persist filters).
-- [x] UI Fidelity — **VERIFIED** (Evidence: Dashboard grid matches `UI_reference/dashboard` with Indigo Slate Pro tokens).
-- [x] Feature Parity — **VERIFIED** (Evidence: Overall Rating and Response Distribution charts implemented with live data).
+### 100% Parity with `system_map.json`:
+- [x] **Per-Office Rating (Bar)**: Implemented with satellite office aggregation (PHO/PTO bundles).
+- [x] **Breakdown of Rating Data (Line)**: 6-month trend visualization implemented for Environment, Systems, and Staff.
+- [x] **Overall Collection Rate (Line)**: Monthly trend line chart implemented.
+- [x] **Collection vs Logbook (Bar)**: Comparative bar chart implemented.
+- [x] **Detailed Collection Table**: `tableCollect` with efficiency percentage implementation.
+- [x] **Citizen's Charter Table**: `tableCCQ` with Aware/Visible/Helpful metrics implemented.
+
+### Architecture:
+- [x] **Satellite Mapping**: Implicit mapping for PHO (Clinic, Warehouse) and PTO (Cash, Assessor).
+- [x] **Multi-Month API**: `metricsService` overhauled to support chronological key-value pairs for time-series charts.
+- [x] **Themed Tables**: Editorial tables with inline performance bars.
 
 ### Verdict: PASS
-Phase 2 is complete. The application now has a fully dynamic, data-driven core. Ready for Phase 3: Analytics Engine & Reports.
+Phase 2 (Updated Spec) is complete. The dashboard is now a powerful, data-driven analytics hub.
