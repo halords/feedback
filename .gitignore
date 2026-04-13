@@ -43,11 +43,7 @@ yarn-error.log*
 next-env.d.ts
 
 # VS Code
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
+.vscode/
 
 # Tool-specific (Antigravity/GSD)
 .gemini/
