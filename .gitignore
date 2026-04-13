@@ -45,9 +45,12 @@ next-env.d.ts
 # VS Code
 .vscode/
 
-# Tool-specific (Antigravity/GSD)
+# Tool-specific (Antigravity/GSD/Firebase)
 .gemini/
+.agents/
 .gsd/
+.firebase/
+skills-lock.json
 tmp/
 scratch/
 

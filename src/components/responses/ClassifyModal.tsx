@@ -74,7 +74,6 @@ export function ClassifyModal({
       isOpen={isOpen} 
       onClose={onClose} 
       title={`Classify Feedback: ${selectedMonth} ${selectedYear}`}
-      size="xl"
     >
       <div className="space-y-6 py-4 px-2">
         {error && (
