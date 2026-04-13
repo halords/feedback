@@ -6,51 +6,50 @@
 A comprehensive Customer Feedback and Analytics platform for the Provincial Government of La Union. The system collects, aggregates, and visualizes feedback from both online and offline sources.
 
 ```
-┌─────────────────────────────────────────┐
-│              Browser (HTML/JS)          │
-├─────────────────────────────────────────┤
-│         Firebase Cloud Functions        │
-├─────────────────────────────────────────┤
-│             Firestore DB                │
-└─────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│          Next.js App Router (Frontend)       │
+│  (React Components + Tailwind CC + SWR)      │
+├──────────────────────────────────────────────┤
+│        Next.js API Routes (Backend)          │
+│  (Firebase Admin SDK + pdf-lib)              │
+├──────────────────────────────────────────────┤
+│             Firestore DB (Storage)           │
+└──────────────────────────────────────────────┘
 ```
 
 ## Components
 
-### Frontend (Public)
-- **Login (`index.html` / `index.js`)**: Authentication entry point.
-- **Dashboard (`dashboard.html` / `dashboard.js`)**: High-level KPIs and multi-department visual summaries.
-- **Reports (`report.html` / `report.js`)**: Detailed analytics with PDF export and multi-tabbed views.
-- **Responses (`responses.html` / `responses.js`)**: Viewing and managing individual feedback entries.
-- **Users (`users.html` / `users.js`)**: Administrative portal for user and office management.
+### App Layer (Next.js)
+- **Auth (`/login`)**: Secure authentication using Firebase Admin and JWT-based sessions.
+- **Dashboard (`/dashboard`)**: High-fidelity visual overview with dynamic office filters and office-specific KPIs.
+- **Analytics (`/analytics`)**: Triple-tabbed interface (Data, Summary, Graphs) with complex aggregation logic.
+- **API Routes (`/api/*`)**: Server-side endpoints for metrics retrieval and PDF generation.
 
-### Backend (Functions/Auth)
-- **Express App (`app.js`)**: REST API handlers for login, report fetching, and PDF generation.
-- **Service Layer (`call.js`)**: Core business logic, Firestore query aggregation, and PDF document construction.
-- **Data Processor**: Complex logic for merging online/offline data and calculating weighted satisfaction ratings.
+### Logic Layer (lib/services)
+- **`metricsService.ts`**: Unified engine for merging Online (Responses) and Offline (physical_report) data.
+- **`analyticsService.ts`**: Preservation of legacy satisfaction formulas and weighted percentages.
+- **`pdfGenerator.ts`**: Server-side PDF engine using `REPORT.pdf` templates and AcroForm filling.
 
 ## Data Flow
-1. **Frontend** requests data (e.g., `/api/getReport`) based on filters.
-2. **Backend** queries `Responses` and (optionally) `Offline_Response` collections.
-3. **Service Layer** merges shards, normalizes scores (1-5 to %), and calculates categorical averages.
-4. **Backend** returns aggregated JSON.
-5. **Frontend** uses **Chart.js** to render visual representations.
+1. **Client** (via SWR) requests metrics from `/api/dashboard`.
+2. **API Route** calls `getDashboardMetrics`, resolving office aliases and fetching Firestore snapshots.
+3. **Service Layer** merges shards, normalizes scores, and calculates CC awareness (awareness, visibility, helpfulness).
+4. **Client** renders charts via **Chart.js** with legacy-inspired branding and document signatures.
+5. **Export** triggers `/api/reports`, merging filled PDF templates for bulk or individual use.
 
 ## Integration Points
 
 | Service | Type | Purpose |
 |---------|------|---------|
-| Firebase Auth | API | User authentication and role management |
-| Cloud Firestore | DB | Persistent storage for responses and users |
-| PDF-Lib | Library | Server-side PDF generation |
+| Firebase Admin | SDK | Server-to-Server Firestore and Auth access |
+| pdf-lib | Library | High-fidelity AcroForm PDF generation |
+| SWR | Hook | Client-side caching and optimistic UI updates |
 
-## Technical Debt
-- [ ] Logic for merging online/offline data is duplicated/complex in `call.js`.
-- [ ] Heavy use of `localStorage` for session management (security risk).
-- [ ] Large JS files (`report.js`, `call.js`) need modularization.
-- [ ] No formal input validation middleware in Express app.
+## Technical Debt (Remaining)
+- [ ] Implement Summary PDF (Consolidated Matrix) export.
+- [ ] Implement Graphs PDF (Chart Capture) export.
+- [ ] Full audit of Firestore read efficiency for large "ALL" office queries.
 
 ## Conventions
-**Naming**: Kebal-case for HTML, CamelCase for JS functions.
-**Structure**: Separated into `public/` (static) and `functions/` (serverless).
-**Testing**: Minimal explicit tests found in the root.
+**Naming**: PascalCase for Components, camelCase for services/functions.
+**Structure**: standard Next.js `src/` directory with `app/`, `components/`, and `lib/` separation.

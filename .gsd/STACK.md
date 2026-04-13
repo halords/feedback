@@ -6,46 +6,42 @@
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| Node.js | ^20 (implied) | Cloud Functions runtime |
-| Browser | Modern | Client-side execution |
+| Node.js | ^20 | Server-side execution (Next.js) |
+| Next.js | ^14/15 | Application Framework (App Router) |
 
 ## Dependencies
 
-### Production (Backend)
+### Production (Fullstack)
 | Package | Version | Purpose |
 |---------|---------|---------|
-| express | ^4.0.0 | API Framework |
-| firebase-admin | ^12.0.0 | Database/Auth Access |
-| firebase-functions | ^5.0.0 | Serverless Infrastructure |
-| pdf-lib | ^1.17.1 | PDF Generation |
-| bcryptjs | ^2.4.3 | Password Hashing |
-| dotenv | ^16.0.0 | Environment Variables |
+| lucide-react | ^0.400.0 | Icon Library |
+| firebase-admin | ^12.0.0 | Database/Auth Access (Server) |
+| swr | ^2.2.0 | Client-side Data Fetching/Caching |
+| pdf-lib | ^1.17.1 | PDF Generation Engine |
+| chart.js | ^4.4.0 | Data Visualization |
+| react-chartjs-2 | ^5.2.0 | Chart.js React Wrapper |
+| clsx / tailwind-merge | - | Utility for dynamic styling |
 
-### Production (Frontend)
+### Styling
 | Package | Version | Purpose |
 |---------|---------|---------|
-| Chart.js | ~4.0.0 | Data Visualization |
-| ChartDataLabels | - | Chart.js Plugin |
-| jQuery | - | DOM/AJAX utilities |
-| Tailwind CSS | ^4.2.2 | Styling |
+| Tailwind CSS | ^4.0.0 | Utility-first CSS |
 
 ## Infrastructure
 
 | Service | Provider | Purpose |
 |---------|----------|---------|
-| Firebase Hosting | Google | Static Asset Serving |
-| Cloud Functions | Google | Server-side Logic |
-| Cloud Firestore | Google | NoSQL Database |
+| Vercel / Firebase Hosting | - | Application Hosting |
+| Cloud Firestore | Google | NoSQL Database (Responses/Offices) |
+| Firebase Auth | Google | Identity Management |
 
 ## Configuration
 
 | Variable | Purpose | Location |
 |----------|---------|----------|
-| `loggedInUser` | Auth Session | LocalStorage |
-| `serviceAccount.json` | IAM Credentials | `functions/auth/` |
-| `firebase.json` | Hosting/Functions Config | Root |
+| `FIREBASE_SERVICE_ACCOUNT` | Admin access | Environment Secrets |
+| `NEXT_PUBLIC_FIREBASE_CONFIG` | Client access | `.env.local` |
 
-## Outdated Packages
-*(Manual audit recommended)*
-- `bcryptjs` is frequently replaced by `bcrypt` in newer environments.
-- `tailwindcss` ^4.2.2 is very recent/bleeding edge.
+## Development Tools
+- **TypeScript**: Strict type checking for service layer.
+- **PostCSS**: Used for Tailwind processing.

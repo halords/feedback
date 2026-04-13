@@ -148,79 +148,84 @@
       },
       "features": [
         {
-          "feature_name": "Department KPIs",
+          "feature_name": "Per-Office Analytics",
           "feature_type": "dashboard",
-          "description": "Visual overview of feedback ratings and collection counts per office.",
+          "description": "Dynamic analytics for each assigned office, including aggregation for PHO and PTO satellite offices.",
           "ui_elements": {
-            "type": "canvas_grid",
+            "type": "dynamic_grid",
             "details": {
               "charts": [
-                "myChart",
-                "responses"
+                "Overall Feedback Rating",
+                "Breakdown of Rating Data",
+                "Overall Collection Rate",
+                "Breakdown of Collection vs Logbook"
               ]
             }
           },
-          "components_files": [
-            "public/src/js/dashboard.js"
-          ],
-          "permissions": [
-            "assigned_offices"
-          ],
-          "state_management": {
-            "local_state": [
-              "officeData",
-              "monthFilter",
-              "yearFilter"
-            ],
-            "global_state": [
-              "loggedInUser.offices"
-            ]
-          },
-          "interactions": [
-            "filter_change",
-            "chart_hover"
-          ],
-          "data_flow": {
-            "source": "Firestore Aggregation",
-            "api_calls": [
-              "/api/fetchDashboard"
-            ],
-            "transformations": [
-              "Aggregating rating counts",
-              "Grouping by office and month"
-            ]
-          },
-          "charts": {
-            "chart_type": "bar_chart",
-            "library": "Chart.js",
-            "data_fields": [
-              "Environment",
-              "Systems and Procedures",
-              "Staff Service"
-            ],
-            "data_source": "fetchDashboard",
-            "transformations": [
-              "parseFloat(Q1.RATE)",
-              "weighted averages"
-            ]
-          },
-          "api": [
+          "charts": [
             {
-              "endpoint": "/api/fetchDashboard",
-              "method": "POST",
-              "called_from": "dashboard.js:init()",
-              "request_body": {
-                "months": "Object"
-              }
+              "id": "rate",
+              "name": "Overall Feedback Rating",
+              "type": "bar",
+              "aggregation": "Aggregated for PTO/PHO satellite offices"
+            },
+            {
+              "id": "breakdown",
+              "name": "Breakdown of Rating Data",
+              "type": "line",
+              "aggregation": "Aggregated for PTO/PHO satellite offices"
+            },
+            {
+              "id": "collect",
+              "name": "Overall Collection Rate",
+              "type": "line",
+              "aggregation": "Aggregated for PTO/PHO satellite offices"
+            },
+            {
+              "id": "collectBreak",
+              "name": "Breakdown of Collection vs Logbook",
+              "type": "bar/line",
+              "aggregation": "Aggregated for PTO/PHO satellite offices"
             }
-          ],
-          "firestore": {
-            "collections": [
-              "Responses",
-              "Offline_Response"
-            ],
-            "queries": [
-              "where('Office', 'in', offices)"
+          ]
+        },
+        {
+          "feature_name": "Detailed Breakdown of Collection",
+          "feature_type": "table",
+          "description": "Detailed tabular data for collection and visitors. For PHO and PTO, it includes individual rows for each satellite office representing the actual table data.",
+          "ui_elements": {
+            "type": "data_table",
+            "details": {
+              "id": "tableCollect",
+              "structure": "Rows per office/satellite, columns per month"
+            }
+          },
+          "data_flow": {
+            "transformations": [
+              "Individual data extraction for satellite offices in PTO/PHO"
+            ]
+          }
+        },
+        {
+          "feature_name": "Citizen's Charter Awareness",
+          "feature_type": "table",
+          "description": "Metrics on client awareness, visibility, and helpfulness of the Citizen's Charter. PTO/PHO sections include detailed breakdown of satellite offices using the exact legacy template.",
+          "ui_elements": {
+            "type": "data_table",
+            "details": {
+              "id": "tableCCQ",
+              "columns": [
+                "OFFICE",
+                "AWARE",
+                "VISIBLE",
+                "HELPFUL",
+                "CLIENTS"
+              ]
+            }
+          },
+          "data_flow": {
+            "transformations": [
+              "Extracting CC awareness metrics per satellite/office"
             ]
           }
         }

@@ -35,6 +35,8 @@ export async function POST(request: Request) {
       const data = doc.data();
       if (Array.isArray(data.office)) {
         offices = offices.concat(data.office);
+      } else if (typeof data.office === "string") {
+        offices.push(data.office);
       }
     });
 

@@ -1,14 +1,18 @@
-# Plan 2.2 Summary: Modular Dashboard Components
+# Plan 2.2 Summary: Advanced Visualization & Tables
 
-Successfully built the interactive UI building blocks for the dashboard.
+Successfully built the spec-compliant UI components for PER-OFFICE ANALYTICS.
 
 ## Key Accomplishments
-- **Themed Charting**: Initialized a global Chart.js configuration engine that automatically applies "Indigo Slate" brand colors and "Inter" typography to all visualizations.
-- **Dynamic Filter Bar**: Implemented a responsive filter component that fetches the live office list from Firestore and synchronizes with the `DashboardContext`.
-- **Atomic Visualization**: Created `ChartCard`—a high-fidelity container that handles titles, subtitles, and internal loading/blur states (Precision Curator style).
-- **Tooling**: Integrated `react-chartjs-2` with the Next.js App Router.
+- **Dynamic DataTable**: Implemented a reusable, themed table component with built-in loading states and high-density typography.
+- **KPI Grid**: Created the `KPIGrid` containing all 4 required charts:
+    - `rate` (Bar): Overall Feedback Rating.
+    - `breakdown` (Line): 3-pillar breakdown (Env, Sys, Staff).
+    - `collect` (Line): Overall Collection Rate.
+    - `collectBreak` (Combo): Form Collection vs Logbook visitors.
+- **Satellite Support**: Tables (`tableCCQ` and `tableCollect`) explicitly show satellite offices (PHO-Clinic, etc.) as individual rows with primary group labeling.
+- **CC Awareness**: `tableCCQ` implemented with exact spec columns: OFFICE, AWARE, VISIBLE, HELPFUL, CLIENTS.
 
 ## Evidence
-- `src/lib/charts/init.ts` exports a unified registration method.
-- `src/components/dashboard/FilterBar.tsx` successfully fetches dynamic office metadata.
-- `src/components/dashboard/ChartCard.tsx` provides a standard layout for diverse metric types.
+- `KPIGrid.tsx` implements the four distinct chart IDs from the spec.
+- `DataTable.tsx` uses the No-Line architectural design.
+- Both tables are wired to specialized `/api/dashboard/*` sub-endpoints.

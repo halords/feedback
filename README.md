@@ -1,36 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PGLU Feedback v2
 
-## Getting Started
+A modern, high-fidelity customer feedback and analytics dashboard for the Provincial Government of La Union. This project is a Next.js re-implementation of the legacy feedback system, focusing on premium UI/UX, robust reporting, and real-time data visualization.
 
-First, run the development server:
+![PGLU Logo](https://www.launion.gov.ph/wp-content/uploads/2021/04/pglu-logo-official.png)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 🚀 Key Features
+
+### 📊 Advanced Analytics Engine
+- **Data View**: Comprehensive audit tables with real-time response tracking.
+- **Summary Matrix**: Organizational performance summary across all departments.
+- **Dynamic Graphs**: High-fidelity visualization of satisfaction rates, demographics, and regional trends.
+- **Trend Analysis**: Monitor performance shifts over custom date ranges.
+
+### 📄 Professional Reporting (PDF)
+- **AcroForm Integration**: Generates high-fidelity PDF reports with 100% visual parity to legacy systems.
+- **Bulk & Individual Generation**: Ability to download consolidated organizational reports or deep-dives for specific offices.
+- **Data Centering & Auto-filling**: Automated mapping of Firestore data to PDF templates.
+
+### 👤 User & Office Management
+- **RBAC (Role-Based Access Control)**: Granular permissions for Superadmins and Department-level users.
+- **Data Isolation**: Ensures users only see responses and analytics relevant to their assigned offices.
+- **Office Synchronization**: Centralized management of government offices and their respective metrics.
+
+### 🎨 Premium UI/UX
+- **Indigo Slate Professional Design**: A custom design system built with Tailwind CSS and Next.js.
+- **Adaptive Dark Mode**: Manual theme switching with persistent user preferences.
+- **Micro-animations**: Smooth transitions and interactive elements using Framer Motion (or CSS keyframes).
+- **Responsive Layout**: Designed for tablets and desktop administrative use.
+
+## 🛠 Tech Stack
+
+- **Framework**: [Next.js 15](https://nextjs.org/) (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS (Modern Theme v4)
+- **Database/Auth**: Firebase & Firestore
+- **State Management**: React Context API
+- **Icons**: Lucide React
+- **PDF Generation**: `pdf-lib` with AcroForm support
+
+## 📦 Installation & Setup
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/your-repo/feedbackV2.git
+   cd feedbackV2
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Environment Setup**:
+   Create a `.env.local` file in the root directory and add your Firebase configurations:
+   ```env
+   NEXT_PUBLIC_FIREBASE_API_KEY=your_key
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_domain
+   ...
+   ```
+
+4. **Run the development server**:
+   ```bash
+   npm run dev
+   ```
+
+5. **Build for production**:
+   ```bash
+   npm run build
+   ```
+
+## 🏗 Project Structure
+
+```text
+src/
+├── app/            # Next.js App Router (Routes & Layouts)
+├── components/     # Reusable UI & Feature-specific components
+├── context/        # Global state (Auth, Analytics, Dashboard)
+├── lib/            # Shared utilities and service layer
+│   ├── services/   # Business logic (Metrics, Analytics)
+│   └── reports/    # PDF generation engine
+└── types/          # TypeScript interfaces/types
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 📄 License
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is proprietary software for the Provincial Government of La Union.
