@@ -12,6 +12,7 @@ import {
   Building,
   ChevronLeft,
   ChevronRight,
+  BookOpen,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -23,6 +24,7 @@ const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Reports", href: "/analytics", icon: BarChart3 },
   { name: "Responses", href: "/responses", icon: MessageSquare },
+  { name: "Physical Reports", href: "/physical-reports", icon: BookOpen },
   { name: "Users", href: "/users", icon: Users },
   { name: "Offices", href: "/offices", icon: Building },
   { name: "Settings", href: "/settings", icon: Settings },
@@ -95,7 +97,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <nav className="space-y-4">
             {navItems.map((item) => {
               const isSuperadmin = user?.user_type?.toLowerCase() === "superadmin";
-              if ((item.name === "Users" || item.name === "Offices") && !isSuperadmin) return null;
+              if (["Users", "Offices", "Physical Reports"].includes(item.name) && !isSuperadmin) return null;
               const isActive = pathname === item.href;
               return (
                 <Link
