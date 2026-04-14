@@ -1,4 +1,5 @@
 import { db } from "@/lib/firebase/admin";
+import { getMonthBounds } from "@/lib/utils/dateUtils";
 
 export interface ResponseEntry {
   id: string;
@@ -21,11 +22,15 @@ export async function getResponses(
 ): Promise<ResponseEntry[]> {
   if (!offices || offices.length === 0) return [];
 
+  const { startDate, endDate } = getMonthBounds(month, year);
+  
   const isGlobal = offices.includes("ALL");
   let snapshots: any[] = [];
 
   if (isGlobal) {
     // Global fetch for Superadmins
+    // We fetch all and filter in memory because the legacy date format 
+    // is not lexicographically sortable for server-side range queries.
     const snapshot = await db.collection('Responses').get();
     snapshots = [snapshot];
   } else {
@@ -47,12 +52,12 @@ export async function getResponses(
   const responses: ResponseEntry[] = [];
 
   snapshots.forEach(snapshot => {
-    snapshot.forEach(doc => {
+    snapshot.forEach((doc: any) => {
       const data = doc.data();
-      if (!data.Date) return; // Skip records without date
+      if (!data.Date) return;
 
       const date = new Date(data.Date);
-      if (isNaN(date.getTime())) return; // Skip invalid dates
+      if (isNaN(date.getTime())) return;
 
       const docMonth = date.toLocaleString('en-US', { month: 'long' });
       const docYear = date.getFullYear().toString();
@@ -72,7 +77,7 @@ export async function getResponses(
     });
   });
 
-  // Sort by date descending (assuming data.Date is a valid date string or timestamp)
+  // Sort by date descending
   return responses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 

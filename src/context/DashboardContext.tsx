@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useMemo } from "react";
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import useSWR from "swr";
 
@@ -55,33 +55,43 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (authLoading || !user) return;
 
-    const fromUrl = searchParams.get("offices")?.split(",") || [];
+    const fromUrl = searchParams.get("offices")?.split(",").filter(Boolean) || [];
     const isSuperadmin = user.user_type?.toLowerCase() === "superadmin";
     const userOffices = user.offices || [];
 
     if (isSuperadmin) {
       if (fromUrl.length > 0) setOffices(fromUrl);
-      else setOffices([]); // For superadmin, empty means all (handled by API)
+      else setOffices([]); // Defaults to empty (0 reads) for Superadmin
     } else {
       if (fromUrl.length > 0) {
         // Intersect requested offices with assigned ones
         const intersection = fromUrl.filter(o => userOffices.includes(o));
-        setOffices(intersection.length > 0 ? intersection : userOffices);
+        setOffices(intersection);
         
         // Correct URL if it contains unauthorized offices
         if (intersection.length !== fromUrl.length) {
           const params = new URLSearchParams(searchParams.toString());
-          params.set("offices", intersection.length > 0 ? intersection.join(",") : userOffices.join(","));
+          if (intersection.length > 0) {
+            params.set("offices", intersection.join(","));
+          } else {
+            params.delete("offices");
+          }
           router.push(`${pathname}?${params.toString()}`, { scroll: false });
         }
       } else {
-        setOffices(userOffices);
+        // Default behavior: If exactly 1 office, auto-load it. Otherwise, show "Select an office..."
+        // to prevent unnecessary bulk fetches on page load for multi-office users.
+        if (userOffices.length === 1) {
+          setOffices(userOffices);
+        } else {
+          setOffices([]);
+        }
       }
     }
   }, [user, authLoading, searchParams, pathname, router]);
 
   // Sync state to URL
-  const setFilters = ({ offices: newOffices, month: newMonth, year: newYear }: any) => {
+  const setFilters = useCallback(({ offices: newOffices, month: newMonth, year: newYear }: any) => {
     const params = new URLSearchParams(searchParams.toString());
     
     if (newOffices) {
@@ -103,7 +113,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
       ];
-      const maxMIdx = now.getMonth();
+      const maxMIdx = new Date().getMonth();
       const targetMIdx = monthsArr.indexOf(targetM);
       
       if (targetMIdx > maxMIdx) {
@@ -125,7 +135,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     }
 
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
-  };
+  }, [searchParams, router, pathname, user, year, month, currentY, currentM]);
 
   // Ensure baseline and future dates are corrected
   useEffect(() => {

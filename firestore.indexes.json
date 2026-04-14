@@ -1,0 +1,33 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "Responses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "Office",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "Date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "physical_report",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "DEPARTMENT",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "FOR_THE_MONTH_OF",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

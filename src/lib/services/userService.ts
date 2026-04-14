@@ -102,7 +102,8 @@ export async function addUser(userData: {
       username: userData.idno, // Default username is ID number
       user_type: userData.user_type,
       password: hashedPassword,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      requiresPasswordChange: true
     });
 
     // 2. Create entry in 'user_data' (profile)

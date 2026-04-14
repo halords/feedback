@@ -28,12 +28,19 @@
 .env.development.local
 .env.test.local
 .env.production.local
+.env.development
+.env.production
 
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+firestore-debug.log
+firebase-debug.log*
+debug-*.js
+**/*serviceAccount.json
+**/*.env.*
 
 # vercel
 .vercel
@@ -42,24 +49,41 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# VS Code
+# VS Code / IDEs
 .vscode/
+.idea/
+*.swp
+*.swo
 
 # Tool-specific (Antigravity/GSD/Firebase)
 .gemini/
+.agent/
 .agents/
 .continue/
 .gsd/
+.gsdV2/
+.gsd-previous/
 .firebase/
+.next/
 skills-lock.json
 tmp/
 scratch/
+artifacts/
 
-# Large artifacts & debug scripts
-all_files.txt
-all_fields.txt
-fields.txt
-debug-fields.js
-debug-fields-v2.js
-debug-legacy-fields.js
-pdfs.csv
+# Reference Folders (Not needed in production)
+/legacy/
+/UI_reference/
+
+# Generic root file dumps
+/*.txt
+/*.csv
+
+# Documentation & Markdown
+# Ignore all markdown files by default
+*.md
+# ... but whitelist the core readme
+!README.md
+
+# Infrastructure
+model_capabilities.yaml
+

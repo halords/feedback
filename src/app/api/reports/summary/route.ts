@@ -1,5 +1,8 @@
 import { getDashboardMetrics } from "@/lib/services/metricsService";
 import { generateSummaryReport } from "@/lib/reports/pdfGenerator";
+import { verifySession } from "@/lib/auth/verifySession";
+import { resolveAuthorizedOffices } from "@/lib/auth/rbac";
+
 
 export async function GET(request: Request) {
   try {
@@ -11,9 +14,13 @@ export async function GET(request: Request) {
       return new Response("Missing parameters", { status: 400 });
     }
 
-    // 1. Fetch metrics for ALL offices
-    // Note: We use ["ALL"] to get the full organizational list for the matrix
-    const allMetrics = await getDashboardMetrics(["ALL"], month, year);
+    const user = await verifySession();
+    const isAdmin = user.user_type?.toLowerCase() === "superadmin";
+
+    // 1. Fetch metrics for authorized offices
+    // RBAC: Non-admins are limited to their assignments via resolveAuthorizedOffices
+    const officeList = resolveAuthorizedOffices(user, ["ALL"], true);
+    const allMetrics = await getDashboardMetrics(officeList, month, year);
     
     if (!allMetrics || allMetrics.length === 0) {
       return new Response("No data found for the selected period", { status: 404 });
@@ -31,6 +38,8 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: any) {
+    if (error.message === 'Unauthorized') return new Response("Unauthorized", { status: 401 });
+    if (error.message === 'Forbidden') return new Response("Forbidden", { status: 403 });
     console.error("[API] Summary Report Error:", error);
     return new Response(error.message || "Internal server error", { status: 500 });
   }

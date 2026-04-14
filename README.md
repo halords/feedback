@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # PGLU Feedback v2
 
 A modern, high-fidelity customer feedback and analytics dashboard for the Provincial Government of La Union. This project is a Next.js re-implementation of the legacy feedback system, focusing on premium UI/UX, robust reporting, and real-time data visualization.
@@ -12,22 +11,23 @@ A modern, high-fidelity customer feedback and analytics dashboard for the Provin
 - **Summary Matrix**: Organizational performance summary across all departments.
 - **Dynamic Graphs**: High-fidelity visualization of satisfaction rates, demographics, and regional trends.
 - **Trend Analysis**: Monitor performance shifts over custom date ranges.
+- **Performance Optimized**: Server-side range sweep filtering for 90%+ Firestore read reduction.
 
 ### 📄 Professional Reporting (PDF)
 - **AcroForm Integration**: Generates high-fidelity PDF reports with 100% visual parity to legacy systems.
-- **Bulk & Individual Generation**: Ability to download consolidated organizational reports or deep-dives for specific offices.
+- **Bulk & Individual Generation**: Consolidated organizational reports or deep-dives for specific offices.
 - **Data Centering & Auto-filling**: Automated mapping of Firestore data to PDF templates.
 
 ### 👤 User & Office Management
 - **RBAC (Role-Based Access Control)**: Granular permissions for Superadmins and Department-level users.
-- **Data Isolation**: Ensures users only see responses and analytics relevant to their assigned offices.
-- **Office Synchronization**: Centralized management of government offices and their respective metrics.
+- **Data Isolation**: Users only see responses and analytics relevant to their assigned offices.
+- **Office Management**: Full CRUD for government offices with soft-disable and user-assignment syncing.
 
 ### 🎨 Premium UI/UX
-- **Indigo Slate Professional Design**: A custom design system built with Tailwind CSS and Next.js.
-- **Adaptive Dark Mode**: Manual theme switching with persistent user preferences.
-- **Micro-animations**: Smooth transitions and interactive elements using Framer Motion (or CSS keyframes).
-- **Responsive Layout**: Designed for tablets and desktop administrative use.
+- **Indigo Slate Professional Design**: Custom design system built with Tailwind CSS and Next.js.
+- **Manual Toggle Sidebar**: Persistent, user-controllable navigation layout.
+- **Performance Indicators**: Global page-transition progress bar and descriptive skeleton loaders.
+- **Micro-animations**: Smooth transitions and interactive elements using standard CSS keyframes.
 
 ## 🛠 Tech Stack
 
@@ -35,7 +35,7 @@ A modern, high-fidelity customer feedback and analytics dashboard for the Provin
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS (Modern Theme v4)
 - **Database/Auth**: Firebase & Firestore
-- **State Management**: React Context API
+- **State Management**: React Context API + SWR
 - **Icons**: Lucide React
 - **PDF Generation**: `pdf-lib` with AcroForm support
 
@@ -53,21 +53,11 @@ A modern, high-fidelity customer feedback and analytics dashboard for the Provin
    ```
 
 3. **Environment Setup**:
-   Create a `.env.local` file in the root directory and add your Firebase configurations:
-   ```env
-   NEXT_PUBLIC_FIREBASE_API_KEY=your_key
-   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_domain
-   ...
-   ```
+   Create a `.env.local` file in the root directory and add your Firebase configurations.
 
 4. **Run the development server**:
    ```bash
    npm run dev
-   ```
-
-5. **Build for production**:
-   ```bash
-   npm run build
    ```
 
 ## 🏗 Project Structure
@@ -76,7 +66,7 @@ A modern, high-fidelity customer feedback and analytics dashboard for the Provin
 src/
 ├── app/            # Next.js App Router (Routes & Layouts)
 ├── components/     # Reusable UI & Feature-specific components
-├── context/        # Global state (Auth, Analytics, Dashboard)
+├── context/        # Global state (Auth, Analytics)
 ├── lib/            # Shared utilities and service layer
 │   ├── services/   # Business logic (Metrics, Analytics)
 │   └── reports/    # PDF generation engine
@@ -86,71 +76,3 @@ src/
 ## 📄 License
 
 This project is proprietary software for the Provincial Government of La Union.
-=======
-# 📊 Customer Feedback Management Web App (Firebase + Node.js + PDF Reports)
-
-A full-featured feedback tracking and reporting web application built using HTML, Bootstrap, Tailwind CSS, and vanilla JavaScript (frontend), with a Node.js backend and Firebase Firestore as the database. This system includes secure user login, CRUD operations, PDF generation with `pdf-lib`, admin-level user management, monthly chart dashboards, and consolidated report exports.
-
----
-
-## ✨ Features
-
-### 🔐 Authentication
-- Secure **login system** using `bcrypt` for password hashing
-- User-based access control (regular users vs. admin)
-
-### 📊 Dashboard
-- View **charts of feedback trends** (monthly filtered)
-- Visualize response counts, categories, and more
-
-### 📥 Responses (User-level)
-- View **only your assigned office's responses**
-- Filter by **month** and view classified comments:
-  - Positive
-  - Negative
-  - Suggestion
-
-### 📂 All Responses (Admin-level)
-- View **all responses in the system**
-- Filter globally by **month and year**
-
-### 📄 Reports
-- **Monthly Consolidated Report**: By office, exported as PDF
-- **Summary Report**: Aggregate data across all offices, PDF-exportable
-- **Charts Report**: Visual feedback charts also exportable as PDF
-
-> All PDF exports are powered by [`pdf-lib`](https://pdf-lib.js.org/)
-
-### 👥 User Management (Admin only)
-- Add and delete users
-- Assign specific offices for users to manage
-- Role-based access and functionality visibility
-
----
-
-## 🖥️ Tech Stack
-
-### Frontend
-- HTML5
-- Bootstrap 5
-- Tailwind CSS (utility-first enhancements)
-- Vanilla JavaScript
-
-### Backend
-- Node.js (JavaScript)
-- Express.js (if applicable)
-
-### Database
-- Firebase Firestore (NoSQL, cloud-hosted)
-
-### Auth
-- `bcrypt` for secure password hashing
-
-### PDF Generation
-- `pdf-lib` for custom, client-side PDF generation
-
----
-
-### 🙋‍♂️ Author
-Created by Harold
->>>>>>> 1cb3ded4651be1e2f63034bd74a559245550b4a3

@@ -6,7 +6,7 @@ import { useDashboard } from "@/context/DashboardContext";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { Card } from "@/components/ui/Card";
 import { Bar, Line, Doughnut } from "react-chartjs-2";
-import { Users, TrendingUp, CheckCircle2, AlertCircle } from "lucide-react";
+import { Users, TrendingUp, CheckCircle2, AlertCircle, MapPin } from "lucide-react";
 import { clsx } from "clsx";
 
 import { KPIGrid } from "@/components/dashboard/KPIGrid";
@@ -22,8 +22,25 @@ export default function DashboardPage() {
 }
 
 function DashboardContent() {
-  const { data, month: selectedMonth, isLoading } = useDashboard();
+  const { data, month: selectedMonth, isLoading, offices } = useDashboard();
   
+  if (!isLoading && offices.length === 0) {
+    return (
+      <div className="py-32 flex flex-col items-center justify-center text-center space-y-6 animate-in fade-in zoom-in duration-700">
+        <div className="w-32 h-32 bg-primary/5 rounded-[40px] flex items-center justify-center border-4 border-white shadow-xl ring-1 ring-primary/5 relative overflow-hidden group">
+          <div className="absolute inset-0 bg-primary/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+          <MapPin className="w-14 h-14 text-primary relative z-10" />
+        </div>
+        <div className="max-w-md space-y-2">
+          <h3 className="text-2xl font-black text-primary tracking-tight">Select a Department</h3>
+          <p className="text-on-surface/50 font-medium leading-relaxed">
+            Choose an office from the dropdown above to generate real-time satisfaction analytics.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Filter data for the strictly selected month (Summary Cards)
   const currentMonthData = data?.filter((d: any) => d.month === selectedMonth) || [];
 
@@ -45,28 +62,24 @@ function DashboardContent() {
           label="Total Collection"
           value={currentMonthData.reduce((acc: number, curr: any) => acc + curr.collection, 0).toLocaleString()}
           isLoading={isLoading}
-          trend="+12%"
         />
         <StatCard 
           icon={<TrendingUp className="w-5 h-5 text-primary" />}
           label="Avg. Satisfaction"
           value={avgSat}
           isLoading={isLoading}
-          trend="+5%"
         />
         <StatCard 
           icon={<CheckCircle2 className="w-5 h-5 text-tertiary" />}
           label="Total Positive"
           value={currentMonthData.reduce((acc: number, curr: any) => acc + curr.comments.positive.length, 0).toLocaleString()}
           isLoading={isLoading}
-          trend="+8%"
         />
         <StatCard 
           icon={<AlertCircle className="w-5 h-5 text-red-500" />}
           label="Pending Complaints"
           value={currentMonthData.reduce((acc: number, curr: any) => acc + curr.comments.negative.length, 0).toLocaleString()}
           isLoading={isLoading}
-          trend="-2%"
         />
       </div>
 
@@ -82,16 +95,11 @@ function DashboardContent() {
   );
 }
 
-function StatCard({ icon, label, value, trend, isLoading }: { icon: any, label: string, value: string, trend: string, isLoading?: boolean }) {
+function StatCard({ icon, label, value, isLoading }: { icon: any, label: string, value: string, isLoading?: boolean }) {
   return (
     <Card className="flex flex-col gap-2 p-6 hover:translate-y-[-4px] transition-transform duration-300">
       <div className="flex items-center justify-between">
         <div className="p-2 bg-surface-low rounded-lg">{icon}</div>
-        {!isLoading ? (
-          <span className={clsx("text-xs font-bold", trend.startsWith('+') ? "text-tertiary" : "text-red-500")}>{trend}</span>
-        ) : (
-          <div className="h-4 w-8 bg-on-surface/5 rounded animate-pulse" />
-        )}
       </div>
       <div>
         <p className="text-[10px] uppercase font-bold tracking-widest text-on-surface/40">{label}</p>

@@ -66,7 +66,7 @@ export default function AnalyticsClient() {
   if (isLoading || !user) return <div className="animate-pulse bg-surface h-screen" />;
 
   return (
-    <AnalyticsProvider>
+    <AnalyticsProvider activeTab={activeTab}>
       <Shell>
         <AnalyticsHeader activeTab={activeTab} setActiveTab={setActiveTab} />
 

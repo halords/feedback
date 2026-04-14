@@ -96,8 +96,22 @@ const legacyPlugin = (footer: string) => ({
 });
 
 export function GraphsView() {
-  const { data: currentData, month, year, isLoading: currentLoading } = useAnalytics();
+  const { data: currentData, month, year, isLoading: currentLoading, setIsGraphsReady } = useAnalytics();
   const [logoReady, setLogoReady] = useState(false);
+  const [renderedCount, setRenderedCount] = useState(0);
+
+  // Reset readiness when filters change
+  useEffect(() => {
+    setIsGraphsReady(false);
+    setRenderedCount(0);
+  }, [month, year, setIsGraphsReady]);
+
+  // Check if finished
+  useEffect(() => {
+    if (renderedCount >= 9) {
+      setIsGraphsReady(true);
+    }
+  }, [renderedCount, setIsGraphsReady]);
 
   useEffect(() => {
     const img = new Image();
@@ -112,38 +126,45 @@ export function GraphsView() {
 
   const entries = useMemo(() => {
     if (!currentData || !Array.isArray(currentData)) return [];
-    return currentData.filter(o => o.overrate !== "N/A");
+    return currentData;
   }, [currentData]);
 
   const labels = useMemo(() => entries.map(o => o.department), [entries]);
 
-  const genRatingData = { labels, datasets: [{ label: "General Rating", data: entries.map(o => parseFloat(o.overrate)), borderColor: COLORS.GENERAL, backgroundColor: "transparent", borderWidth: 3, tension: 0.4 }] };
+  const parseOrZero = (val: any) => (val === "N/A" || !val) ? 0 : parseFloat(val);
+
+  const genRatingData = { labels, datasets: [{ label: "General Rating", data: entries.map(o => parseOrZero(o.overrate)), borderColor: COLORS.GENERAL, backgroundColor: "transparent", borderWidth: 3, tension: 0.4 }] };
   const summaryData = { labels, datasets: [
-    { label: "Environment", data: entries.map(o => parseFloat(o.qValues.Q1?.RATE || "0")), backgroundColor: COLORS.ENVIRONMENT },
-    { label: "Systems and Procedures", data: entries.map(o => parseFloat(o.sysRate || "0")), backgroundColor: COLORS.SYSTEMS },
-    { label: "Staff Service", data: entries.map(o => parseFloat(o.staffRate || "0")), backgroundColor: COLORS.STAFF }
+    { label: "Environment", data: entries.map(o => parseOrZero(o.qValues.Q1?.RATE)), backgroundColor: COLORS.ENVIRONMENT },
+    { label: "Systems and Procedures", data: entries.map(o => parseOrZero(o.sysRate)), backgroundColor: COLORS.SYSTEMS },
+    { label: "Staff Service", data: entries.map(o => parseOrZero(o.staffRate)), backgroundColor: COLORS.STAFF }
   ]};
-  const enviData = { labels, datasets: [{ label: "Environment", data: entries.map(o => parseFloat(o.qValues.Q1?.RATE || "0")), borderColor: COLORS.ENVIRONMENT, backgroundColor: "transparent", borderWidth: 3, tension: 0.4 }] };
-  const sysprocData = { labels, datasets: [{ label: "Systems and Procedures", data: entries.map(o => parseFloat(o.sysRate || "0")), borderColor: COLORS.SYSTEMS, backgroundColor: "transparent", borderWidth: 3, tension: 0.4 }] };
-  const staffData = { labels, datasets: [{ label: "Staff Service", data: entries.map(o => parseFloat(o.staffRate || "0")), borderColor: COLORS.STAFF, backgroundColor: "transparent", borderWidth: 3, tension: 0.4 }] };
+  const enviData = { labels, datasets: [{ label: "Environment", data: entries.map(o => parseOrZero(o.qValues.Q1?.RATE)), borderColor: COLORS.ENVIRONMENT, backgroundColor: "transparent", borderWidth: 3, tension: 0.4 }] };
+  const sysprocData = { labels, datasets: [{ label: "Systems and Procedures", data: entries.map(o => parseOrZero(o.sysRate)), borderColor: COLORS.SYSTEMS, backgroundColor: "transparent", borderWidth: 3, tension: 0.4 }] };
+  const staffData = { labels, datasets: [{ label: "Staff Service", data: entries.map(o => parseOrZero(o.staffRate)), borderColor: COLORS.STAFF, backgroundColor: "transparent", borderWidth: 3, tension: 0.4 }] };
+
+  const activeMonths = useMemo(() => {
+    const idx = MONTHS.indexOf(month);
+    return MONTHS.slice(0, idx + 1);
+  }, [month]);
 
   const monthlyRatingTrend = useMemo(() => {
     if (!trendData || !Array.isArray(trendData)) return null;
-    const monthlyAverages = MONTHS.map(m => {
+    const monthlyAverages = activeMonths.map(m => {
       const monthStats = trendData.filter(d => d.month === m);
       if (monthStats.length === 0) return 0;
       let sum = 0, count = 0;
       monthStats.forEach(s => { if (s.overrate !== "N/A") { sum += parseFloat(s.overrate); count++; } });
       return count > 0 ? parseFloat((sum / count).toFixed(2)) : 0;
     });
-    return { labels: MONTHS, datasets: [{ label: "Monthly Rating", data: monthlyAverages, borderColor: COLORS.GENERAL, borderWidth: 3, tension: 0.4 }] };
-  }, [trendData]);
+    return { labels: activeMonths, datasets: [{ label: "Monthly Rating", data: monthlyAverages, borderColor: COLORS.GENERAL, borderWidth: 3, tension: 0.4 }] };
+  }, [trendData, activeMonths]);
 
   const monthlyResTrend = useMemo(() => {
     if (!trendData || !Array.isArray(trendData)) return null;
-    const monthlyTotals = MONTHS.map(m => trendData.filter(d => d.month === m).reduce((acc, curr) => acc + curr.collection, 0));
-    return { labels: MONTHS, datasets: [{ label: "Monthly Respondents", data: monthlyTotals, borderColor: COLORS.GENERAL, borderWidth: 3, tension: 0.4 }] };
-  }, [trendData]);
+    const monthlyTotals = activeMonths.map(m => trendData.filter(d => d.month === m).reduce((acc, curr) => acc + curr.collection, 0));
+    return { labels: activeMonths, datasets: [{ label: "Monthly Respondents", data: monthlyTotals, borderColor: COLORS.GENERAL, borderWidth: 3, tension: 0.4 }] };
+  }, [trendData, activeMonths]);
 
   const genderData = useMemo(() => {
     if (!entries.length) return null;
@@ -235,7 +256,21 @@ export function GraphsView() {
   };
 
   if ((currentLoading && !currentData) || trendLoading) {
-    return <div className="space-y-8 animate-pulse">{[...Array(9)].map((_, i) => <div key={i} className="h-[500px] bg-on-surface/5 rounded-2xl" />)}</div>;
+    return (
+      <div className="flex flex-col gap-12 pb-40">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="bg-white rounded-3xl p-8 border border-on-surface/5 shadow-2xl h-[500px] flex flex-col gap-6 animate-pulse">
+            <div className="flex flex-col items-center gap-2">
+               <div className="h-4 w-64 bg-on-surface/5 rounded" />
+               <div className="h-4 w-96 bg-on-surface/5 rounded" />
+            </div>
+            <div className="flex-grow bg-on-surface/[0.02] rounded-2xl flex items-center justify-center">
+               <p className="text-[10px] font-black uppercase tracking-widest text-on-surface/20">Synthesizing analytics data...</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   }
 
   return (
@@ -250,29 +285,49 @@ export function GraphsView() {
         </div>
       )}
 
-      <ChartCard canvasId="genRating" data={genRatingData} options={getOptions("General Rating")} type="line" footer="ADM-050-1" />
-      <ChartCard canvasId="summary" data={summaryData} options={getOptions("Graphical Summary Report")} type="bar" footer="ADM-051-1" />
-      <ChartCard canvasId="envi" data={enviData} options={getOptions("Environment Rating")} type="line" footer="ADM-052-1" />
-      <ChartCard canvasId="sysproc" data={sysprocData} options={getOptions("Systems and Procedures Rating")} type="line" footer="ADM-053-1" />
-      <ChartCard canvasId="staffData" data={staffData} options={getOptions("Staff Service Rating")} type="line" footer="ADM-054-1" />
-      <ChartCard canvasId="monthlyRating" data={monthlyRatingTrend} options={getOptions("Monthly Rating")} type="line" footer="ADM-055-0" />
-      <ChartCard canvasId="monthlyRes" data={monthlyResTrend} options={getOptions("Monthly Respondents")} type="line" footer="ADM-056-0" />
-      <div className="bg-white rounded-3xl p-6 border border-on-surface/5 shadow-2xl flex items-center justify-center">
-        {genderData && <Pie id="genders" data={genderData} options={getOptions("Gender", true)} plugins={[legacyPlugin("ADM-057-0")]} />}
+      <ChartCard canvasId="genRating" data={genRatingData} options={getOptions("General Rating")} type="line" footer="ADM-050-1" onRendered={() => setRenderedCount(prev => prev + 1)} />
+      <ChartCard canvasId="summary" data={summaryData} options={getOptions("Graphical Summary Report")} type="bar" footer="ADM-051-1" onRendered={() => setRenderedCount(prev => prev + 1)} />
+      <ChartCard canvasId="envi" data={enviData} options={getOptions("Environment Rating")} type="line" footer="ADM-052-1" onRendered={() => setRenderedCount(prev => prev + 1)} />
+      <ChartCard canvasId="sysproc" data={sysprocData} options={getOptions("Systems and Procedures Rating")} type="line" footer="ADM-053-1" onRendered={() => setRenderedCount(prev => prev + 1)} />
+      <ChartCard canvasId="staffData" data={staffData} options={getOptions("Staff Service Rating")} type="line" footer="ADM-054-1" onRendered={() => setRenderedCount(prev => prev + 1)} />
+      <ChartCard canvasId="monthlyRating" data={monthlyRatingTrend} options={getOptions("Monthly Rating")} type="line" footer="ADM-055-0" onRendered={() => setRenderedCount(prev => prev + 1)} />
+      <ChartCard canvasId="monthlyRes" data={monthlyResTrend} options={getOptions("Monthly Respondents")} type="line" footer="ADM-056-0" onRendered={() => setRenderedCount(prev => prev + 1)} />
+      <div className="bg-white rounded-3xl p-6 border border-on-surface/5 shadow-2xl flex flex-col items-center justify-center min-h-[400px]">
+        {genderData && (
+          <Pie 
+            id="genders" 
+            data={genderData} 
+            options={{
+              ...getOptions("Gender", true),
+              animation: {
+                onComplete: () => setRenderedCount(prev => prev + 1)
+              }
+            }} 
+            plugins={[legacyPlugin("ADM-057-0")]} 
+          />
+        )}
       </div>
-      <ChartCard canvasId="resDist" data={resDistData} options={getOptions("Respondents Distribution")} type="bar" footer="" />
+      <ChartCard canvasId="resDist" data={resDistData} options={getOptions("Respondents Distribution")} type="bar" footer="" onRendered={() => setRenderedCount(prev => prev + 1)} />
     </div>
   );
 }
 
-function ChartCard({ canvasId, data, options, type, footer }: { canvasId: string, data: any, options: any, type: "line" | "bar", footer: string }) {
-  if (!data) return null;
+function ChartCard({ canvasId, data, options, type, footer, onRendered }: { canvasId: string, data: any, options: any, type: "line" | "bar", footer: string, onRendered?: () => void }) {
   const plugins = useMemo(() => [legacyPlugin(footer)], [footer]);
+  if (!data) return null;
+
+  const mergedOptions = {
+    ...options,
+    animation: {
+      onComplete: onRendered
+    }
+  };
+
   return (
     <div className="bg-white rounded-3xl p-6 border border-on-surface/5 shadow-2xl overflow-hidden">
       <div>
-        {type === "line" && <Line id={canvasId} data={data} options={options} plugins={plugins} />}
-        {type === "bar" && <Bar id={canvasId} data={data} options={options} plugins={plugins} />}
+        {type === "line" && <Line id={canvasId} data={data} options={mergedOptions} plugins={plugins} />}
+        {type === "bar" && <Bar id={canvasId} data={data} options={mergedOptions} plugins={plugins} />}
       </div>
     </div>
   );

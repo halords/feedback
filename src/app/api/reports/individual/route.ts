@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getDashboardMetrics } from "@/lib/services/metricsService";
 import { getOfficeAssignee } from "@/lib/services/officeService";
 import { generateIndividualReport, ReportData } from "@/lib/reports/pdfGenerator";
+import { verifySession } from "@/lib/auth/verifySession";
+import { resolveAuthorizedOffices } from "@/lib/auth/rbac";
 
 export async function GET(request: Request) {
   try {
@@ -12,6 +14,13 @@ export async function GET(request: Request) {
 
     if (!office || !month || !year) {
       return new Response("Missing parameters", { status: 400 });
+    }
+
+    const user = await verifySession();
+    const authorizedOffices = resolveAuthorizedOffices(user, [office]);
+
+    if (authorizedOffices.length === 0 || !authorizedOffices.includes(office)) {
+      return new Response("Forbidden: You do not have access to this office", { status: 403 });
     }
 
     // 1. Fetch metrics for this specific office
@@ -67,6 +76,8 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: any) {
+    if (error.message === 'Unauthorized') return new Response("Unauthorized", { status: 401 });
+    if (error.message === 'Forbidden') return new Response("Forbidden", { status: 403 });
     console.error("Individual Report API error:", error);
     return new Response(error.message || "Internal server error", { status: 500 });
   }

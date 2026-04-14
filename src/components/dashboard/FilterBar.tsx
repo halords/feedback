@@ -47,12 +47,16 @@ export function FilterBar() {
   const { user } = useAuth();
   
   const officeList = useMemo(() => {
-    if (!rawOfficeList) return [];
+    if (!Array.isArray(rawOfficeList)) return [];
+    const activeOffices = rawOfficeList.filter((o: any) => o.status !== "disabled");
     const isSuperadmin = user?.user_type?.toLowerCase() === "superadmin";
-    if (isSuperadmin) return rawOfficeList;
+    if (isSuperadmin) return activeOffices;
     
-    const userOffices = user?.offices || [];
-    return rawOfficeList.filter((off: any) => userOffices.includes(off.name));
+    const userOffices = (user?.offices || []).map(o => o.toLowerCase());
+    return activeOffices.filter((off: any) => 
+      userOffices.includes(off.name.toLowerCase()) || 
+      userOffices.includes(off.id.toLowerCase())
+    );
   }, [rawOfficeList, user]);
 
   return (
@@ -80,10 +84,10 @@ export function FilterBar() {
               "appearance-none outline-none transition-all duration-200 focus:border-primary shadow-sm"
             )}
           >
-            <option value="">{user?.user_type?.toLowerCase() === "superadmin" ? "All Offices (Global)" : "Select an office..."}</option>
+            <option value="">Select an office...</option>
             {officeList.length > 1 && (
               <option value="ALL_AUTHORIZED">
-                {user?.user_type?.toLowerCase() === "superadmin" ? "Compare All Offices" : "All My Assigned Offices"}
+                {user?.user_type?.toLowerCase() === 'superadmin' ? 'Entire Organization (All Offices)' : 'All My Assigned Offices'}
               </option>
             )}
             {selectedOffices.length > 1 && selectedOffices.length < officeList.length && (

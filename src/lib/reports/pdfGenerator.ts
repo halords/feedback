@@ -213,27 +213,48 @@ export async function generateIndividualReport(data: ReportData) {
 }
 
 async function addAttachmentPage(pdfDoc: PDFDocument, data: ReportData, font: any) {
-  const page = pdfDoc.addPage();
-  const { width, height } = page.getSize();
+  // Folio Size: 8.5" x 13" -> 612 x 936 points
+  const FOLIO: [number, number] = [612, 936];
   const margin = 50;
   const lineHeight = 16;
   const fontSize = 12;
-  const maxWidth = width - (margin * 2);
-  let y = height - margin;
+  const maxWidth = FOLIO[0] - (margin * 2);
+  
+  let currentPage = pdfDoc.addPage(FOLIO);
+  let y = FOLIO[1] - margin;
+
+  const checkPageOverflow = (neededHeight: number) => {
+    if (y - neededHeight < margin) {
+      currentPage = pdfDoc.addPage(FOLIO);
+      y = FOLIO[1] - margin;
+      return true;
+    }
+    return false;
+  };
 
   const drawSection = (label: string, items: string[]) => {
     if (items.length === 0) return;
-    page.drawText(label, { x: margin, y, size: fontSize, font, color: rgb(0, 0, 0) });
+
+    // Check if we need a new page for the label
+    checkPageOverflow(lineHeight * 2);
+    
+    currentPage.drawText(label, { x: margin, y, size: fontSize, font, color: rgb(0, 0, 0) });
     y -= lineHeight;
 
     items.forEach((item, idx) => {
       const wrapped = wrapText(`${idx + 1}. ${cleanseText(item)}`, font, fontSize, maxWidth);
       wrapped.forEach(line => {
-        page.drawText(line, { x: margin, y, size: fontSize, font, color: rgb(0, 0, 0) });
+        // Check if this specific line fits, if not, new page
+        if (checkPageOverflow(lineHeight)) {
+          // If we rolled over to a new page, maybe re-draw the label? 
+          // (Usually not needed for attachments, just continue)
+        }
+        currentPage.drawText(line, { x: margin, y, size: fontSize, font, color: rgb(0, 0, 0) });
         y -= lineHeight;
       });
     });
-    y -= 10;
+    
+    y -= 15; // Extra gap between sections
   };
 
   drawSection('Commendations:', data.comments.positive);

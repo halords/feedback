@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
+import { MultiSelectPills } from "@/components/ui/MultiSelectPills";
 import { clsx } from "clsx";
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
@@ -30,6 +31,17 @@ export default function UsersTable() {
       u.office?.toLowerCase().includes(search.toLowerCase())
     );
   }, [users, search]);
+
+  const allAssignedOffices = useMemo(() => {
+    if (!users || !Array.isArray(users)) return new Set<string>();
+    const set = new Set<string>();
+    users.forEach((u: any) => {
+      u.officeAssignments?.forEach((off: string) => {
+        if (off) set.add(off);
+      });
+    });
+    return set;
+  }, [users]);
 
   return (
     <div className="space-y-6">
@@ -148,6 +160,7 @@ export default function UsersTable() {
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
         offices={offices}
+        allAssignedOffices={allAssignedOffices}
         onSuccess={() => mutate()}
       />
 
@@ -156,6 +169,7 @@ export default function UsersTable() {
         onClose={() => setIsAssignModalOpen(false)} 
         user={selectedUser}
         allOffices={offices}
+        allAssignedOffices={allAssignedOffices}
         onSuccess={() => mutate()}
       />
     </div>
@@ -165,7 +179,7 @@ export default function UsersTable() {
 /**
  * Add User Modal Component
  */
-function AddUserModal({ isOpen, onClose, offices, onSuccess }: any) {
+function AddUserModal({ isOpen, onClose, offices, allAssignedOffices, onSuccess }: any) {
   const [formData, setFormData] = useState({
     full_name: "",
     idno: "",
@@ -246,7 +260,7 @@ function AddUserModal({ isOpen, onClose, offices, onSuccess }: any) {
               onChange={(e) => setFormData({...formData, office: e.target.value})}
             >
               <option value="">Select Office...</option>
-              {offices?.map((o: any) => (
+              {offices?.filter((o: any) => o.status === "active" && !allAssignedOffices.has(o.name)).map((o: any) => (
                 <option key={o.id} value={o.name}>{o.name}</option>
               ))}
             </select>
@@ -274,24 +288,13 @@ function AddUserModal({ isOpen, onClose, offices, onSuccess }: any) {
         </div>
 
         <div className="space-y-4">
-          <label className="block text-xs font-black uppercase tracking-widest text-primary px-1">Grant Office Access</label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-4 bg-on-surface/5 rounded-2xl custom-scrollbar-reports">
-            {offices?.map((o: any) => (
-              <button
-                key={o.id}
-                type="button"
-                onClick={() => toggleOffice(o.name)}
-                className={clsx(
-                  "p-3 rounded-xl text-[10px] font-black text-center transition-all border-2",
-                  formData.office_assignment.includes(o.name)
-                    ? "bg-primary text-white border-primary shadow-lg scale-[1.02]"
-                    : "bg-surface text-on-surface/40 border-transparent hover:border-on-surface/10"
-                )}
-              >
-                {o.name}
-              </button>
-            ))}
-          </div>
+          <MultiSelectPills 
+            label="Grant Office Access"
+            options={offices?.filter((o: any) => o.status === "active" && !allAssignedOffices.has(o.name)) || []}
+            selectedValues={formData.office_assignment}
+            onChange={(vals) => setFormData({...formData, office_assignment: vals})}
+            placeholder="Search and add unassigned offices..."
+          />
         </div>
 
         <div className="pt-6 border-t border-on-surface/5 flex justify-end gap-4">
@@ -308,7 +311,7 @@ function AddUserModal({ isOpen, onClose, offices, onSuccess }: any) {
 /**
  * Assign Modal Component
  */
-function AssignModal({ isOpen, onClose, user, allOffices, onSuccess }: any) {
+function AssignModal({ isOpen, onClose, user, allOffices, allAssignedOffices, onSuccess }: any) {
   const [selected, setSelected] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -359,34 +362,20 @@ function AssignModal({ isOpen, onClose, user, allOffices, onSuccess }: any) {
         </div>
 
         <div className="space-y-4">
-           <div className="flex items-center justify-between px-1">
-             <label className="text-xs font-black uppercase tracking-widest text-on-surface/40">Select Assigned Offices</label>
-             <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">
-               {selected.length} Selected
-             </span>
-           </div>
-           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-[40vh] overflow-y-auto p-4 bg-on-surface/5 rounded-3xl custom-scrollbar-reports">
-              {allOffices?.map((o: any) => {
-                const isSelected = selected.includes(o.name);
-                return (
-                  <button
-                    key={o.id}
-                    onClick={() => toggle(o.name)}
-                    className={clsx(
-                      "flex items-center justify-between p-4 rounded-2xl transition-all border-2 text-left",
-                      isSelected 
-                        ? "bg-white border-primary shadow-md scale-[1.02]" 
-                        : "bg-transparent border-on-surface/5 text-on-surface/40 hover:bg-white/50"
-                    )}
-                  >
-                    <span className={clsx("text-[11px] font-black leading-tight", isSelected ? "text-primary" : "text-on-surface/40")}>
-                      {o.name}
-                    </span>
-                    {isSelected && <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center"><Check className="w-3 h-3 text-white" /></div>}
-                  </button>
-                );
-              })}
-           </div>
+           <MultiSelectPills 
+             label="Assigned Offices"
+             options={allOffices?.filter((o: any) => {
+               const isActive = o.status === "active";
+               const isAssignedToOthers = allAssignedOffices.has(o.name) && !user?.officeAssignments?.includes(o.name);
+               return isActive && !isAssignedToOthers;
+             }) || []}
+             selectedValues={selected}
+             onChange={setSelected}
+             placeholder="Add office access..."
+           />
+           <p className="text-[10px] text-on-surface/30 px-1 font-bold italic">
+             * To remove access, click the 'x' on the pill. Only unassigned active offices can be added.
+           </p>
         </div>
 
         <div className="pt-6 flex justify-end gap-4">

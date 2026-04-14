@@ -26,20 +26,52 @@ const YEARS = ["2025", "2026"];
 export function ResponsesClient() {
   const { user, isLoading: authLoading } = useAuth();
   
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonthIdx = now.getMonth();
+  const baselineYear = 2025;
+  
+  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
+  const [selectedMonth, setSelectedMonth] = useState(MONTHS[currentMonthIdx]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState(MONTHS[new Date().getMonth()]);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [selectedOffice, setSelectedOffice] = useState("ALL");
   const [isClassifyModalOpen, setIsClassifyModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"my" | "all">("my");
+
+  const availableYears = useMemo(() => {
+    return Array.from(
+      { length: currentYear - baselineYear + 1 }, 
+      (_, i) => (baselineYear + i).toString()
+    );
+  }, [currentYear]);
+
+  const availableMonths = useMemo(() => {
+    const selectedYearInt = parseInt(selectedYear);
+    if (selectedYearInt === currentYear) {
+      return MONTHS.slice(0, currentMonthIdx + 1);
+    }
+    return MONTHS;
+  }, [selectedYear, currentYear, currentMonthIdx]);
+
+  // Adjust month if invalid for year
+  React.useEffect(() => {
+    if (!availableMonths.includes(selectedMonth)) {
+      setSelectedMonth(availableMonths[availableMonths.length - 1]);
+    }
+  }, [availableMonths, selectedMonth]);
+
+  const { data: offices } = useSWR("/api/offices", (url) => fetch(url).then(res => res.json()));
 
   const isSuperadmin = user?.user_type?.toLowerCase() === "superadmin";
 
   // Office selection logic based on tab
   const targetOffices = useMemo(() => {
     if (!user) return [];
-    if (activeTab === "all" || isSuperadmin) return ["ALL"];
+    if (activeTab === "all") {
+        return selectedOffice === "ALL" ? ["ALL"] : [selectedOffice];
+    }
     return user.offices || [];
-  }, [user, activeTab, isSuperadmin]);
+  }, [user, activeTab, selectedOffice]);
 
   // Fetch data
   const { data: responses, isLoading, mutate } = useSWR(
@@ -130,7 +162,7 @@ export function ResponsesClient() {
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
             >
-              {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+              {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
 
             <select
@@ -138,25 +170,38 @@ export function ResponsesClient() {
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
             >
-              {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
+
+            {activeTab === "all" && (
+              <select
+                className="bg-white border border-on-surface/5 rounded-2xl py-3 px-4 text-xs font-black uppercase tracking-widest focus:ring-2 focus:ring-primary/20 transition-all shadow-sm cursor-pointer outline-none min-w-[160px]"
+                value={selectedOffice}
+                onChange={(e) => setSelectedOffice(e.target.value)}
+              >
+                <option value="ALL">ALL OFFICES</option>
+                {offices?.filter((o: any) => o.status !== "disabled").map((o: any) => (
+                  <option key={o.id} value={o.name}>{o.name}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto">
-            {activeTab === "my" && (
+            {(activeTab === "my" || isSuperadmin) && (
               <button
                 onClick={() => setIsClassifyModalOpen(true)}
                 className={clsx(
                   "flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
-                  unclassifiedCount > 0 
+                  (unclassifiedCount > 0 && !(activeTab === "all" && !isSuperadmin))
                     ? "bg-primary text-white hover:translate-y-[-2px] hover:shadow-lg hover:shadow-primary/20" 
                     : "bg-surface-low text-on-surface/30 border border-on-surface/5 cursor-not-allowed"
                 )}
-                disabled={unclassifiedCount === 0}
+                disabled={unclassifiedCount === 0 || (activeTab === "all" && !isSuperadmin)}
               >
                 <Tag className="w-3.5 h-3.5" />
-                Classify Comments
-                {unclassifiedCount > 0 && (
+                {activeTab === "all" && !isSuperadmin ? "View Only Mode" : "Classify Comments"}
+                {unclassifiedCount > 0 && !(activeTab === "all" && !isSuperadmin) && (
                   <span className="bg-white text-primary px-1.5 py-0.5 rounded-md ml-1">{unclassifiedCount}</span>
                 )}
               </button>

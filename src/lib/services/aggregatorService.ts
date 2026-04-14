@@ -40,7 +40,51 @@ export function resolveTargetOffices(offices: string[]): string[] {
  * Merges detailed individual satellite results into a grouped result if needed.
  */
 export function aggregateSatelliteResults(data: any[]): any[] {
-  // Logic to condense individual satellites back into primary groups for specific charts
-  // to be used by metricsService.ts
-  return data;
+  const SATELLITE_MAP: Record<string, string> = {
+    "PHO-Clinic": "PHO",
+    "PHO-Warehouse": "PHO",
+    "PTO-Cash": "PTO",
+    "PTO-Assessor": "PTO",
+  };
+
+  const map = new Map<string, any>();
+
+  data.forEach((item) => {
+    const parentOffice = SATELLITE_MAP[item.office] || item.office;
+    const key = `${parentOffice}_${item.month || 'all'}`;
+
+    if (!map.has(key)) {
+      map.set(key, JSON.parse(JSON.stringify({ ...item, office: parentOffice })));
+    } else {
+      const existing = map.get(key);
+      
+      existing.collection = (existing.collection || 0) + (item.collection || 0);
+      existing.visitor = (existing.visitor || 0) + (item.visitor || 0);
+      
+      if (item.comments) {
+        if (!existing.comments) existing.comments = { positive: [], negative: [] };
+        if (item.comments.positive) existing.comments.positive.push(...item.comments.positive);
+        if (item.comments.negative) existing.comments.negative.push(...item.comments.negative);
+      }
+      
+      if (item.gender) {
+        if (!existing.gender) existing.gender = {};
+        for (const g of Object.keys(item.gender)) {
+          existing.gender[g] = (existing.gender[g] || 0) + (item.gender[g] || 0);
+        }
+      }
+      
+      for (let i = 0; i <= 9; i++) {
+        const qKey = `Q${i}`;
+        if (item[qKey]) {
+          if (!existing[qKey]) existing[qKey] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+          for (let s = 1; s <= 5; s++) {
+             existing[qKey][s] = (existing[qKey][s] || 0) + (item[qKey][s] || 0);
+          }
+        }
+      }
+    }
+  });
+
+  return Array.from(map.values());
 }

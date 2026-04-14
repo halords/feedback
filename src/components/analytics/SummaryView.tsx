@@ -156,9 +156,12 @@ export function SummaryView() {
                 <td className="px-4 py-3 text-left">Organization Total</td>
                 <td className="px-3 py-3 border-r border-on-surface/5">{displayData.reduce((acc: number, o: any) => acc + o.collection, 0)}</td>
                 <td className="px-3 py-3 border-r border-on-surface/5">{displayData.reduce((acc: number, o: any) => acc + o.visitor, 0)}</td>
-                <td colSpan={4} className="px-2 py-3" />
+                <td colSpan={5} className="px-2 py-3" />
                 <td colSpan={3} className="px-3 py-3" />
-                <td className="px-3 py-3 bg-primary/5 text-primary text-sm underline decoration-double">{totals.avgRate}</td>
+                <td className="px-3 py-3 bg-primary/5 text-primary text-[10px] border-x border-on-surface/5">
+                  <span className="opacity-40 mr-1">PGLU Avg. Rate:</span>
+                  <span className="text-sm underline decoration-double">{totals.avgRate}</span>
+                </td>
                 <td className="px-2 py-3 border-l border-on-surface/5">{displayData.reduce((acc: number, o: any) => acc + o.comments.positive.length, 0)}</td>
                 <td className="px-2 py-3">{displayData.reduce((acc: number, o: any) => acc + o.comments.negative.length, 0)}</td>
                 <td className="px-2 py-3">{displayData.reduce((acc: number, o: any) => acc + o.comments.suggestions.length, 0)}</td>

@@ -96,6 +96,7 @@ export function ResponsesTable({ responses, isLoading }: ResponsesTableProps) {
                         res.classification === "Positive" ? "bg-green-50 text-green-600 border-green-100" :
                         res.classification === "Negative" ? "bg-red-50 text-red-600 border-red-100" :
                         res.classification === "Suggestion" ? "bg-amber-50 text-amber-600 border-amber-100" :
+                        res.classification === "Not Applicable" ? "bg-slate-50 text-slate-600 border-slate-100" :
                         "bg-on-surface/5 text-on-surface/30 border-on-surface/5"
                       )}>
                         {res.classification || "Unclassified"}

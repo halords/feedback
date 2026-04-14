@@ -1,60 +1,75 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect } from "react";
 import useSWR from "swr";
 
 interface UserProfile {
-  fullname: string;
+  uid: string;
+  email: string;
   username: string;
   user_type: string;
+  full_name: string;
   offices: string[];
+  requiresPasswordChange?: boolean;
 }
 
 interface AuthContextType {
   user: UserProfile | null;
   isLoading: boolean;
   login: (userData: UserProfile) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
+  mutate: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const fetcher = (url: string) => fetch(url).then((res) => {
+  if (res.status === 401) return null;
+  return res.json().then(data => data.user);
+});
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Use SWR to manage session state with a consistent key
-  // We use null as initial value for the fetcher because we handle hydration manually
-  const { data: user, mutate, isLoading } = useSWR<UserProfile | null>("auth-session", null, {
-    fallbackData: null,
-    revalidateOnFocus: false,
+  // Use SWR to manage session state synced with the server-side cookie
+  const { data: user, mutate, isLoading } = useSWR<UserProfile | null>("/api/auth/me", fetcher, {
+    revalidateOnFocus: true,
+    shouldRetryOnError: false,
+    dedupingInterval: 10000, // Dedup requests within 10s
   });
 
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  // Hydrate from localStorage on mount
   useEffect(() => {
-    const savedUser = localStorage.getItem("loggedInUser");
-    if (savedUser) {
-      try {
-        mutate(JSON.parse(savedUser), false);
-      } catch (e) {
-        console.error("Failed to parse saved user", e);
+    if (user?.requiresPasswordChange && typeof window !== "undefined") {
+      if (window.location.pathname !== "/settings") {
+        window.location.href = "/settings";
       }
     }
-    setIsHydrated(true);
-  }, [mutate]);
+  }, [user]);
 
   const login = (userData: UserProfile) => {
-    localStorage.setItem("loggedInUser", JSON.stringify(userData));
+    // The cookie is already set by the /api/login endpoint.
+    // We just manually update the cache for immediate UI feedback.
     mutate(userData, false);
   };
 
-  const logout = () => {
-    localStorage.removeItem("loggedInUser");
-    mutate(null, false);
-    window.location.href = "/login";
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      mutate(null, false);
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Logout failed:", error);
+      // fallback redirect
+      window.location.href = "/login";
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user: user ?? null, isLoading: !isHydrated || isLoading, login, logout }}>
+    <AuthContext.Provider value={{ 
+      user: user ?? null, 
+      isLoading, 
+      login, 
+      logout,
+      mutate
+    }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,4 +1,5 @@
 import { db } from "@/lib/firebase/admin";
+import { getMonthBounds } from "@/lib/utils/dateUtils";
 import { resolveTargetOffices, SATELLITE_GROUPS } from "./aggregatorService";
 import {
   calculateQuestionRate,
@@ -40,15 +41,32 @@ export async function getDashboardMetrics(offices: string[], month: string | str
   if (!Array.isArray(offices)) return [];
   const resolvedOffices = resolveTargetOffices(offices);
   const monthArray = Array.isArray(month) ? month : [month];
+  
+  // OPTIMIZATION: Calculate full date range for the sweep
+  // This prevents multiple scans of the same collection for trend lines.
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  
+  // Find min/max months to define range
+  const sortedMonths = [...monthArray].sort((a, b) => months.indexOf(a) - months.indexOf(b));
+  const minMonth = sortedMonths[0];
+  const maxMonth = sortedMonths[sortedMonths.length - 1];
+  
+  const { startDate } = getMonthBounds(minMonth, year);
+  const { endDate } = getMonthBounds(maxMonth, year);
+
+  // Fetch all qualifying data in single pass (scoped to authorized offices and date range)
+  const offlineData = await getOfflineReportInRange(resolvedOffices, monthArray, year);
+  const onlineData = await getOnlineReportInRange(resolvedOffices, startDate, endDate, monthArray, year);
+
   const results: DashboardMetrics[] = [];
 
   for (const m of monthArray) {
-    const offlineData = await getOfflineReport(resolvedOffices, m, year);
-    const onlineData = await getOnlineReport(resolvedOffices, m, year);
-
     for (const office of resolvedOffices) {
-      const offline = offlineData[office] || createEmptyResult(office, m);
-      const online = onlineData[office] || createEmptyResult(office, m);
+      const offline = offlineData[`${office}_${m}`] || createEmptyResult(office, m);
+      const online = onlineData[`${office}_${m}`] || createEmptyResult(office, m);
 
       const merged = mergeReports(offline, online, m);
       results.push(merged);
@@ -58,11 +76,10 @@ export async function getDashboardMetrics(offices: string[], month: string | str
   return results;
 }
 
-async function getOnlineReport(offices: string[], month: string, year: string) {
+async function getOnlineReportInRange(offices: string[], startDate: string, endDate: string, targetMonths: string[], year: string) {
   const results: any = {};
-  offices.forEach(o => results[o] = createEmptyResult(o));
-
-  // Firestore "in" query limit is 30. We chunk the offices.
+  
+  // Scoped to date range for massive performance gain vs legacy full-scan
   const CHUNK_SIZE = 30;
   const officeChunks = [];
   for (let i = 0; i < offices.length; i += CHUNK_SIZE) {
@@ -78,56 +95,60 @@ async function getOnlineReport(offices: string[], month: string, year: string) {
   const snapshots = await Promise.all(queryPromises);
 
   snapshots.forEach(snapshot => {
-    snapshot.forEach(doc => {
+    snapshot.forEach((doc: any) => {
       const data = doc.data();
       const date = new Date(data.Date);
       const docMonth = date.toLocaleString('en-US', { month: 'long' });
       const docYear = date.getFullYear().toString();
 
-      if (docMonth === month && docYear === year) {
+      if (targetMonths.includes(docMonth) && docYear === year) {
         const office = data.Office;
-        if (!results[office]) return;
+        const key = `${office}_${docMonth}`;
+        if (!results[key]) results[key] = createEmptyResult(office, docMonth);
 
-        // Increment collection counts
-        results[office].collection++;
-        results[office].visitor++;
+        const res = results[key];
+        res.collection++;
+        res.visitor++;
 
-        // Increment Gender
         const gender = data.Gender || 'Others';
-        results[office].gender[gender] = (results[office].gender[gender] || 0) + 1;
+        res.gender[gender] = (res.gender[gender] || 0) + 1;
 
-        // QValues processing
         for (let i = 0; i <= 9; i++) {
           const qKey = `Q${i}`;
           const val = data[qKey];
           if (val === 0 || val === '0' || !val) {
-            results[office].qValues[qKey].NA++;
+            res.qValues[qKey].NA++;
           } else {
-            results[office].qValues[qKey][String(val)]++;
+            res.qValues[qKey][String(val)]++;
           }
         }
 
-        // Client Type
-        const ct = data.Client_Type || 'Others';
-        results[office].clientType[ct] = (results[office].clientType[ct] || 0) + 1;
+        const ct = normalizeClientType(data.Client_Type);
+        if (res.clientType[ct] !== undefined) res.clientType[ct]++;
+        else res.clientType.Others++;
 
-        // Comments
-        const cls = (data.Class || "positive").toLowerCase();
-        if (data.Comment) {
-          if (cls === "negative") results[office].comments.negative.push(data.Comment);
-          else if (cls === "suggestion") results[office].comments.suggestions.push(data.Comment);
-          else results[office].comments.positive.push(data.Comment);
+        const rawClass = (data.Class || "").toLowerCase().trim();
+        if (data.Comment && rawClass !== "not applicable") {
+          // Comm.: Count only comments with type "positive"
+          if (rawClass === "positive") {
+            res.comments.positive.push(data.Comment);
+          } 
+          // Compl.: Count only comments with type "negative"
+          else if (rawClass === "negative") {
+            res.comments.negative.push(data.Comment);
+          } 
+          // Sugg.: Count only comments with type "suggestion" or "suggestions"
+          else if (rawClass === "suggestion" || rawClass === "suggestions") {
+            res.comments.suggestions.push(data.Comment);
+          }
         }
 
-        // CC Awareness (Online)
         const cc1 = data.CC1 || 'N/A';
-        if (results[office].cc1[cc1] !== undefined) results[office].cc1[cc1]++;
-
+        if (res.cc1[cc1] !== undefined) res.cc1[cc1]++;
         const cc2 = data.CC2 || 'N/A';
-        if (results[office].cc2[cc2] !== undefined) results[office].cc2[cc2]++;
-
+        if (res.cc2[cc2] !== undefined) res.cc2[cc2]++;
         const cc3 = data.CC3 || 'N/A';
-        if (results[office].cc3[cc3] !== undefined) results[office].cc3[cc3]++;
+        if (res.cc3[cc3] !== undefined) res.cc3[cc3]++;
       }
     });
   });
@@ -135,36 +156,43 @@ async function getOnlineReport(offices: string[], month: string, year: string) {
   return results;
 }
 
-async function getOfflineReport(offices: string[], month: string, year: string) {
+async function getOfflineReportInRange(offices: string[], monthArray: string[], year: string) {
   const results: any = {};
-  offices.forEach(o => results[o] = createEmptyResult(o));
-
-  const targetMonthYear = `${month} ${year}`;
   const formattedOffices = offices.map(o => o.replace(/-/g, ' '));
+  const targetMonthYears = monthArray.map(m => `${m} ${year}`);
 
-  // Chunking for Firestore "in" query limit (30)
   const CHUNK_SIZE = 30;
   const officeChunks = [];
   for (let i = 0; i < formattedOffices.length; i += CHUNK_SIZE) {
     officeChunks.push(formattedOffices.slice(i, i + CHUNK_SIZE));
   }
 
-  const queryPromises = officeChunks.map(chunk =>
-    db.collection('physical_report')
-      .where('DEPARTMENT', 'in', chunk)
-      .where('FOR_THE_MONTH_OF', '==', targetMonthYear) // Server-side filtering
-      .get()
-  );
+  const queryPromises: Promise<any>[] = [];
+  officeChunks.forEach(chunk => {
+    targetMonthYears.forEach(monthYear => {
+      queryPromises.push(
+        db.collection('physical_report')
+          .where('DEPARTMENT', 'in', chunk)
+          .where('FOR_THE_MONTH_OF', '==', monthYear)
+          .get()
+      );
+    });
+  });
 
   const snapshots = await Promise.all(queryPromises);
 
   snapshots.forEach(snapshot => {
-    snapshot.forEach(doc => {
+    snapshot.forEach((doc: any) => {
       const data = doc.data();
       if (!data) return;
 
       const originalOffice = offices.find(o => o.replace(/-/g, ' ') === data.DEPARTMENT?.trim()) || offices[0];
-      const res = results[originalOffice];
+      const docPeriod = data.FOR_THE_MONTH_OF || "";
+      const docMonth = docPeriod.split(' ')[0];
+      
+      const key = `${originalOffice}_${docMonth}`;
+      if (!results[key]) results[key] = createEmptyResult(originalOffice, docMonth);
+      const res = results[key];
 
       const safeInt = (val: any) => {
         const n = parseInt(val);
@@ -178,6 +206,10 @@ async function getOfflineReport(offices: string[], month: string, year: string) 
       res.gender.LGBTQ += safeInt(data.LGBTQ);
       res.gender.Others += safeInt(data.PREFER_NOT_TO_SAY);
 
+      res.clientType.Citizen += safeInt(data.CITIZEN);
+      res.clientType.Business += safeInt(data.BUSINESS);
+      res.clientType.Government += safeInt(data.GOVERNMENT);
+
       for (let i = 0; i <= 9; i++) {
         const qKey = `Q${i}`;
         res.qValues[qKey]['1'] += safeInt(data[`${i}1`]);
@@ -188,44 +220,48 @@ async function getOfflineReport(offices: string[], month: string, year: string) 
         res.qValues[qKey].NA += safeInt(data[`${i}NA`]);
       }
 
-      // CC Awareness (Offline)
       res.cc1.Yes += safeInt(data.YES);
       res.cc1['Just Now'] += safeInt(data.JUST_NOW);
       res.cc1.No += safeInt(data.NO);
-
       res.cc2.Visible += safeInt(data.VISIBLE);
       res.cc2['Somewhat Visible'] += safeInt(data.SOMEWHAT_VISIBLE);
       res.cc2['Difficult to see'] += safeInt(data.DIFFICULT_TO_SEE);
       res.cc2['Not Visible'] += safeInt(data.NOT_VISIBLE);
       res.cc2['N/A'] += safeInt(data.NA);
-
       res.cc3['Very Much'] += safeInt(data.VERY_MUCH);
       res.cc3.Somewhat += safeInt(data.SOMEWHAT);
       res.cc3['Did Not Help'] += safeInt(data.DID_NOT_HELP);
       res.cc3['N/A'] += safeInt(data.NA2);
 
-      if (data.COMMENTS) {
-        if (Array.isArray(data.COMMENTS)) res.comments.positive.push(...data.COMMENTS);
-        else res.comments.positive.push(String(data.COMMENTS));
+      if (data.COMMENTS && Array.isArray(data.COMMENTS)) {
+        const classifications = Array.isArray(data.CLASSIFY) ? data.CLASSIFY : [];
+        data.COMMENTS.forEach((comment: string, index: number) => {
+          if (!comment || typeof comment !== 'string' || comment.trim().length < 2) return;
+          
+          const rawClass = (classifications[index] || "").toLowerCase().trim();
+          if (rawClass === "not applicable") return;
+
+          if (rawClass === "positive") {
+            res.comments.positive.push(comment);
+          } else if (rawClass === "negative") {
+            res.comments.negative.push(comment);
+          } else if (rawClass === "suggestion" || rawClass === "suggestions") {
+            res.comments.suggestions.push(comment);
+          }
+        });
       }
 
       if (data.DATE_COLLECTED) {
         let date: Date | null = null;
-        if (data.DATE_COLLECTED && typeof data.DATE_COLLECTED.toDate === 'function') {
-          date = data.DATE_COLLECTED.toDate();
-        } else if (data.DATE_COLLECTED instanceof Date) {
-          date = data.DATE_COLLECTED;
-        } else if (typeof data.DATE_COLLECTED === 'string') {
+        if (data.DATE_COLLECTED && typeof data.DATE_COLLECTED.toDate === 'function') date = data.DATE_COLLECTED.toDate();
+        else if (data.DATE_COLLECTED instanceof Date) date = data.DATE_COLLECTED;
+        else if (typeof data.DATE_COLLECTED === 'string') {
           const d = new Date(data.DATE_COLLECTED);
           if (!isNaN(d.getTime())) date = d;
         }
 
         if (date) {
-          res.dateCollected = date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: '2-digit'
-          });
+          res.dateCollected = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
         } else {
           res.dateCollected = String(data.DATE_COLLECTED || "");
         }
@@ -306,6 +342,7 @@ function mergeReports(offline: any, online: any, month: string): DashboardMetric
       Citizen: (offline.clientType.Citizen || 0) + (online.clientType.Citizen || 0),
       Business: (offline.clientType.Business || 0) + (online.clientType.Business || 0),
       Government: (offline.clientType.Government || 0) + (online.clientType.Government || 0),
+      Others: (offline.clientType.Others || 0) + (online.clientType.Others || 0),
     },
     comments: {
       positive: [...offline.comments.positive, ...online.comments.positive],
@@ -315,6 +352,15 @@ function mergeReports(offline: any, online: any, month: string): DashboardMetric
     dateCollected: offline.dateCollected,
     collectionRate: calculateCollectionRate(offline.collection + online.collection, offline.visitor + online.visitor)
   };
+}
+
+function normalizeClientType(rawType: string): string {
+  if (!rawType) return "Others";
+  const t = String(rawType).toLowerCase();
+  if (t.includes("citizen")) return "Citizen";
+  if (t.includes("business")) return "Business";
+  if (t.includes("government") || t.includes("govt")) return "Government";
+  return "Others";
 }
 
 function createEmptyResult(department: string, month: string = "") {
@@ -328,7 +374,7 @@ function createEmptyResult(department: string, month: string = "") {
     collection: 0,
     visitor: 0,
     gender: { Male: 0, Female: 0, LGBTQ: 0, Others: 0 },
-    clientType: { Citizen: 0, Business: 0, Government: 0 },
+    clientType: { Citizen: 0, Business: 0, Government: 0, Others: 0 },
     overrate: 'N/A',
     sysRate: 'N/A',
     staffRate: 'N/A',

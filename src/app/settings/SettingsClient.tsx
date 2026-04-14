@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { Shell } from "@/components/layout/Shell";
 import { Card } from "@/components/ui/Card";
-import { 
-  User, 
-  Shield, 
-  Moon, 
-  Palette, 
+import {
+  User,
+  Shield,
+  Moon,
+  Palette,
   Monitor,
-  Lock
+  Lock,
+  RefreshCw
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -54,6 +55,18 @@ export function SettingsClient() {
             <p className="text-on-surface/40 font-medium mt-1">Manage your profile, security, and application preferences.</p>
           </div>
 
+          {user?.requiresPasswordChange && (
+            <div className="bg-red-50 border border-red-100 p-4 rounded-2xl animate-pulse">
+              <div className="flex items-center gap-3">
+                <Lock className="w-5 h-5 text-red-500" />
+                <div>
+                  <p className="text-xs font-black text-red-700 uppercase tracking-widest">Action Required</p>
+                  <p className="text-[10px] text-red-600 font-bold">Please update your default password to unlock full dashboard access.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 bg-surface-low p-1.5 rounded-2xl border border-on-surface/5">
             {tabs.map((tab) => (
               <button
@@ -61,8 +74,8 @@ export function SettingsClient() {
                 onClick={() => setActiveTab(tab.id)}
                 className={clsx(
                   "flex items-center gap-2 px-6 py-2.5 rounded-xl font-sans text-sm font-bold transition-all duration-300",
-                  activeTab === tab.id 
-                    ? "bg-white text-primary shadow-md translate-y-[-1px]" 
+                  activeTab === tab.id
+                    ? "bg-white text-primary shadow-md translate-y-[-1px]"
                     : "text-on-surface/40 hover:text-on-surface/60 hover:bg-white/50"
                 )}
               >
@@ -91,20 +104,20 @@ function ProfileSection({ user }: { user: any }) {
     <div className="space-y-6">
       <Card className="p-8 border-on-surface/5 overflow-hidden relative">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl" />
-        
+
         <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
           <div className="w-32 h-32 rounded-3xl bg-primary flex items-center justify-center border-4 border-white shadow-xl ring-8 ring-primary/5">
-            <span className="text-4xl font-display font-black text-white">{(user?.fullname || "A")[0]}</span>
+            <span className="text-4xl font-display font-black text-white">{(user?.full_name || "A")[0]}</span>
           </div>
-          
+
           <div className="text-center md:text-left space-y-2">
-            <h2 className="text-2xl font-black text-on-surface">{user?.fullname || "Admin User"}</h2>
+            <h2 className="text-2xl font-black text-on-surface">{user?.full_name || "Admin User"}</h2>
             <div className="flex flex-wrap justify-center md:justify-start gap-2">
               <span className="px-3 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest">
                 {user?.user_type || "Superadmin"}
               </span>
               <span className="px-3 py-1 rounded-lg bg-on-surface/5 text-on-surface/40 text-[10px] font-black uppercase tracking-widest">
-                Account ID: #{user?.idno || "12345"}
+                Account ID: #{user?.username || "12345"}
               </span>
             </div>
           </div>
@@ -115,7 +128,7 @@ function ProfileSection({ user }: { user: any }) {
         <h3 className="text-sm font-black uppercase tracking-widest text-primary mb-8 flex items-center gap-2">
           <Monitor className="w-4 h-4" /> Personal Information
         </h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-widest text-on-surface/30 ml-1">Username</label>
@@ -123,11 +136,11 @@ function ProfileSection({ user }: { user: any }) {
               {user?.username || "admin_feedback"}
             </div>
           </div>
-          
+
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-widest text-on-surface/30 ml-1">Full Name</label>
             <div className="p-4 rounded-2xl bg-surface-low border border-on-surface/5 text-on-surface/60 font-bold group hover:border-primary/20 transition-colors">
-              {user?.fullname || "Default Administrator"}
+              {user?.full_name || "Default Administrator"}
             </div>
           </div>
 
@@ -151,43 +164,118 @@ function ProfileSection({ user }: { user: any }) {
 }
 
 function SecuritySection() {
+  const { mutate } = useAuth();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+  const handleUpdatePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setStatus({ type: 'error', message: 'All fields are required' });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setStatus({ type: 'error', message: 'New passwords do not match' });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setStatus({ type: 'error', message: 'Password must be at least 6 characters' });
+      return;
+    }
+
+    setIsLoading(true);
+    setStatus(null);
+
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setStatus({ type: 'success', message: 'Password updated successfully' });
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        // Re-validate auth state to clear requiresPasswordChange flag immediately
+        mutate();
+      } else {
+        setStatus({ type: 'error', message: data.error || 'Failed to update password' });
+      }
+    } catch (err) {
+      setStatus({ type: 'error', message: 'An unexpected error occurred' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card className="p-8 border-on-surface/5">
         <h3 className="text-sm font-black uppercase tracking-widest text-primary mb-8 flex items-center gap-2">
           <Lock className="w-4 h-4" /> Change Password
         </h3>
-        
+
         <div className="max-w-md space-y-6">
+          {status && (
+            <div className={clsx(
+              "p-4 rounded-xl text-[10px] font-black uppercase tracking-widest",
+              status.type === 'success' ? "bg-green-50 text-green-700 border border-green-100" : "bg-red-50 text-red-700 border border-red-100"
+            )}>
+              {status.message}
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-widest text-on-surface/30 ml-1">Current Password</label>
-            <input 
-              type="password" 
-              className="w-full p-4 rounded-2xl bg-surface-low border border-on-surface/5 focus:border-primary outline-none transition-all font-sans"
-              placeholder="••••••••••••"
-            />
-          </div>
-          
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-on-surface/30 ml-1">New Password</label>
-            <input 
-              type="password" 
-              className="w-full p-4 rounded-2xl bg-surface-low border border-on-surface/5 focus:border-primary outline-none transition-all font-sans"
-              placeholder="••••••••••••"
-            />
-          </div>
-          
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-on-surface/30 ml-1">Confirm New Password</label>
-            <input 
-              type="password" 
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
               className="w-full p-4 rounded-2xl bg-surface-low border border-on-surface/5 focus:border-primary outline-none transition-all font-sans"
               placeholder="••••••••••••"
             />
           </div>
 
-          <button className="px-8 py-4 rounded-2xl bg-primary text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
-            Update Password
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-widest text-on-surface/30 ml-1">New Password</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full p-4 rounded-2xl bg-surface-low border border-on-surface/5 focus:border-primary outline-none transition-all font-sans"
+              placeholder="••••••••••••"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-widest text-on-surface/30 ml-1">Confirm New Password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full p-4 rounded-2xl bg-surface-low border border-on-surface/5 focus:border-primary outline-none transition-all font-sans"
+              placeholder="••••••••••••"
+            />
+          </div>
+
+          <button 
+            onClick={handleUpdatePassword}
+            disabled={isLoading}
+            className={clsx(
+              "px-8 py-4 rounded-2xl bg-primary text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-center flex justify-center items-center gap-2",
+              isLoading && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            {isLoading && <RefreshCw className="w-3 h-3 animate-spin" />}
+            {isLoading ? "Updating..." : "Update Password"}
           </button>
         </div>
       </Card>
@@ -215,7 +303,7 @@ function AppearanceSection() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-      <Card 
+      <Card
         onClick={() => setTheme("dark")}
         className={clsx(
           "p-8 border-on-surface/5 flex flex-col items-center text-center space-y-4 transition-all cursor-pointer group",
@@ -240,7 +328,7 @@ function AppearanceSection() {
         </p>
       </Card>
 
-      <Card 
+      <Card
         onClick={() => setTheme("light")}
         className={clsx(
           "p-8 border-on-surface/5 flex flex-col items-center text-center space-y-4 transition-all cursor-pointer group",

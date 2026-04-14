@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import useSWR from "swr";
 import { useAnalytics } from "@/context/AnalyticsContext";
 import { useAuth } from "@/context/AuthContext";
 import { Card } from "@/components/ui/Card";
@@ -34,6 +35,7 @@ const ITEMS_PER_PAGE = 10;
 export function DataView() {
   const { user } = useAuth();
   const { data, isLoading, month, year, search } = useAnalytics();
+  const { data: rawOfficeList } = useSWR("/api/offices", (url) => fetch(url).then(r => r.json()));
   const [selectedOffice, setSelectedOffice] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -44,15 +46,26 @@ export function DataView() {
     const isSuperadmin = user?.user_type?.toLowerCase() === "superadmin";
     const userOffices = user?.offices || [];
     
-    let filtered = data;
+    // Get list of disabled office names
+    const disabledOffices = rawOfficeList 
+      ? rawOfficeList.filter((o: any) => o.status === "disabled").map((o: any) => o.name)
+      : [];
+
+    let filtered: any[] = data;
+    
+    // Filter out disabled offices first
+    if (disabledOffices.length > 0) {
+      filtered = filtered.filter((o: any) => !disabledOffices.includes(o.department));
+    }
+
     if (!isSuperadmin) {
-      filtered = data.filter((o: any) => userOffices.includes(o.department));
+      filtered = filtered.filter((o: any) => userOffices.includes(o.department));
     }
 
     if (!search) return filtered;
     const s = search.toLowerCase();
     return filtered.filter((o: any) => o.department.toLowerCase().includes(s));
-  }, [data, search, user]);
+  }, [data, search, user, rawOfficeList]);
 
   // Reset pagination on filter change
   useMemo(() => {
