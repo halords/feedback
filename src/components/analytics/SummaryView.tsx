@@ -88,7 +88,7 @@ export function SummaryView() {
       </div>
 
       {/* Legacy Parity Comparison Matrix */}
-      <Card className="p-0 overflow-hidden border border-on-surface/5 shadow-xl bg-surface-lowest">
+      <Card className="p-0 overflow-hidden border border-border-strong/50 shadow-xl bg-surface-low">
         <div className="p-4 border-b border-on-surface/5 bg-surface-low/30">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
             <Building2 className="w-3.5 h-3.5" /> Customer Feedback Summary Report
@@ -97,7 +97,7 @@ export function SummaryView() {
 
         <div className="overflow-x-auto custom-scrollbar-reports">
           <table className="w-full text-center font-sans border-collapse text-[11px]">
-            <thead className="bg-on-surface/5 border-b border-on-surface/5 sticky top-0 z-10">
+            <thead className="bg-background/80 backdrop-blur-md border-b-2 border-border-strong sticky top-0 z-10">
               <tr>
                 <th className="px-4 py-3 font-black uppercase tracking-tighter text-on-surface/50 text-left border-r border-on-surface/5">Offices</th>
                 <th className="px-3 py-3 font-black uppercase tracking-tighter text-on-surface/50">Responses</th>
@@ -116,7 +116,7 @@ export function SummaryView() {
                 <th className="px-2 py-3 font-black uppercase tracking-tighter text-primary">Sugg.</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-on-surface/5">
+            <tbody className="divide-y divide-border-strong/20">
               {displayData.map((office: any) => (
                 <tr key={office.department} className="hover:bg-primary/[0.015] transition-colors group">
                   <td className="px-4 py-2.5 text-left border-r border-on-surface/5">
@@ -140,7 +140,7 @@ export function SummaryView() {
                   <td className="px-3 py-2.5 font-bold text-primary/60 text-[10px]">
                     {office.staffRate !== "N/A" ? office.staffRate : ""}
                   </td>
-                  <td className="px-3 py-2.5 border-x border-on-surface/5 font-black text-primary bg-primary/[0.02]">
+                  <td className="px-3 py-2.5 border-x border-border-strong/20 font-black text-primary bg-primary/[0.02]">
                     {office.overrate !== "N/A" ? office.overrate : ""}
                   </td>
                   {/* Comments */}
@@ -158,7 +158,7 @@ export function SummaryView() {
                 <td className="px-3 py-3 border-r border-on-surface/5">{displayData.reduce((acc: number, o: any) => acc + o.visitor, 0)}</td>
                 <td colSpan={5} className="px-2 py-3" />
                 <td colSpan={3} className="px-3 py-3" />
-                <td className="px-3 py-3 bg-primary/5 text-primary text-[10px] border-x border-on-surface/5">
+                <td className="px-3 py-3 bg-primary/10 text-primary text-[10px] border-x border-border-strong/40">
                   <span className="opacity-40 mr-1">PGLU Avg. Rate:</span>
                   <span className="text-sm underline decoration-double">{totals.avgRate}</span>
                 </td>
@@ -176,7 +176,7 @@ export function SummaryView() {
 
 function HighlightCard({ label, value, icon }: { label: string, value: string, icon: any }) {
   return (
-    <Card className="p-4 bg-surface-lowest border border-on-surface/5 relative overflow-hidden group hover:border-primary/20 transition-all">
+    <Card className="p-4 bg-surface-low border border-border-strong/50 relative overflow-hidden group hover:border-primary/20 transition-all">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[9px] font-black uppercase tracking-widest text-on-surface/30 mb-1">{label}</p>

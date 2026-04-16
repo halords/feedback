@@ -67,7 +67,7 @@ export default function LoginPage() {
         </div>
 
         {/* Login Card */}
-        <Card className="bg-white/85 backdrop-blur-2xl border border-white/40">
+        <Card className="bg-surface-lowest/80 backdrop-blur-2xl border border-on-surface/10">
           <div className="mb-8 text-center">
             <h2 className="font-display text-xl font-bold text-on-surface mb-1">
               Welcome back
@@ -106,7 +106,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="text-sm font-medium text-red-600 bg-red-50 p-3 rounded-lg border border-red-100 animate-in fade-in slide-in-from-top-1">
+              <div className="text-sm font-medium text-red-500 bg-red-500/10 p-3 rounded-lg border border-red-500/20 animate-in fade-in slide-in-from-top-1">
                 {error}
               </div>
             )}

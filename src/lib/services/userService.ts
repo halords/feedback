@@ -9,6 +9,7 @@ export interface UserProfile {
   userType: string;
   username: string;
   officeAssignments: string[];
+  isAnalyticsEnabled?: boolean;
 }
 
 /**
@@ -71,7 +72,8 @@ export async function getAllUsers(): Promise<UserProfile[]> {
         fullName: profile.full_name || "Unknown",
         position: profile.position || "Unknown",
         office: profile.office || "Unknown",
-        officeAssignments: [...new Set(offices)] // Ensure uniqueness
+        officeAssignments: [...new Set(offices)], // Ensure uniqueness
+        isAnalyticsEnabled: !!profile.is_analytics_enabled
       };
     });
   } catch (error) {
@@ -90,6 +92,7 @@ export async function addUser(userData: {
   office: string;
   user_type: string;
   office_assignment: string[];
+  is_analytics_enabled?: boolean;
 }) {
   try {
     const hashedPassword = await bcrypt.hash("p@ssw0rd", 12);
@@ -113,6 +116,7 @@ export async function addUser(userData: {
       idnumber: userData.idno,
       office: userData.office || "Unknown",
       position: userData.position,
+      is_analytics_enabled: userData.is_analytics_enabled || false,
       createdAt: new Date().toISOString()
     });
 
@@ -164,6 +168,30 @@ export async function updateAssignments(idno: string, offices: string[]) {
     return { success: true };
   } catch (error) {
     console.error("Error in updateAssignments:", error);
+    throw error;
+  }
+}
+
+/**
+ * Updates the analytics permission flag for a specific user.
+ */
+export async function updateUserAnalyticsFlag(idno: string, isEnabled: boolean) {
+  try {
+    const snapshot = await db.collection("user_data")
+      .where("idnumber", "==", idno)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      throw new Error(`Profile not found for ID: ${idno}`);
+    }
+
+    const docRef = snapshot.docs[0].ref;
+    await docRef.update({ is_analytics_enabled: isEnabled });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error in updateUserAnalyticsFlag:", error);
     throw error;
   }
 }

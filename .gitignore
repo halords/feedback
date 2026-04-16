@@ -74,16 +74,26 @@ artifacts/
 /legacy/
 /UI_reference/
 
-# Generic root file dumps
+# Generic root file dumps & sensitive data
 /*.txt
 /*.csv
+/negative_comments.json
+/inspect-pr.js
+/legacyV2/
+/*.log
+/*.swp
 
+# Specific Audit/Debug Scripts
+/inspect-pr.js
+/debug-*.js
 # Documentation & Markdown
 # Ignore all markdown files by default
 *.md
-# ... but whitelist the core readme
+# ... but whitelist only the core readme
 !README.md
+
 
 # Infrastructure
 model_capabilities.yaml
+
 

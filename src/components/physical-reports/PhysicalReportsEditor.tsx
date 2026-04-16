@@ -20,10 +20,13 @@ import {
   ChevronRight,
   Upload,
   Calendar,
-  ChevronDown
+  ChevronDown,
+  ShieldAlert
 } from "lucide-react";
 import { clsx } from "clsx";
 import { calculateQuestionRate, calculateSatisfactionAverages, calculateCollectionRate } from "@/lib/services/analyticsService";
+import { useSystem } from "@/context/SystemContext";
+
 
 const FEEDBACK_STATEMENTS = [
   "0. I am satisfied with the service that I availed.",
@@ -49,17 +52,36 @@ const allMonths = [
 
 export function PhysicalReportsEditor() {
   const now = new Date();
-  const [month, setMonth] = useState(allMonths[now.getMonth()]);
-  const [year, setYear] = useState(now.getFullYear().toString());
+  const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const [month, setMonth] = useState(allMonths[prevMonthDate.getMonth()]);
+  const [year, setYear] = useState(prevMonthDate.getFullYear().toString());
   const { data: reports, isLoading, mutate: refreshReports } = useSWR<any[]>(`/api/physical-reports?month=${month}&year=${year}`, fetcher);
   const [selectedReport, setSelectedReport] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isArchived, setIsArchived] = useState(false);
+  const { isOverrideActive } = useSystem();
+  
+  const effectiveArchived = isArchived && !isOverrideActive;
 
   const baselineYear = 2025;
   const currentMonthIdx = now.getMonth();
   const currentYear = now.getFullYear();
+
+  useEffect(() => {
+    const checkArchived = async () => {
+      try {
+        const res = await fetch(`/api/admin/archive?month=${month}&year=${year}`);
+        const data = await res.json();
+        setIsArchived(!!data.archived);
+      } catch (err) {
+        setIsArchived(false);
+      }
+    };
+    if (month && year) checkArchived();
+  }, [month, year]);
+
 
   const availableYears = Array.from(
     { length: currentYear - baselineYear + 1 }, 
@@ -108,7 +130,7 @@ export function PhysicalReportsEditor() {
 
   if (isLoading && !reports) {
     return (
-      <Card className="p-0 overflow-hidden border border-on-surface/5 shadow-xl bg-white animate-pulse">
+      <Card className="p-0 overflow-hidden border border-border-strong/50 shadow-xl bg-surface-low animate-pulse">
         <div className="h-14 bg-surface-low border-b border-on-surface/5 w-full" />
         <div className="divide-y divide-on-surface/5">
           {Array(8).fill(0).map((_, i) => (
@@ -126,10 +148,10 @@ export function PhysicalReportsEditor() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-4 rounded-3xl border border-on-surface/5 shadow-sm">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-surface-low p-4 rounded-3xl border border-border-strong/50 shadow-sm transition-colors duration-300">
         <div className="flex flex-col md:flex-row items-center gap-4 flex-1">
           {/* Date Selectors */}
-          <div className="flex items-center gap-2 bg-surface-lowest px-3 py-2 rounded-2xl border border-on-surface/5">
+          <div className="flex items-center gap-2 bg-background/50 px-3 py-2 rounded-2xl border border-border-strong/50">
             <div className="relative flex items-center">
               <Calendar className="absolute left-3 w-3.5 h-3.5 text-primary" />
               <select
@@ -160,31 +182,69 @@ export function PhysicalReportsEditor() {
               placeholder="Search office name..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 rounded-2xl bg-surface-lowest border border-on-surface/5 focus:outline-none focus:ring-2 focus:ring-primary/20 font-medium text-sm transition-all"
+              className="w-full pl-11 pr-4 py-2.5 rounded-2xl bg-background/50 border border-border-strong/50 focus:outline-none focus:ring-2 focus:ring-primary/20 font-medium text-sm transition-all"
             />
           </div>
         </div>
 
-        <Button onClick={handleCreate} className="rounded-2xl flex items-center gap-2 h-11 px-6">
+        <Button 
+          onClick={handleCreate} 
+          disabled={effectiveArchived}
+          className={clsx(
+            "rounded-2xl flex items-center gap-2 h-11 px-6 transition-all",
+            effectiveArchived ? "bg-on-surface/5 text-on-surface/20 cursor-not-allowed border-none" : ""
+          )}
+        >
           <Plus className="w-4 h-4" />
           Add Physical Report
         </Button>
       </div>
 
-      <Card className="p-0 overflow-hidden border border-on-surface/5 shadow-xl bg-white">
+      {isArchived && (
+        <div className={clsx(
+          "p-4 rounded-3xl flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-500 mb-6 border",
+          isOverrideActive ? "bg-amber-100 border-amber-300" : "bg-amber-50 border-amber-200"
+        )}>
+          <div className="flex items-center gap-3">
+            <div className={clsx(
+              "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0",
+              isOverrideActive ? "bg-amber-600 text-white" : "bg-amber-100 text-amber-600"
+            )}>
+              <ShieldAlert className="w-5 h-5" />
+            </div>
+            <div>
+              <p className={clsx("text-sm font-black leading-none mb-1", isOverrideActive ? "text-amber-900" : "text-amber-900")}>
+                {isOverrideActive ? "Override Mode Active" : "Archived Period detected"}
+              </p>
+              <p className={clsx("text-xs font-bold leading-tight", isOverrideActive ? "text-amber-800/80" : "text-amber-700/60")}>
+                {isOverrideActive 
+                  ? "You are editing an archived record. Remember to RE-ARCHIVE this month in 'Saving Measures' after saving changes."
+                  : "This month has been archived in 'Saving Measures'. Editing is disabled to ensure data consistency."
+                }
+              </p>
+            </div>
+          </div>
+          {isOverrideActive && (
+            <div className="px-3 py-1 bg-amber-200 rounded-lg text-[10px] font-black uppercase text-amber-800">UNLOCKED</div>
+          )}
+        </div>
+      )}
+
+
+      <Card className="p-0 overflow-hidden border border-border-strong/50 shadow-xl bg-surface-low">
         <div className="overflow-x-auto">
           <table className="w-full text-left font-sans border-collapse">
             <thead>
-              <tr className="bg-surface-low border-b border-on-surface/5">
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40 w-12 text-center">#</th>
-                <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40">Office Name</th>
-                <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40">Period</th>
-                <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40 text-center">Forms</th>
-                <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40 text-center">Visitors</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40 text-right">Actions</th>
+              <tr className="bg-background/50 border-b-2 border-border-strong">
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/30 w-12 text-center">#</th>
+                <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/30">Office Name</th>
+                <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/30">Period</th>
+                <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/30 text-center">Forms</th>
+                <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/30 text-center">Visitors</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/30 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-on-surface/5">
+            <tbody className="divide-y divide-border-strong/20">
               {paginatedData.map((report: any, idx: number) => (
                 <tr key={report.id} className="hover:bg-on-surface/[0.015] transition-all group">
                   <td className="px-6 py-3.5 text-xs font-bold text-on-surface/30 text-center">
@@ -209,10 +269,15 @@ export function PhysicalReportsEditor() {
                   <td className="px-6 py-3.5 text-right">
                     <button 
                       onClick={() => handleEdit(report)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all text-[10px] font-black uppercase tracking-tighter ml-auto"
+                      className={clsx(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-[10px] font-black uppercase tracking-tighter ml-auto",
+                        effectiveArchived 
+                          ? "bg-on-surface/5 text-on-surface/40 hover:bg-on-surface/10"
+                          : "bg-primary/5 text-primary hover:bg-primary hover:text-white"
+                      )}
                     >
                       <ExternalLink className="w-3 h-3" />
-                      Edit
+                      {effectiveArchived ? "View" : "Edit"}
                     </button>
                   </td>
                 </tr>
@@ -237,14 +302,14 @@ export function PhysicalReportsEditor() {
               <button 
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="p-1.5 rounded-lg hover:bg-white disabled:opacity-20 transition-all text-primary border border-transparent hover:border-on-surface/5"
+                className="p-1.5 rounded-lg hover:bg-surface-lowest disabled:opacity-20 transition-all text-primary border border-transparent hover:border-border-strong/50"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button 
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="p-1.5 rounded-lg hover:bg-white disabled:opacity-20 transition-all text-primary border border-transparent hover:border-on-surface/5"
+                className="p-1.5 rounded-lg hover:bg-surface-lowest disabled:opacity-20 transition-all text-primary border border-transparent hover:border-border-strong/50"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -256,15 +321,21 @@ export function PhysicalReportsEditor() {
       <Modal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        title={selectedReport ? `Editing ${selectedReport.DEPARTMENT}` : "New Physical Report"}
+        title={selectedReport ? `${effectiveArchived ? 'Viewing' : 'Editing'} ${selectedReport.DEPARTMENT}` : "New Physical Report"}
       >
-        <ReportForm report={selectedReport} onClose={() => setIsModalOpen(false)} onSaveSuccess={refreshReports} />
+        <ReportForm 
+          report={selectedReport} 
+          onClose={() => setIsModalOpen(false)} 
+          onSaveSuccess={refreshReports} 
+          isArchived={effectiveArchived}
+        />
       </Modal>
+
     </div>
   );
 }
 
-function ReportForm({ report, onClose, onSaveSuccess }: { report: any, onClose: () => void, onSaveSuccess: () => void }) {
+function ReportForm({ report, onClose, onSaveSuccess, isArchived }: { report: any, onClose: () => void, onSaveSuccess: () => void, isArchived: boolean }) {
   const [formData, setFormData] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
@@ -445,7 +516,7 @@ function ReportForm({ report, onClose, onSaveSuccess }: { report: any, onClose: 
 
   return (
     <div className="flex flex-col h-[80vh]">
-      <div className="flex items-center gap-2 mb-6 bg-surface-low p-1.5 rounded-2xl border border-on-surface/5">
+      <div className="flex items-center gap-2 mb-6 bg-background/50 p-1.5 rounded-2xl border border-border-strong/50">
         <FormTab active={activeTab === "general"} onClick={() => setActiveTab("general")} icon={<Search className="w-4 h-4" />} label="General" />
         <FormTab active={activeTab === "demographics"} onClick={() => setActiveTab("demographics")} icon={<User className="w-4 h-4" />} label="Demographics" />
         <FormTab active={activeTab === "ratings"} onClick={() => setActiveTab("ratings")} icon={<FileText className="w-4 h-4" />} label="Ratings" />
@@ -549,7 +620,7 @@ function ReportForm({ report, onClose, onSaveSuccess }: { report: any, onClose: 
              <div className="overflow-x-auto rounded-2xl border border-on-surface/5">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="bg-surface-low border-b border-on-surface/5">
+                    <tr className="bg-background/50 border-b-2 border-border-strong">
                       <th className="px-4 py-3 font-black uppercase text-on-surface/40 w-1/2">Question</th>
                       <th className="px-2 py-3 font-black uppercase text-on-surface/40 text-center">NA</th>
                       <th className="px-2 py-3 font-black uppercase text-on-surface/40 text-center">1</th>
@@ -560,7 +631,7 @@ function ReportForm({ report, onClose, onSaveSuccess }: { report: any, onClose: 
                       <th className="px-4 py-3 font-black uppercase text-primary text-right">Rate</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-on-surface/5">
+                  <tbody className="divide-y divide-border-strong/20">
                     {FEEDBACK_STATEMENTS.map((stmt, i) => (
                       <tr key={i} className="hover:bg-on-surface/[0.01]">
                         <td className="px-4 py-3 font-bold text-on-surface/60">{stmt}</td>
@@ -686,9 +757,9 @@ function ReportForm({ report, onClose, onSaveSuccess }: { report: any, onClose: 
          </div>
          <div className="flex gap-3">
            <Button variant="ghost" onClick={onClose} disabled={isSaving} className="rounded-xl px-6 font-bold">Cancel</Button>
-           <Button onClick={handleSave} disabled={isSaving} className="rounded-xl px-8 flex items-center gap-2 shadow-lg shadow-primary/20">
+           <Button onClick={handleSave} disabled={isSaving || isArchived} className="rounded-xl px-8 flex items-center gap-2 shadow-lg shadow-primary/20">
              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-             Save Changes
+             {isArchived ? "Archived (Read Only)" : "Save Changes"}
            </Button>
          </div>
       </div>
@@ -703,8 +774,8 @@ function FormTab({ active, onClick, icon, label }: { active: boolean, onClick: (
       className={clsx(
         "flex items-center gap-2 px-4 py-2 rounded-xl font-sans text-[10px] font-black uppercase tracking-widest transition-all duration-300",
         active 
-          ? "bg-white text-primary shadow-sm" 
-          : "text-on-surface/30 hover:text-on-surface/50 hover:bg-white/50"
+          ? "bg-surface-lowest text-primary shadow-sm" 
+          : "text-on-surface/30 hover:text-on-surface/50 hover:bg-surface-lowest/50"
       )}
     >
       {icon}
@@ -715,7 +786,7 @@ function FormTab({ active, onClick, icon, label }: { active: boolean, onClick: (
 
 function StatBox({ label, value }: { label: string, value: string }) {
   return (
-    <div className="bg-white/50 p-2.5 rounded-xl border border-primary/5">
+    <div className="bg-background/20 p-2.5 rounded-xl border border-primary/10">
       <p className="text-[8px] font-black uppercase tracking-tighter text-on-surface/40 mb-0.5">{label}</p>
       <p className="text-sm font-black text-primary">{value}</p>
     </div>

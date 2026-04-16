@@ -74,12 +74,12 @@ export function ResponsesClient() {
   }, [user, activeTab, selectedOffice]);
 
   // Fetch data
-  const { data: responses, isLoading, mutate } = useSWR(
+  const { data: responses, isLoading, mutate, error } = useSWR(
     targetOffices.length > 0 ? ["/api/responses", targetOffices, selectedMonth, selectedYear] : null,
     ([url, off, month, year]) => fetcher(url, off, month, year)
   );
 
-  const displayResponses = useMemo(() => {
+  const filteredResponses = useMemo(() => {
     if (!responses || !Array.isArray(responses)) return [];
 
     return responses.filter((res: any) => {
@@ -93,6 +93,8 @@ export function ResponsesClient() {
     });
   }, [responses, searchTerm]);
 
+  const displayResponses = filteredResponses;
+
   const unclassifiedCount = useMemo(() => {
     if (!responses || !Array.isArray(responses)) return 0;
     return responses.filter((res: any) => {
@@ -101,6 +103,9 @@ export function ResponsesClient() {
       return isUnclassified && hasComment;
     }).length;
   }, [responses]);
+
+  const isAnalyticsEnabled = !!user?.is_analytics_enabled;
+  const canSeeAllResponses = isSuperadmin || isAnalyticsEnabled;
 
   if (authLoading || (targetOffices.length > 0 && isLoading && !responses)) {
     return (
@@ -111,108 +116,137 @@ export function ResponsesClient() {
     );
   }
 
+  // Handle index missing error state
+  if (responses?.error === "INDEX_MISSING") {
+    return (
+      <div className="py-20 flex flex-col items-center gap-6 max-w-md mx-auto text-center border-2 border-dashed border-on-surface/5 rounded-3xl bg-surface-low/50 backdrop-blur-sm">
+        <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center">
+            <Tag className="w-8 h-8 text-amber-600 animate-pulse" />
+        </div>
+        <div className="space-y-2">
+            <h3 className="text-sm font-black uppercase tracking-widest text-on-surface">Database Preparation</h3>
+            <p className="text-[11px] font-bold text-on-surface/40 leading-relaxed px-8">
+                The database is currently optimizing records for high-speed retrieval. This usually takes 2-5 minutes during initial setup.
+            </p>
+        </div>
+        <button 
+            onClick={() => mutate()}
+            className="px-8 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-primary/20 hover:scale-105 transition-transform"
+        >
+            Retry Connection
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="bg-surface-low p-1 rounded-2xl flex items-center gap-1 border border-on-surface/5">
-          <button
-            onClick={() => setActiveTab("my")}
-            className={clsx(
-              "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-              activeTab === "my" ? "bg-white text-primary shadow-sm" : "text-on-surface/40 hover:text-on-surface/60"
+    <div className="space-y-4">
+      {/* Unified Command Bar */}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white/50 backdrop-blur-md p-2 rounded-3xl border border-on-surface/5 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-center gap-4 flex-grow">
+          {/* Tabs */}
+          <div className="bg-surface-low p-1 rounded-2xl flex items-center gap-1 border border-on-surface/5 w-full sm:w-auto">
+            <button
+              onClick={() => setActiveTab("my")}
+              className={clsx(
+                "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                activeTab === "my" ? "bg-white text-primary shadow-sm" : "text-on-surface/40 hover:text-on-surface/60"
+              )}
+            >
+              My Assignments
+            </button>
+            {canSeeAllResponses && (
+              <button
+                onClick={() => setActiveTab("all")}
+                className={clsx(
+                  "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                  activeTab === "all" ? "bg-white text-primary shadow-sm" : "text-on-surface/40 hover:text-on-surface/60"
+                )}
+              >
+                All Responses
+              </button>
             )}
-          >
-            My Assignments
-          </button>
-          <button
-            onClick={() => setActiveTab("all")}
-            className={clsx(
-              "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-              activeTab === "all" ? "bg-white text-primary shadow-sm" : "text-on-surface/40 hover:text-on-surface/60"
-            )}
-          >
-            All Responses
-          </button>
+          </div>
+
+          {/* Search Box */}
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-on-surface/30" />
+            <input
+              type="text"
+              placeholder="Quick search..."
+              className="w-full bg-surface-low border border-on-surface/5 rounded-2xl py-2.5 pl-10 pr-4 text-[11px] font-bold focus:ring-2 focus:ring-primary/10 transition-all outline-none"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
 
-        {activeTab === "all" && !isSuperadmin && (
-          <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 px-4 py-2 rounded-xl">
-             <Filter className="w-3.5 h-3.5 text-amber-600" />
-             <span className="text-[9px] font-black text-amber-700 uppercase tracking-widest">Global View (Read-Only)</span>
-          </div>
-        )}
-      </div>
+        <div className="flex flex-wrap items-center gap-2 justify-end px-2">
+            {activeTab === "all" && !isSuperadmin && (
+                <div className="flex items-center gap-2 bg-amber-50/50 border border-amber-100/50 px-3 py-1.5 rounded-xl mr-2">
+                    <Filter className="w-3 h-3 text-amber-600" />
+                    <span className="text-[8px] font-black text-amber-700 uppercase tracking-widest">Read Only</span>
+                </div>
+            )}
 
-      <Card className="p-4 border-on-surface/5 bg-white/50 backdrop-blur-md">
-        <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            <div className="relative flex-1 md:flex-none md:w-64">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface/30" />
-              <input
-                type="text"
-                placeholder="Search responses..."
-                className="w-full bg-white border border-on-surface/5 rounded-2xl py-3 pl-11 pr-4 text-sm focus:ring-2 focus:ring-primary/20 transition-all shadow-sm outline-none"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-
+          <div className="flex items-center gap-2 bg-surface-low/50 px-2 py-1 rounded-2xl border border-on-surface/5">
             <select
-              className="bg-white border border-on-surface/5 rounded-2xl py-3 px-4 text-xs font-black uppercase tracking-widest focus:ring-2 focus:ring-primary/20 transition-all shadow-sm cursor-pointer outline-none"
+              className="bg-transparent py-1.5 px-2 text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
             >
               {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
-
+            <div className="w-px h-3 bg-on-surface/10" />
             <select
-              className="bg-white border border-on-surface/5 rounded-2xl py-3 px-4 text-xs font-black uppercase tracking-widest focus:ring-2 focus:ring-primary/20 transition-all shadow-sm cursor-pointer outline-none"
+              className="bg-transparent py-1.5 px-2 text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer"
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
             >
               {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
-
             {activeTab === "all" && (
-              <select
-                className="bg-white border border-on-surface/5 rounded-2xl py-3 px-4 text-xs font-black uppercase tracking-widest focus:ring-2 focus:ring-primary/20 transition-all shadow-sm cursor-pointer outline-none min-w-[160px]"
-                value={selectedOffice}
-                onChange={(e) => setSelectedOffice(e.target.value)}
-              >
-                <option value="ALL">ALL OFFICES</option>
-                {offices?.filter((o: any) => o.status !== "disabled").map((o: any) => (
-                  <option key={o.id} value={o.name}>{o.name}</option>
-                ))}
-              </select>
+              <>
+                <div className="w-px h-3 bg-on-surface/10" />
+                <select
+                  className="bg-transparent py-1.5 px-2 text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer max-w-[120px]"
+                  value={selectedOffice}
+                  onChange={(e) => setSelectedOffice(e.target.value)}
+                >
+                  <option value="ALL">ALL OFFICES</option>
+                  {offices?.filter((o: any) => o.status !== "disabled").map((o: any) => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </select>
+              </>
             )}
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            {(activeTab === "my" || isSuperadmin) && (
-              <button
-                onClick={() => setIsClassifyModalOpen(true)}
-                className={clsx(
-                  "flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
-                  (unclassifiedCount > 0 && !(activeTab === "all" && !isSuperadmin))
-                    ? "bg-primary text-white hover:translate-y-[-2px] hover:shadow-lg hover:shadow-primary/20" 
-                    : "bg-surface-low text-on-surface/30 border border-on-surface/5 cursor-not-allowed"
-                )}
-                disabled={unclassifiedCount === 0 || (activeTab === "all" && !isSuperadmin)}
-              >
-                <Tag className="w-3.5 h-3.5" />
-                {activeTab === "all" && !isSuperadmin ? "View Only Mode" : "Classify Comments"}
-                {unclassifiedCount > 0 && !(activeTab === "all" && !isSuperadmin) && (
-                  <span className="bg-white text-primary px-1.5 py-0.5 rounded-md ml-1">{unclassifiedCount}</span>
-                )}
-              </button>
-            )}
-          </div>
+          {(activeTab === "my" || isSuperadmin) && (
+            <button
+              onClick={() => setIsClassifyModalOpen(true)}
+              className={clsx(
+                "flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
+                (unclassifiedCount > 0 && !(activeTab === "all" && !isSuperadmin))
+                  ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20" 
+                  : "bg-surface-low text-on-surface/20 border border-on-surface/5 cursor-not-allowed"
+              )}
+              disabled={unclassifiedCount === 0 || (activeTab === "all" && !isSuperadmin)}
+            >
+              <Tag className="w-3.5 h-3.5" />
+              Classify {unclassifiedCount > 0 && !(activeTab === "all" && !isSuperadmin) && (
+                <span className="bg-white text-primary px-1.5 py-0.5 rounded-lg ml-1 font-black">{unclassifiedCount}</span>
+              )}
+            </button>
+          )}
         </div>
-      </Card>
+      </div>
+
 
       <ResponsesTable 
         responses={displayResponses} 
         isLoading={isLoading} 
+        isGlobalView={activeTab === "all"}
       />
 
       <ClassifyModal 

@@ -20,9 +20,9 @@ export function Input({ label, className, ...props }: InputProps) {
       )}
       <input
         className={cn(
-          "w-full bg-[#e0e3e5] border-b-2 border-transparent px-4 py-3 rounded-t-lg font-sans text-on-surface",
+          "w-full bg-on-surface/5 border-b-2 border-transparent px-4 py-3 rounded-t-lg font-sans text-on-surface",
           "placeholder:text-on-surface/40 outline-none transition-all duration-200",
-          "focus:border-primary focus:bg-[#e8ebed]",
+          "focus:border-primary focus:bg-on-surface/10",
           className
         )}
         {...props}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifySuperadmin } from "@/lib/auth/verifySession";
 import { getAllPhysicalReports, createPhysicalReport } from "@/lib/services/physicalReportService";
+import { validatePhysicalReportInput } from "@/lib/validation/apiSchemas";
 
 export async function GET(request: Request) {
   try {
@@ -24,14 +25,19 @@ export async function POST(request: Request) {
   try {
     await verifySuperadmin();
     
-    let data;
+    let body;
     try {
-      data = await request.json();
+      body = await request.json();
     } catch (e) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const result = await createPhysicalReport(data);
+    const validation = validatePhysicalReportInput(body);
+    if (!validation.success) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+
+    const result = await createPhysicalReport(validation.data!);
     return NextResponse.json(result);
   } catch (error: any) {
     if (error.message === 'Forbidden' || error.message === 'Unauthorized') {

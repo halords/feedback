@@ -119,8 +119,13 @@ export function GraphsView() {
     img.onload = () => setLogoReady(true);
   }, []);
 
+  const activeMonths = useMemo(() => {
+    const idx = MONTHS.indexOf(month);
+    return MONTHS.slice(0, idx + 1);
+  }, [month]);
+
   const { data: trendData, isLoading: trendLoading } = useSWR(
-    currentData ? ["/api/dashboard", ["ALL"], MONTHS, year] : null,
+    currentData ? ["/api/dashboard", ["ALL"], activeMonths, year] : null,
     ([url, offices, months, y]) => fetcher(url, { offices, month: months, year: y })
   );
 
@@ -142,11 +147,6 @@ export function GraphsView() {
   const enviData = { labels, datasets: [{ label: "Environment", data: entries.map(o => parseOrZero(o.qValues.Q1?.RATE)), borderColor: COLORS.ENVIRONMENT, backgroundColor: "transparent", borderWidth: 3, tension: 0.4 }] };
   const sysprocData = { labels, datasets: [{ label: "Systems and Procedures", data: entries.map(o => parseOrZero(o.sysRate)), borderColor: COLORS.SYSTEMS, backgroundColor: "transparent", borderWidth: 3, tension: 0.4 }] };
   const staffData = { labels, datasets: [{ label: "Staff Service", data: entries.map(o => parseOrZero(o.staffRate)), borderColor: COLORS.STAFF, backgroundColor: "transparent", borderWidth: 3, tension: 0.4 }] };
-
-  const activeMonths = useMemo(() => {
-    const idx = MONTHS.indexOf(month);
-    return MONTHS.slice(0, idx + 1);
-  }, [month]);
 
   const monthlyRatingTrend = useMemo(() => {
     if (!trendData || !Array.isArray(trendData)) return null;
@@ -259,7 +259,7 @@ export function GraphsView() {
     return (
       <div className="flex flex-col gap-12 pb-40">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="bg-white rounded-3xl p-8 border border-on-surface/5 shadow-2xl h-[500px] flex flex-col gap-6 animate-pulse">
+          <div key={i} className="bg-surface-low rounded-3xl p-8 border border-border-strong/50 shadow-2xl h-[500px] flex flex-col gap-6 animate-pulse">
             <div className="flex flex-col items-center gap-2">
                <div className="h-4 w-64 bg-on-surface/5 rounded" />
                <div className="h-4 w-96 bg-on-surface/5 rounded" />
@@ -276,8 +276,8 @@ export function GraphsView() {
   return (
     <div className="flex flex-col gap-12 pb-40 relative">
       {isExporting && (
-        <div className="fixed inset-0 bg-white/60 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-white p-8 rounded-3xl shadow-2xl border border-on-surface/5 flex flex-col items-center gap-4">
+        <div className="fixed inset-0 bg-background/60 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-surface-low p-8 rounded-3xl shadow-2xl border border-border-strong/50 flex flex-col items-center gap-4">
             <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
             <p className="font-display font-bold text-primary">Generating High-Fidelity Graphs PDF...</p>
             <p className="text-xs text-on-surface/50">Capturing charts and preparing your report.</p>
@@ -292,7 +292,7 @@ export function GraphsView() {
       <ChartCard canvasId="staffData" data={staffData} options={getOptions("Staff Service Rating")} type="line" footer="ADM-054-1" onRendered={() => setRenderedCount(prev => prev + 1)} />
       <ChartCard canvasId="monthlyRating" data={monthlyRatingTrend} options={getOptions("Monthly Rating")} type="line" footer="ADM-055-0" onRendered={() => setRenderedCount(prev => prev + 1)} />
       <ChartCard canvasId="monthlyRes" data={monthlyResTrend} options={getOptions("Monthly Respondents")} type="line" footer="ADM-056-0" onRendered={() => setRenderedCount(prev => prev + 1)} />
-      <div className="bg-white rounded-3xl p-6 border border-on-surface/5 shadow-2xl flex flex-col items-center justify-center min-h-[400px]">
+      <div className="bg-surface-low rounded-3xl p-6 border border-border-strong/50 shadow-2xl flex flex-col items-center justify-center min-h-[400px]">
         {genderData && (
           <Pie 
             id="genders" 
@@ -324,7 +324,7 @@ function ChartCard({ canvasId, data, options, type, footer, onRendered }: { canv
   };
 
   return (
-    <div className="bg-white rounded-3xl p-6 border border-on-surface/5 shadow-2xl overflow-hidden">
+    <div className="bg-surface-low rounded-3xl p-6 border border-border-strong/50 shadow-2xl overflow-hidden">
       <div>
         {type === "line" && <Line id={canvasId} data={data} options={mergedOptions} plugins={plugins} />}
         {type === "bar" && <Bar id={canvasId} data={data} options={mergedOptions} plugins={plugins} />}

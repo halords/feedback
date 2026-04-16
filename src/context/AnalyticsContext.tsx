@@ -36,13 +36,14 @@ export function AnalyticsProvider({ children, activeTab = "data" }: { children: 
   const pathname = usePathname();
 
   const now = new Date();
-  const currentY = now.getFullYear();
-  const currentM = now.toLocaleString('en-US', { month: 'long' });
+  const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const currentY = prevMonthDate.getFullYear().toString();
+  const currentM = prevMonthDate.toLocaleString('en-US', { month: 'long' });
   
-  const [year, setYear] = useState(searchParams.get("year") || currentY.toString());
+  const [year, setYear] = useState(searchParams.get("year") || currentY);
   const [month, setMonth] = useState(searchParams.get("month") || currentM);
   const [search, setSearch] = useState(searchParams.get("search") || "");
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(searchParams.get("userId"));
   const [isGraphsReady, setIsGraphsReady] = useState(false);
 
   // Fetch all users for superadmin filter
@@ -65,13 +66,20 @@ export function AnalyticsProvider({ children, activeTab = "data" }: { children: 
     }
     if (newSearch !== undefined) {
       setSearch(newSearch);
+      if (newSearch) params.set("search", newSearch);
+      else params.delete("search");
+      // Search change doesn't necessarily need URL push immediately for 'independence'
     }
     if (newUserId !== undefined) {
       setSelectedUserId(newUserId);
+      if (newUserId) params.set("userId", newUserId);
+      else params.delete("userId");
+      urlChanged = true;
     }
 
     if (urlChanged) {
-      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+      // Use replace instead of push to avoid history stack bloat and potential state resets
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     }
   };
 
@@ -99,10 +107,17 @@ export function AnalyticsProvider({ children, activeTab = "data" }: { children: 
     }
 
     // Office Admin Data View: Their assigned scope
-    return user.offices && user.offices.length > 0 ? user.offices : [];
+    return user.offices && user.offices.length > 0 ? user.offices : ["NONE_ASSIGNED"];
   }, [user, activeTab, selectedUserId, users]);
 
   const swrKey = targetOffices.length > 0 ? ["/api/dashboard", targetOffices, month, year] : null;
+
+  // Debug logging for development
+  React.useEffect(() => {
+    if (targetOffices.length > 0) {
+      console.log(`[AnalyticsContext] Tab: ${activeTab} | Targeting: ${JSON.stringify(targetOffices)} | Period: ${month} ${year}`);
+    }
+  }, [activeTab, targetOffices, month, year]);
 
   const { data, error, isLoading, isValidating } = useSWR(
     swrKey,

@@ -17,8 +17,7 @@ export { hasGlobalAccess };
  */
 export function resolveAuthorizedOffices(
   user: SessionUser, 
-  requestedOffices?: string[] | string,
-  allowGlobal: boolean = false
+  requestedOffices?: string[] | string
 ): string[] {
   // Normalize string to array if necessary
   const requested = typeof requestedOffices === 'string' 
@@ -35,19 +34,26 @@ export function resolveAuthorizedOffices(
     return ["ALL"];
   }
 
-  // 2. Restricted User logic (Standard User / Office Admin)
-  // Standardize the user type for comparison
-  const type = user.user_type?.toLowerCase().replace(/\s/g, '');
+  // 2. Restricted User logic
   const userOffices = user.offices || [];
-  
-  // If no specific offices requested, or if they requested "ALL" (which they aren't allowed to see globally)
-  // return all offices they are assigned to
+
+  // 2a. Analytics Enabled logic
+  if (user.is_analytics_enabled) {
+    // If they explicitly requested "ALL" or no scope specified
+    if (!requested || requested.length === 0 || (requested.length === 1 && requested[0] === "ALL")) {
+      return ["ALL"];
+    }
+    // Granular/Data-View requests: Strictly intersect with assigned offices
+    return requested.filter(office => userOffices.includes(office));
+  }
+
+  // 2b. Standard User logic (No Analytics)
+  // If no specific offices requested, or if they requested "ALL"
   if (!requested || requested.length === 0 || (requested.length === 1 && requested[0] === "ALL")) {
-    if (allowGlobal && requested?.[0] === "ALL") return ["ALL"];
+    console.log(`[RBAC] Scoping ${user.email} (Non-Admin) to assignments: ${JSON.stringify(userOffices)}`);
     return userOffices;
   }
 
-  // Return the intersection of assigned offices and requested offices
-  // This prevents non-admins from querying offices they aren't assigned to
+  // Intersect specific requests with assigned offices
   return requested.filter(office => userOffices.includes(office));
 }

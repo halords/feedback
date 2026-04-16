@@ -35,7 +35,9 @@ const ITEMS_PER_PAGE = 10;
 export function DataView() {
   const { user } = useAuth();
   const { data, isLoading, month, year, search } = useAnalytics();
-  const { data: rawOfficeList } = useSWR("/api/offices", (url) => fetch(url).then(r => r.json()));
+  
+  // Fetch context-aware office list to respect archival inclusion rules
+  const { data: rawOfficeList } = useSWR(`/api/offices?month=${month}&year=${year}`, (url) => fetch(url).then(r => r.json()));
   const [selectedOffice, setSelectedOffice] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -46,18 +48,10 @@ export function DataView() {
     const isSuperadmin = user?.user_type?.toLowerCase() === "superadmin";
     const userOffices = user?.offices || [];
     
-    // Get list of disabled office names
-    const disabledOffices = rawOfficeList 
-      ? rawOfficeList.filter((o: any) => o.status === "disabled").map((o: any) => o.name)
-      : [];
-
     let filtered: any[] = data;
     
-    // Filter out disabled offices first
-    if (disabledOffices.length > 0) {
-      filtered = filtered.filter((o: any) => !disabledOffices.includes(o.department));
-    }
-
+    // Server now handles 'disabled' office filtering based on period context
+    // We only need to apply local search and user assignment filters
     if (!isSuperadmin) {
       filtered = filtered.filter((o: any) => userOffices.includes(o.department));
     }
@@ -65,7 +59,7 @@ export function DataView() {
     if (!search) return filtered;
     const s = search.toLowerCase();
     return filtered.filter((o: any) => o.department.toLowerCase().includes(s));
-  }, [data, search, user, rawOfficeList]);
+  }, [data, search, user]);
 
   // Reset pagination on filter change
   useMemo(() => {
@@ -80,7 +74,7 @@ export function DataView() {
 
   if (isLoading && !data) {
     return (
-      <Card className="p-0 overflow-hidden border border-on-surface/5 shadow-xl bg-white animate-pulse mb-10">
+      <Card className="p-0 overflow-hidden border border-border-strong/50 shadow-xl bg-surface-low animate-pulse mb-10">
         <div className="h-14 bg-surface-low border-b border-on-surface/5 w-full" />
         <div className="divide-y divide-on-surface/5">
           {Array(8).fill(0).map((_, i) => (
@@ -102,11 +96,11 @@ export function DataView() {
 
   return (
     <div className="space-y-4">
-      <Card className="p-0 overflow-hidden border border-on-surface/5 shadow-xl bg-white">
+      <Card className="p-0 overflow-hidden border border-border-strong/50 shadow-xl bg-surface-low">
         <div className="overflow-x-auto">
           <table className="w-full text-left font-sans border-collapse">
             <thead>
-              <tr className="bg-surface-low border-b border-on-surface/5">
+              <tr className="bg-background/80 backdrop-blur-md border-b-2 border-border-strong">
                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40 w-12 text-center">#</th>
                 <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40">Office Name</th>
                 <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40">Period</th>
@@ -116,7 +110,7 @@ export function DataView() {
                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-on-surface/5">
+            <tbody className="divide-y divide-border-strong/20">
               {paginatedData.map((office: any, idx: number) => (
                 <tr key={office.department} className="hover:bg-on-surface/[0.015] transition-all group">
                   <td className="px-6 py-3.5 text-xs font-bold text-on-surface/30 text-center">
@@ -182,14 +176,14 @@ export function DataView() {
               <button 
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="p-1.5 rounded-lg hover:bg-white disabled:opacity-20 transition-all text-primary border border-transparent hover:border-on-surface/5"
+                className="p-1.5 rounded-lg hover:bg-surface-lowest disabled:opacity-20 transition-all text-primary border border-transparent hover:border-border-strong/50"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button 
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="p-1.5 rounded-lg hover:bg-white disabled:opacity-20 transition-all text-primary border border-transparent hover:border-on-surface/5"
+                className="p-1.5 rounded-lg hover:bg-surface-lowest disabled:opacity-20 transition-all text-primary border border-transparent hover:border-border-strong/50"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -240,7 +234,7 @@ function OfficeReportDetail({ office }: { office: any }) {
                   <Badge label="Yes" value={office.awareCount} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4 p-4 bg-surface-lowest rounded-2xl border border-on-surface/5">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-background/50 rounded-2xl border border-border-strong/50">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface/40 mb-1 ml-1">Visibility</p>
                   <p className="text-xl font-black text-on-surface">{office.visibleCount}</p>
@@ -255,8 +249,8 @@ function OfficeReportDetail({ office }: { office: any }) {
         </div>
 
         <div className="lg:col-span-2">
-           <div className="bg-surface-low rounded-3xl border border-on-surface/5 overflow-hidden shadow-sm">
-             <div className="p-6 md:p-8 border-b border-on-surface/5">
+           <div className="bg-surface-low rounded-3xl border border-border-strong/50 overflow-hidden shadow-sm">
+             <div className="p-6 md:p-8 border-b border-border-strong/50">
                 <h3 className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2 font-display">
                   <FileText className="w-4 h-4" /> Multi-Point Satisfaction Analysis
                 </h3>
@@ -264,7 +258,7 @@ function OfficeReportDetail({ office }: { office: any }) {
              <div className="overflow-x-auto">
                 <table className="w-full text-left font-sans border-collapse">
                   <thead>
-                    <tr className="bg-on-surface/5">
+                    <tr className="bg-background/80 border-b-2 border-border-strong">
                       <th className="px-6 py-4 text-[10px] font-black uppercase tracking-tighter text-on-surface/50 w-1/3">Criteria</th>
                       <th className="px-4 py-4 text-[10px] font-black uppercase text-center text-on-surface/40">0</th>
                       <th className="px-4 py-4 text-[10px] font-black uppercase text-center text-on-surface/40">1</th>
@@ -275,7 +269,7 @@ function OfficeReportDetail({ office }: { office: any }) {
                       <th className="px-6 py-4 text-[10px] font-black uppercase text-right text-primary">Rating</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-on-surface/5">
+                  <tbody className="divide-y divide-border-strong/20">
                     {FEEDBACK_STATEMENTS.map((stmt, i) => {
                       const qKey = `Q${i}`;
                       const qv = office.qValues[qKey] || { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, NA: 0, RATE: 'N/A' };
@@ -339,7 +333,7 @@ function DataLabel({ label, value }: { label: string, value: any }) {
 
 function Badge({ label, value }: { label: string, value: any }) {
   return (
-    <div className="px-3 py-2 rounded-xl flex flex-col items-center justify-center bg-white shadow-sm border border-on-surface/5">
+    <div className="px-3 py-2 rounded-xl flex flex-col items-center justify-center bg-background/50 shadow-sm border border-border-strong/50 text-center">
       <span className="text-[8px] font-black uppercase text-on-surface/40 mb-0.5">{label}</span>
       <span className="text-sm font-black text-primary">{value}</span>
     </div>
@@ -348,7 +342,7 @@ function Badge({ label, value }: { label: string, value: any }) {
 
 function FeedbackList({ title, data, color, bg, dot }: { title: string, data: string[], color: string, bg: string, dot: string }) {
   return (
-    <Card className={clsx(bg, "border border-on-surface/5 p-6")}>
+    <Card className={clsx(bg, "border border-border-strong/50 p-6 shadow-xl")}>
       <h3 className={clsx("text-[10px] font-black uppercase tracking-widest mb-6", color)}>{title}</h3>
       <div className="space-y-4 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar-reports text-xs">
         {data.length > 0 ? (

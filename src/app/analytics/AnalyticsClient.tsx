@@ -17,15 +17,16 @@ import { GraphsView } from "@/components/analytics/GraphsView";
 type Tab = "data" | "summary" | "graphs";
 
 function AnalyticsHeader({ activeTab, setActiveTab }: { activeTab: Tab, setActiveTab: (t: Tab) => void }) {
-  const { month, year } = useAnalytics();
+  const { user } = useAuth();
   
+  const isSuperadmin = user?.user_type?.toLowerCase() === 'superadmin';
+  const isAnalyticsEnabled = !!user?.is_analytics_enabled;
+  const canSeeAnalytics = isSuperadmin || isAnalyticsEnabled;
+
+  if (!canSeeAnalytics) return null;
+
   return (
-    <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
-      <div>
-        <h1 className="font-display text-4xl font-extrabold text-primary tracking-tight">Analytics & Reports</h1>
-        <p className="text-on-surface/50 font-medium mt-1">Generate and visualize detailed satisfaction reports for organizational audits.</p>
-      </div>
-      
+    <div className="flex items-center justify-end mb-8">
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 bg-surface-low p-1.5 rounded-2xl border border-on-surface/5">
           <TabButton 

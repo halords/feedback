@@ -53,10 +53,10 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
   }, [isSuperadmin, selectedUserId, users]);
 
   return (
-    <div className="bg-surface-low rounded-2xl p-3 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 shadow-sm border border-on-surface/5 w-full">
+    <div className="bg-surface-low rounded-2xl p-3 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 shadow-sm border border-border-strong/50 w-full transition-colors duration-300">
       <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 flex-1">
         {/* Date Selectors */}
-        <div className="flex items-center gap-2 bg-surface-lowest px-2 py-1.5 rounded-xl border border-on-surface/5">
+        <div className="flex items-center gap-2 bg-background/50 px-2 py-1.5 rounded-xl border border-border-strong/50 transition-all">
           <div className="relative flex items-center">
             <Calendar className="absolute left-3 w-3.5 h-3.5 text-primary" />
             <select
@@ -66,9 +66,9 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
             >
               {availableMonths.map((m: string) => <option key={m} value={m}>{m}</option>)}
             </select>
-            <ChevronDown className="absolute right-0 w-3.5 h-3.5 text-on-surface/30 pointer-events-none" />
+            <ChevronDown className="absolute right-0 w-3.5 h-3.5 text-on-surface/50 pointer-events-none" />
           </div>
-          <div className="w-px h-4 bg-on-surface/10 mx-1" />
+          <div className="w-px h-4 bg-on-surface/20 mx-1" />
           <div className="relative flex items-center">
             <select
               value={year}
@@ -81,7 +81,7 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
           </div>
         </div>
 
-        {/* Filters Group - Only show on Data View tab */}
+        {/* Filters Group - Only show on Data View tab for granular browsing */}
         {activeTab === "data" && (
           <div className="flex flex-1 flex-col md:flex-row items-center gap-3">
             {/* User Dropdown for Superadmin */}
@@ -91,7 +91,7 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
                 <select
                   value={selectedUserId || ""}
                   onChange={(e) => setFilters({ selectedUserId: e.target.value || null })}
-                  className="w-full h-11 bg-surface-lowest pl-11 pr-10 rounded-xl border border-on-surface/5 outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all text-xs font-bold appearance-none cursor-pointer"
+                  className="w-full h-11 bg-background/50 pl-11 pr-10 rounded-xl border border-border-strong/50 outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all text-xs font-bold appearance-none cursor-pointer"
                 >
                   <option value="">User Filter: None</option>
                   <option value="ALL_OFFICES">All Offices (Global)</option>
@@ -108,7 +108,7 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
                       <option key={u.idno} value={u.idno}>{u.fullName} {u.userType?.toLowerCase() === 'superadmin' ? '(Superadmin)' : ''}</option>
                     ))}
                 </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface/20 pointer-events-none" />
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface/40 pointer-events-none" />
               </div>
             )}
 
@@ -120,7 +120,7 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
                 placeholder="Search by office name..."
                 value={search || ""}
                 onChange={(e) => setFilters({ search: e.target.value })}
-                className="w-full h-11 bg-surface-lowest pl-11 pr-4 rounded-xl border border-on-surface/5 outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all text-xs font-bold placeholder:text-on-surface/20"
+                className="w-full h-11 bg-background/50 pl-11 pr-4 rounded-xl border border-border-strong/50 outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all text-xs font-bold placeholder:text-on-surface/40"
               />
             </div>
           </div>
@@ -163,12 +163,12 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
         {activeTab === "summary" ? "Generate Summary" : "Generate Report"}
       </Button>
       {activeTab === "graphs" && !isGraphsReady && !isLoading && (
-        <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-black text-primary/40 uppercase tracking-widest animate-pulse whitespace-nowrap">
+        <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-black text-primary uppercase tracking-widest animate-pulse whitespace-nowrap">
           * Waiting for charts to render...
         </span>
       )}
       {isLoading && (
-        <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-black text-primary/40 uppercase tracking-widest animate-pulse whitespace-nowrap">
+        <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-black text-primary uppercase tracking-widest animate-pulse whitespace-nowrap">
           * Extracting dashboard data...
         </span>
       )}

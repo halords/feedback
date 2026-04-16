@@ -1,14 +1,9 @@
+import { db } from "@/lib/firebase/admin";
+
 export const SATELLITE_GROUPS = {
   PHO: ["PHO", "PHO-Clinic", "PHO-Warehouse"],
   PTO: ["PTO", "PTO-Cash", "PTO-Assessor"],
 };
-
-export const ALL_OFFICES = [
-  "OPG", "OPA", "SPO", "OPAss", "PTO", "PTO-Assessor", "PTO-Cash", "PBO", "OPAcc", 
-  "PEO", "PGSO", "PLO", "PPDC", "PHO", "PHO-Clinic", "PSWDO", 
-  "OPAg", "OPVet", "PGENRO", "MAO", "LUPTO", "PICTO", "BACSD", "LEEIPO", 
-  "PHRMDO", "SSD", "LUPJ", "PDRRMO", "PESO", "LIBRARY", "PYESDO", "PCDO"
-];
 
 /**
  * Returns all individual office IDs belonging to a group if the input is a primary group (PHO/PTO),
@@ -20,21 +15,81 @@ export function expandOfficeGroup(officeId: string): string[] {
   return [officeId];
 }
 
+import { getAllOffices } from "./officeService";
+
 /**
  * Determines if a given office list contains a primary group ID.
+ * Dynamically resolves "ALL" by checking the 'offices' collection for active records.
  */
-export function resolveTargetOffices(offices: string[]): string[] {
+export async function resolveTargetOffices(offices: string[], year?: string): Promise<string[]> {
   const result = new Set<string>();
+  const is2025 = String(year) === "2025";
   
+  // 1. Get the authoritative list of active offices from the service
+  const activeOffices = await getAllOffices();
+  console.log(`[Aggregator] Authority: ${activeOffices.length} active offices found in DB.`);
+  const activeNames = new Set(activeOffices.map(o => o.name));
+  const activeIds = new Set(activeOffices.map(o => o.id));
+
+  // 2. Process requests
+  if (offices.includes("ALL")) {
+    activeOffices.forEach(o => {
+      // Add ID, Name, and Full Name for absolute matching resilience
+      result.add(o.id);
+      if (o.name) result.add(o.name);
+      if (o.fullName) result.add(o.fullName);
+      
+      // Expand groups for ALL
+      expandOfficeGroup(o.id).forEach(expanded => {
+        result.add(expanded);
+      });
+    });
+  }
+
+  // Also process specific offices and groups
   offices.forEach(office => {
-    if (office === "ALL") ALL_OFFICES.forEach(o => result.add(o));
-    else if (office === "PHO") SATELLITE_GROUPS.PHO.forEach(o => result.add(o));
-    else if (office === "PTO") SATELLITE_GROUPS.PTO.forEach(o => result.add(o));
-    else result.add(office);
+    if (office === "ALL") return; 
+    
+    let toAdd: string[] = [];
+    if (office === "PHO") toAdd = SATELLITE_GROUPS.PHO;
+    else if (office === "PTO") toAdd = SATELLITE_GROUPS.PTO;
+    else toAdd = [office];
+
+    toAdd.forEach(o => {
+      // Find matching office record to get BOTH Name and ID
+      const match = activeOffices.find(doff => 
+        doff.id === o || 
+        doff.name === o || 
+        doff.fullName === o ||
+        doff.id === o.trim() ||
+        doff.name === o.trim()
+      );
+
+      if (match) {
+        result.add(match.id);
+        if (match.name) result.add(match.name);
+        if (match.fullName) result.add(match.fullName);
+      } else {
+        // Fallback for satellites or missing metadata
+        result.add(o);
+      }
+    });
   });
+
+  // Apply 2025 organizational exclusion rules
+  if (is2025) {
+    for (const item of Array.from(result)) {
+      const upper = item.toUpperCase();
+      if (upper === "PYESDO" || upper === "PCDO") {
+        result.delete(item);
+      }
+    }
+  }
 
   return Array.from(result);
 }
+
+
 
 /**
  * Merges detailed individual satellite results into a grouped result if needed.

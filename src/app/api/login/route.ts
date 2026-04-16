@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase/admin";
 import bcrypt from "bcryptjs";
 import { createSessionToken, setSessionCookie } from "@/lib/auth/verifySession";
-import { checkRateLimit } from "@/lib/security/rateLimit";
+import { checkRateLimitAsync } from "@/lib/security/rateLimit";
 import { logAction } from "@/lib/services/auditService";
 
 export async function POST(request: Request) {
   try {
     // 0. Rate Limiting (5 attempts per 15 minutes)
     const ip = request.headers.get("x-forwarded-for") || "unknown";
-    const ratelimit = checkRateLimit(ip, 5, 15 * 60 * 1000);
+    const ratelimit = await checkRateLimitAsync(ip, "login", 5, 15 * 60 * 1000);
     
     if (!ratelimit.success) {
       return NextResponse.json({ 
@@ -47,9 +47,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
     }
 
-    // 3. Fetch full name from user_data
+    // 3. Fetch profile data from user_data
     const userInfoSnapshot = await db.collection("user_data").where("idnumber", "==", userData.idno).get();
-    const fullName = !userInfoSnapshot.empty ? userInfoSnapshot.docs[0].data().full_name : "Unknown User";
+    const profileData = !userInfoSnapshot.empty ? userInfoSnapshot.docs[0].data() : {};
+    const fullName = profileData.full_name || "Unknown User";
+    const isAnalyticsEnabled = !!profileData.is_analytics_enabled;
 
     // 4. Fetch office assignments
     const officeSnapshot = await db.collection("office_assignment").where("idno", "==", userData.idno).get();
@@ -72,6 +74,7 @@ export async function POST(request: Request) {
       full_name: fullName,
       offices: [...new Set(offices)],
       requiresPasswordChange: userData.requiresPasswordChange === true,
+      is_analytics_enabled: isAnalyticsEnabled,
     };
 
     // 5. Create Session Token

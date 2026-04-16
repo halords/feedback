@@ -42,28 +42,30 @@ export function FilterBar() {
     }
   }, [availableMonths, month, setFilters]);
   
-  // Fetch office list
-  const { data: rawOfficeList } = useSWR("/api/offices", (url) => fetch(url).then(r => r.json()));
+  // Fetch office list with context to respect archive inclusion rules
+  const { data: officeListRaw } = useSWR(`/api/offices?month=${month}&year=${year}`, (url) => fetch(url).then(r => r.json()));
   const { user } = useAuth();
   
   const officeList = useMemo(() => {
-    if (!Array.isArray(rawOfficeList)) return [];
-    const activeOffices = rawOfficeList.filter((o: any) => o.status !== "disabled");
-    const isSuperadmin = user?.user_type?.toLowerCase() === "superadmin";
-    if (isSuperadmin) return activeOffices;
+    if (!Array.isArray(officeListRaw)) return [];
     
+    const isSuperadmin = user?.user_type?.toLowerCase() === "superadmin";
+    if (isSuperadmin) return officeListRaw;
+    
+    // Non-superadmins only see offices they are explicitly assigned to 
+    // BUT only if those offices are actually 'effective' for this period
     const userOffices = (user?.offices || []).map(o => o.toLowerCase());
-    return activeOffices.filter((off: any) => 
+    return officeListRaw.filter((off: any) => 
       userOffices.includes(off.name.toLowerCase()) || 
       userOffices.includes(off.id.toLowerCase())
     );
-  }, [rawOfficeList, user]);
+  }, [officeListRaw, user]);
 
   return (
-    <div className="bg-surface-low rounded-2xl p-4 md:p-6 mb-8 flex flex-col md:flex-row items-end gap-6 shadow-sm border border-on-surface/5">
+    <div className="bg-surface-low rounded-2xl p-4 md:p-6 mb-8 flex flex-col md:flex-row items-end gap-6 shadow-sm border border-border-strong/50 transition-colors duration-300">
       {/* Office Selector */}
       <div className="flex-grow w-full md:w-auto">
-        <label className="block text-[10px] font-bold uppercase tracking-widest text-on-surface/50 mb-2 px-1">
+        <label className="block text-[11px] font-bold uppercase tracking-widest text-on-surface/60 mb-2 px-1">
           Target Department(s)
         </label>
         <div className="relative group">
@@ -80,8 +82,8 @@ export function FilterBar() {
               }
             }}
             className={clsx(
-              "w-full bg-surface-lowest border-b-2 border-transparent px-10 py-3 rounded-lg font-sans text-sm font-semibold",
-              "appearance-none outline-none transition-all duration-200 focus:border-primary shadow-sm"
+              "w-full bg-background/50 border-b-2 border-border-strong/50 px-10 py-3 rounded-lg font-sans text-sm font-semibold",
+              "appearance-none outline-none transition-all duration-200 focus:border-primary shadow-sm text-on-surface"
             )}
           >
             <option value="">Select an office...</option>
@@ -104,14 +106,14 @@ export function FilterBar() {
 
       {/* Month Selector */}
       <div className="w-full md:w-48">
-        <label className="block text-[10px] font-bold uppercase tracking-widest text-on-surface/50 mb-2 px-1">
+        <label className="block text-[11px] font-bold uppercase tracking-widest text-on-surface/60 mb-2 px-1">
           Period (Month)
         </label>
         <div className="relative group">
           <select
             value={month}
             onChange={(e) => setFilters({ month: e.target.value })}
-            className="w-full bg-surface-lowest border-b-2 border-transparent px-10 py-3 rounded-lg font-sans text-sm font-semibold appearance-none outline-none focus:border-primary shadow-sm"
+            className="w-full bg-background/50 border-b-2 border-border-strong/50 px-10 py-3 rounded-lg font-sans text-sm font-semibold appearance-none outline-none focus:border-primary shadow-sm text-on-surface"
           >
             {availableMonths.map((m: string) => <option key={m} value={m}>{m}</option>)}
           </select>
@@ -122,14 +124,14 @@ export function FilterBar() {
 
       {/* Year Selector */}
       <div className="w-full md:w-32">
-        <label className="block text-[10px] font-bold uppercase tracking-widest text-on-surface/50 mb-2 px-1">
+        <label className="block text-[11px] font-bold uppercase tracking-widest text-on-surface/60 mb-2 px-1">
           Year
         </label>
         <div className="relative group">
           <select
             value={year}
             onChange={(e) => setFilters({ year: e.target.value })}
-            className="w-full bg-surface-lowest border-b-2 border-transparent px-10 py-3 rounded-lg font-sans text-sm font-semibold appearance-none outline-none focus:border-primary shadow-sm"
+            className="w-full bg-background/50 border-b-2 border-border-strong/50 px-10 py-3 rounded-xl font-sans text-sm font-semibold appearance-none outline-none focus:border-primary shadow-sm text-on-surface"
           >
             {availableYears.map((y: string) => <option key={y} value={y}>{y}</option>)}
           </select>

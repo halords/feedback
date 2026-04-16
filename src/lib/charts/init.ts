@@ -28,7 +28,7 @@ export function initCharts() {
 
     // Set global defaults matching Indigo Slate theme
     ChartJS.defaults.font.family = 'Inter, sans-serif';
-    ChartJS.defaults.color = '#191c1e'; // on-surface
+    ChartJS.defaults.color = document.documentElement.classList.contains('dark') ? '#f0f2f5' : '#191c1e'; 
     ChartJS.defaults.plugins.legend.labels.usePointStyle = true;
     ChartJS.defaults.responsive = true;
     ChartJS.defaults.maintainAspectRatio = false;

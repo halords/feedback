@@ -17,6 +17,7 @@ export interface SessionUser {
   full_name: string;
   offices: string[];
   requiresPasswordChange?: boolean;
+  is_analytics_enabled?: boolean;
 }
 
 /**

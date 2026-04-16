@@ -17,28 +17,36 @@
 }
 
 .dark {
-  --background: #0a0c10;
-  --foreground: #f0f2f5;
+  --background: #0f172a; /* Report background */
+  --foreground: #f1f5f9; /* Slate 100 */
   
-  --surface-low: #161a22;
-  --surface-lowest: #1c212b;
-  --on-surface: #f0f2f5;
+  --surface-low: #1e293b; /* Report sections (Slate 800) */
+  --surface-lowest: #1e293b; 
+  --on-surface: #e2e8f0; /* Slate 200 */
   
-  --primary: #60a5fa; /* Lighter blue for dark mode */
+  --primary: #38bdf8; /* Lighter sky blue matches the slate theme better */
   --primary-container: #1e3a8a;
   --tertiary: #2dd4bf;
+
+  /* Custom borders to match report's vibe */
+  --border-dim: #1e293b;
+  --border-strong: #334155; /* Section borders from report */
 }
 
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   
+  --color-surface: var(--background);
   --color-surface-low: var(--surface-low);
   --color-surface-lowest: var(--surface-lowest);
   
   --color-primary: var(--primary);
   --color-primary-container: var(--primary-container);
   --color-tertiary: var(--tertiary);
+  
+  --color-border-dim: var(--border-dim);
+  --color-border-strong: var(--border-strong);
   
   --font-display: var(--font-manrope);
   --font-sans: var(--font-inter);
@@ -59,21 +67,30 @@ h1, h2, h3, h4, h5, h6 {
   scrollbar-color: var(--on-surface) transparent;
 }
 
-.custom-scrollbar-reports::-webkit-scrollbar {
-  width: 6px;
+.custom-scrollbar-reports::-webkit-scrollbar,
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
 }
 
-.custom-scrollbar-reports::-webkit-scrollbar-track {
+.custom-scrollbar-reports::-webkit-scrollbar-track,
+.custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.custom-scrollbar-reports::-webkit-scrollbar-thumb {
-  background-color: rgba(25, 28, 30, 0.1);
+.custom-scrollbar-reports::-webkit-scrollbar-thumb,
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--on-surface), transparent 90%);
   border-radius: 20px;
 }
 
-.custom-scrollbar-reports::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(25, 28, 30, 0.2);
+.custom-scrollbar-reports::-webkit-scrollbar-thumb:hover,
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--on-surface), transparent 70%);
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--on-surface), transparent 90%) transparent;
 }
 
 @keyframes progress-slide {

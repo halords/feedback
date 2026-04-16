@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect } from "react";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 
 interface UserProfile {
   uid: string;
@@ -11,6 +11,7 @@ interface UserProfile {
   full_name: string;
   offices: string[];
   requiresPasswordChange?: boolean;
+  is_analytics_enabled?: boolean;
 }
 
 interface AuthContextType {
@@ -44,6 +45,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
+  const { mutate: globalMutate } = useSWRConfig();
+
   const login = (userData: UserProfile) => {
     // The cookie is already set by the /api/login endpoint.
     // We just manually update the cache for immediate UI feedback.
@@ -53,7 +56,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
+      
+      // 1. Clear personal user state
       mutate(null, false);
+
+      // 2. Flush entire global SWR cache to prevent stale data bleed
+      await globalMutate(() => true, undefined, { revalidate: false });
+
       window.location.href = "/login";
     } catch (error) {
       console.error("Logout failed:", error);

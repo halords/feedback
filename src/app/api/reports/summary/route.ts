@@ -2,10 +2,24 @@ import { getDashboardMetrics } from "@/lib/services/metricsService";
 import { generateSummaryReport } from "@/lib/reports/pdfGenerator";
 import { verifySession } from "@/lib/auth/verifySession";
 import { resolveAuthorizedOffices } from "@/lib/auth/rbac";
+import { checkRateLimitAsync } from "@/lib/security/rateLimit";
 
 
 export async function GET(request: Request) {
   try {
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    const ratelimit = await checkRateLimitAsync(ip, "pdf_summary", 5, 5 * 60 * 1000); // 5 per 5 mins
+
+    if (!ratelimit.success) {
+      return new Response("Too many report requests. Please wait before trying again.", { 
+        status: 429,
+        headers: {
+          'X-RateLimit-Limit': ratelimit.limit.toString(),
+          'X-RateLimit-Reset': ratelimit.reset.toString()
+        }
+      });
+    }
+
     const { searchParams } = new URL(request.url);
     const month = searchParams.get("month");
     const year = searchParams.get("year");

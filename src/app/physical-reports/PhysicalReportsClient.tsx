@@ -26,10 +26,6 @@ export default function PhysicalReportsClient() {
 
   return (
     <Shell>
-      <div className="mb-8">
-        <h1 className="font-display text-4xl font-extrabold text-primary tracking-tight">Physical Reports Editor</h1>
-        <p className="text-on-surface/50 font-medium mt-1">Safely edit raw physical report data from the firestore collection.</p>
-      </div>
 
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
         <PhysicalReportsEditor />

@@ -39,7 +39,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = "max-w-6xl"
           "bg-surface w-full rounded-3xl shadow-2xl relative z-[10000] flex flex-col max-h-[90vh] mx-4 sm:mx-6 overflow-hidden",
           maxWidth
         )}>
-          <div className="flex items-center justify-between p-6 md:p-8 border-b border-on-surface/5 flex-shrink-0">
+          <div className="flex items-center justify-between p-6 md:p-8 border-b-2 border-border-strong flex-shrink-0">
             <h2 className="font-display text-2xl font-black text-primary tracking-tight">{title}</h2>
             <button 
               onClick={onClose}

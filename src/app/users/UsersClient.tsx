@@ -34,12 +34,6 @@ export default function UsersClient({ children }: { children: React.ReactNode })
 
   return (
     <Shell>
-      <div className="mb-10">
-        <h1 className="font-display text-4xl font-extrabold text-primary tracking-tight">User Management</h1>
-        <p className="text-on-surface/50 font-medium mt-1">
-          Manage administrative accounts, staff profiles, and departmental office assignments.
-        </p>
-      </div>
       {children}
     </Shell>
   );

@@ -15,15 +15,15 @@ interface DataTableProps {
 
 export function DataTable({ columns, data, isLoading }: DataTableProps) {
   return (
-    <div className="w-full overflow-x-auto rounded-xl bg-surface-low border border-on-surface/5">
+    <div className="w-full overflow-x-auto rounded-xl bg-surface-low border border-border-strong/50">
       <table className="w-full text-left border-collapse min-w-[600px]">
         <thead>
-          <tr className="bg-primary/5">
+          <tr className="bg-background/50 border-b-2 border-border-strong">
             {columns.map((col, idx) => (
               <th 
                 key={idx} 
                 className={clsx(
-                  "p-4 text-[10px] font-bold uppercase tracking-widest text-on-surface/50 border-b border-on-surface/5",
+                  "p-4 text-[10px] font-black uppercase tracking-[0.2em] text-on-surface/30",
                   col.align === "center" && "text-center",
                   col.align === "right" && "text-right"
                 )}
@@ -67,7 +67,7 @@ export function DataTable({ columns, data, isLoading }: DataTableProps) {
                   <td 
                     key={j} 
                     className={clsx(
-                      "p-4 text-sm font-semibold text-on-surface/80 border-b border-on-surface/5",
+                      "p-4 text-sm font-semibold text-on-surface/80 border-b border-border-strong/20",
                       col.align === "center" && "text-center",
                       col.align === "right" && "text-right"
                     )}

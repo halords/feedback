@@ -1,23 +1,37 @@
 import { NextResponse } from "next/server";
-import { verifySuperadmin, getSessionUser } from "@/lib/auth/verifySession";
-import { getAllOffices, createOffice, updateOffice } from "@/lib/services/officeService";
+import { verifySuperadmin, getSessionUser, verifySession } from "@/lib/auth/verifySession";
+import { getAllOffices, createOffice, updateOffice, getEffectiveOfficesForPeriod } from "@/lib/services/officeService";
 
 /**
  * GET /api/offices
  * Returns active offices by default. Admins see all.
  */
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const user = await getSessionUser();
-    const isAdmin = user?.user_type?.toLowerCase() === "superadmin";
+    const { searchParams } = new URL(req.url);
+    const month = searchParams.get("month");
+    const year = searchParams.get("year");
+
+    const user = await verifySession(); // Throws if not authenticated
+    const isAdmin = user.user_type?.toLowerCase() === "superadmin";
     
-    const offices = await getAllOffices(isAdmin);
+    let offices;
+    if (month && year) {
+      console.log(`[OfficesAPI] Fetching effective offices for ${month} ${year}`);
+      offices = await getEffectiveOfficesForPeriod(month, year);
+    } else {
+      offices = await getAllOffices(isAdmin);
+    }
+
     return NextResponse.json(offices, {
       headers: {
         'Cache-Control': isAdmin ? 'no-store' : 'public, s-maxage=3600, stale-while-revalidate=59',
       }
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("API error fetching offices:", error);
     return NextResponse.json({ error: "Failed to fetch offices" }, { status: 500 });
   }

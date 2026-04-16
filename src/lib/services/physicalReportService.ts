@@ -3,7 +3,8 @@ import { calculateQuestionRate, calculateSatisfactionAverages } from "./analytic
 
 export interface PhysicalReport {
   id: string;
-  DEPARTMENT: string;
+  officeId: string;
+  DEPARTMENT: string; 
   FOR_THE_MONTH_OF: string;
   COLLECTED_FORMS: number;
   VISITORS: number;
@@ -36,13 +37,21 @@ export async function getAllPhysicalReports(month?: string | null, year?: string
   let query: any = db.collection("physical_report").orderBy("FOR_THE_MONTH_OF", "desc");
   
   if (month && year) {
-    const period = `${month} ${year}`;
+    const monthMap: Record<string, string> = {
+      'January': '01', 'February': '02', 'March': '03', 'April': '04',
+      'May': '05', 'June': '06', 'July': '07', 'August': '08',
+      'September': '09', 'October': '10', 'November': '11', 'December': '12'
+    };
+    const periodIso = `${year}-${monthMap[month]}`;
     query = db.collection("physical_report")
-      .where("FOR_THE_MONTH_OF", "==", period)
-      .orderBy("FOR_THE_MONTH_OF", "desc");
+      .where("period_iso", "==", periodIso)
+      .orderBy("period_iso", "desc");
   } else if (year) {
-    // If only year is provided, we might need a different approach since period is "Month Year"
-    // For now, let's assume if year is provided, month is usually provided too.
+    // Range query for the whole year
+    query = db.collection("physical_report")
+      .where("period_iso", ">=", `${year}-01`)
+      .where("period_iso", "<=", `${year}-12`)
+      .orderBy("period_iso", "desc");
   }
 
   const snapshot = await query.get();

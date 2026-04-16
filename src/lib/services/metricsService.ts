@@ -1,6 +1,7 @@
 import { db } from "@/lib/firebase/admin";
 import { getMonthBounds } from "@/lib/utils/dateUtils";
 import { resolveTargetOffices, SATELLITE_GROUPS } from "./aggregatorService";
+import { getJsonArchive } from "./storageService";
 import {
   calculateQuestionRate,
   calculateSatisfactionAverages,
@@ -37,44 +38,94 @@ export interface DashboardMetrics {
   collectionRate: string;
 }
 
-export async function getDashboardMetrics(offices: string[], month: string | string[], year: string): Promise<DashboardMetrics[]> {
+export async function getDashboardMetrics(offices: string[], month: string | string[], year: string, skipArchive = false): Promise<DashboardMetrics[]> {
   if (!Array.isArray(offices)) return [];
-  const resolvedOffices = resolveTargetOffices(offices);
+  const activeOffices = await import("./officeService").then(m => m.getAllOffices());
+  const resolvedOffices = await resolveTargetOffices(offices, year);
   const monthArray = Array.isArray(month) ? month : [month];
   
-  // OPTIMIZATION: Calculate full date range for the sweep
-  // This prevents multiple scans of the same collection for trend lines.
-  const months = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
-  
-  // Find min/max months to define range
-  const sortedMonths = [...monthArray].sort((a, b) => months.indexOf(a) - months.indexOf(b));
-  const minMonth = sortedMonths[0];
-  const maxMonth = sortedMonths[sortedMonths.length - 1];
-  
-  const { startDate } = getMonthBounds(minMonth, year);
-  const { endDate } = getMonthBounds(maxMonth, year);
-
-  // Fetch all qualifying data in single pass (scoped to authorized offices and date range)
-  const offlineData = await getOfflineReportInRange(resolvedOffices, monthArray, year);
-  const onlineData = await getOnlineReportInRange(resolvedOffices, startDate, endDate, monthArray, year);
-
   const results: DashboardMetrics[] = [];
+  const monthsToFetchLive: string[] = [];
 
-  for (const m of monthArray) {
-    for (const office of resolvedOffices) {
-      const offline = offlineData[`${office}_${m}`] || createEmptyResult(office, m);
-      const online = onlineData[`${office}_${m}`] || createEmptyResult(office, m);
+  // 1. Try fetching from archives first
+  if (!skipArchive) {
+    for (const m of monthArray) {
+      const archivePath = `archives/${year}/${m}/metrics.json`;
+      const archivedData = await getJsonArchive<DashboardMetrics[]>(archivePath);
+      
+      if (archivedData) {
+        console.log(`[MetricsService] Archive HIT: Using optimized JSON for ${m} ${year} (Zero Firestore Reads)`);
+        const filtered = archivedData.filter(item => {
+          const dept = (item.department || "").trim();
+          return resolvedOffices.some(ro => ro.trim() === dept);
+        });
+        results.push(...filtered);
+      } else {
+        console.log(`[MetricsService] Archive MISS: Fetching live data for ${m} ${year}`);
+        monthsToFetchLive.push(m);
+      }
+    }
+  } else {
+    monthsToFetchLive.push(...monthArray);
+  }
 
-      const merged = mergeReports(offline, online, m);
-      results.push(merged);
+
+  // 2. Fetch remaining months from Firestore
+  if (monthsToFetchLive.length > 0) {
+    const months = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    
+    const sortedMonths = [...monthsToFetchLive].sort((a, b) => months.indexOf(a) - months.indexOf(b));
+    const minMonth = sortedMonths[0];
+    const maxMonth = sortedMonths[sortedMonths.length - 1];
+    
+    // ISO Range preparation
+    const monthMap: Record<string, string> = {
+      'January': '01', 'February': '02', 'March': '03', 'April': '04',
+      'May': '05', 'June': '06', 'July': '07', 'August': '08',
+      'September': '09', 'October': '10', 'November': '11', 'December': '12'
+    };
+    const startDateIso = `${year}-${monthMap[minMonth]}-01`;
+    const endDateIso = `${year}-${monthMap[maxMonth]}-31`;
+
+    const offlineData = await getOfflineReportInRange(resolvedOffices, monthsToFetchLive, year);
+    const onlineData = await getOnlineReportInRange(resolvedOffices, startDateIso, endDateIso, monthsToFetchLive, year);
+
+    for (const m of monthsToFetchLive) {
+      for (const office of resolvedOffices) {
+        const offline = offlineData[`${office}_${m}`] || createEmptyResult(office, m);
+        const online = onlineData[`${office}_${m}`] || createEmptyResult(office, m);
+        const merged = mergeReports(offline, online, m);
+        results.push(merged);
+      }
     }
   }
 
-  return results;
+  // 3. Post-Aggregation: Ensure unique rows by mapping Name/ID overlaps and resolving Readable Names
+  const finalMap = new Map<string, DashboardMetrics>();
+  results.forEach(m => {
+    // Determine the authority record for this entry
+    const canonical = activeOffices.find(o => o.id === m.department || o.name === m.department);
+    const key = `${canonical?.id || m.department}_${m.month}`;
+    
+    // Always use the human-readable 'name' for the UI 'department' field
+    const displayDepartment = canonical?.name || m.department;
+    
+    if (!finalMap.has(key)) {
+      finalMap.set(key, { ...m, department: displayDepartment });
+    } else {
+      // Merge values if we somehow got multiple
+      const existing = finalMap.get(key)!;
+      const merged = mergeReports(existing, m, m.month);
+      finalMap.set(key, { ...merged, department: displayDepartment });
+    }
+  });
+
+  return Array.from(finalMap.values());
 }
+
 
 async function getOnlineReportInRange(offices: string[], startDate: string, endDate: string, targetMonths: string[], year: string) {
   const results: any = {};
@@ -86,27 +137,39 @@ async function getOnlineReportInRange(offices: string[], startDate: string, endD
     officeChunks.push(offices.slice(i, i + CHUNK_SIZE));
   }
 
-  const queryPromises = officeChunks.map(chunk =>
-    db.collection('Responses')
-      .where('Office', 'in', chunk)
-      .get()
-  );
+    const queryPromises = officeChunks.map(chunk =>
+      db.collection('Responses')
+        .where('officeId', 'in', chunk)
+        .where('date_iso', '>=', startDate)
+        .where('date_iso', '<=', endDate)
+        .get()
+    );
 
-  const snapshots = await Promise.all(queryPromises);
+    const snapshots = await Promise.all(queryPromises);
 
-  snapshots.forEach(snapshot => {
-    snapshot.forEach((doc: any) => {
-      const data = doc.data();
-      const date = new Date(data.Date);
-      const docMonth = date.toLocaleString('en-US', { month: 'long' });
-      const docYear = date.getFullYear().toString();
+    snapshots.forEach(snapshot => {
+      snapshot.forEach((doc: any) => {
+        const data = doc.data();
+        const dateIso = data.date_iso || "";
+        if (!dateIso) return;
 
-      if (targetMonths.includes(docMonth) && docYear === year) {
-        const office = data.Office;
-        const key = `${office}_${docMonth}`;
-        if (!results[key]) results[key] = createEmptyResult(office, docMonth);
+        const dateParts = dateIso.split('-');
+        const yearStr = dateParts[0];
+        const monthNum = dateParts[1];
 
-        const res = results[key];
+        const months = [
+          "January", "February", "March", "April", "May", "June",
+          "July", "August", "September", "October", "November", "December"
+        ];
+        const docMonth = months[parseInt(monthNum) - 1];
+        const docYear = yearStr;
+
+        if (targetMonths.includes(docMonth) && docYear === year) {
+          const officeId = (data.officeId || data.Office || "").trim();
+          const key = `${officeId}_${docMonth}`;
+          if (!results[key]) results[key] = createEmptyResult(officeId, docMonth);
+
+          const res = results[key];
         res.collection++;
         res.visitor++;
 
@@ -159,7 +222,12 @@ async function getOnlineReportInRange(offices: string[], startDate: string, endD
 async function getOfflineReportInRange(offices: string[], monthArray: string[], year: string) {
   const results: any = {};
   const formattedOffices = offices.map(o => o.replace(/-/g, ' '));
-  const targetMonthYears = monthArray.map(m => `${m} ${year}`);
+  const monthMap: Record<string, string> = {
+    'January': '01', 'February': '02', 'March': '03', 'April': '04',
+    'May': '05', 'June': '06', 'July': '07', 'August': '08',
+    'September': '09', 'October': '10', 'November': '11', 'December': '12'
+  };
+  const targetPeriodIsos = monthArray.map(m => `${year}-${monthMap[m]}`);
 
   const CHUNK_SIZE = 30;
   const officeChunks = [];
@@ -169,11 +237,11 @@ async function getOfflineReportInRange(offices: string[], monthArray: string[], 
 
   const queryPromises: Promise<any>[] = [];
   officeChunks.forEach(chunk => {
-    targetMonthYears.forEach(monthYear => {
+    targetPeriodIsos.forEach(periodIso => {
       queryPromises.push(
         db.collection('physical_report')
-          .where('DEPARTMENT', 'in', chunk)
-          .where('FOR_THE_MONTH_OF', '==', monthYear)
+          .where('officeId', 'in', chunk)
+          .where('period_iso', '==', periodIso)
           .get()
       );
     });
@@ -186,12 +254,12 @@ async function getOfflineReportInRange(offices: string[], monthArray: string[], 
       const data = doc.data();
       if (!data) return;
 
-      const originalOffice = offices.find(o => o.replace(/-/g, ' ') === data.DEPARTMENT?.trim()) || offices[0];
+      const officeId = data.officeId || offices.find(o => o.replace(/-/g, ' ') === data.DEPARTMENT?.trim()) || offices[0];
       const docPeriod = data.FOR_THE_MONTH_OF || "";
       const docMonth = docPeriod.split(' ')[0];
       
-      const key = `${originalOffice}_${docMonth}`;
-      if (!results[key]) results[key] = createEmptyResult(originalOffice, docMonth);
+      const key = `${officeId}_${docMonth}`;
+      if (!results[key]) results[key] = createEmptyResult(officeId, docMonth);
       const res = results[key];
 
       const safeInt = (val: any) => {

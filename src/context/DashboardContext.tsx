@@ -34,8 +34,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const now = new Date();
-  const currentY = now.getFullYear();
-  const currentM = now.toLocaleString('en-US', { month: 'long' });
+  const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const currentY = prevMonthDate.getFullYear().toString();
+  const currentM = prevMonthDate.toLocaleString('en-US', { month: 'long' });
   
   const [offices, setOffices] = useState<string[]>([]);
 
@@ -134,7 +135,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       params.set("year", newYear);
     }
 
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [searchParams, router, pathname, user, year, month, currentY, currentM]);
 
   // Ensure baseline and future dates are corrected

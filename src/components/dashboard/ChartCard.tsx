@@ -21,15 +21,15 @@ export function ChartCard({ title, subtitle, isLoading, children, className }: C
     <Card className={clsx("flex flex-col h-full overflow-hidden min-h-[350px]", className)}>
       <div className="mb-6">
         <h3 className="font-display text-lg font-bold text-on-surface">{title}</h3>
-        {subtitle && <p className="text-on-surface/50 text-sm">{subtitle}</p>}
+        {subtitle && <p className="text-on-surface/60 text-[13px] leading-tight mt-1">{subtitle}</p>}
       </div>
       
       <div className="flex-grow relative min-h-0">
         {isLoading && (
-          <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[2px] flex items-center justify-center rounded-xl transition-all duration-300">
+          <div className="absolute inset-0 z-10 bg-surface/60 backdrop-blur-[2px] flex items-center justify-center rounded-xl transition-all duration-300">
             <div className="flex flex-col items-center gap-2">
               <Loader2 className="w-8 h-8 text-primary animate-spin" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-primary/60">Processing Data</span>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-primary">Processing Data</span>
             </div>
           </div>
         )}

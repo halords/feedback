@@ -32,14 +32,11 @@ export default function DashboardClient({ children }: { children: React.ReactNod
   return (
     <DashboardProvider>
       <Shell>
-        <div className="mb-10">
-          <h1 className="font-display text-4xl font-extrabold text-primary tracking-tight">Performance Overview</h1>
-          <p className="text-on-surface/50 font-medium mt-1">Monitor real-time customer satisfaction and department collection rates.</p>
+        
+        <div className="space-y-4">
+          <FilterBar />
+          {children}
         </div>
-        
-        <FilterBar />
-        
-        {children}
       </Shell>
     </DashboardProvider>
   );

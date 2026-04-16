@@ -10,7 +10,10 @@ const initializeAdmin = () => {
     const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'fir-7db1b';
 
     if (isEmulator) {
-      return admin.initializeApp({ projectId });
+      return admin.initializeApp({ 
+        projectId,
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      });
     } else if (serviceAccountJson) {
       const serviceAccount = JSON.parse(serviceAccountJson);
       if (serviceAccount.private_key) {
@@ -19,10 +22,14 @@ const initializeAdmin = () => {
       return admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
         projectId: serviceAccount.project_id || projectId,
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
       });
+
     } else {
       // In Production, Firebase Admin initializes automatically via environment auth
-      return admin.initializeApp();
+      return admin.initializeApp({
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      });
     }
   } catch (err: any) {
     if (!/already exists/.test(err.message)) {
@@ -35,5 +42,7 @@ const initializeAdmin = () => {
 const app = initializeAdmin();
 export const db = app.firestore();
 export const auth = app.auth();
+export const storage = app.storage();
 export { admin };
+
 
