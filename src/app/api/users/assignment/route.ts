@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { updateAssignments } from "@/lib/services/userService";
-
+import { withAuth } from "@/lib/auth/withAuth";
 import { validateOfficeAssignmentInput } from "@/lib/validation/apiSchemas";
 
 /**
  * POST /api/users/assignment
  * Replaces a user's office access assignments.
+ * Restricted to Superadmins.
  */
-export async function POST(request: Request) {
+export const POST = withAuth(async (request) => {
   try {
-    const body = await request.json();
+    const body = await request.clone().json();
     const result = validateOfficeAssignmentInput(body);
 
     if (!result.success) {
@@ -23,4 +24,4 @@ export async function POST(request: Request) {
     console.error("[API/Users/Assignment] POST Error:", error);
     return NextResponse.json({ error: "Failed to update assignments" }, { status: 500 });
   }
-}
+}, { role: 'superadmin' });

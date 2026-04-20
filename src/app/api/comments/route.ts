@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { getManagedComments, syncComments } from "@/lib/services/commentManagementService";
-import { verifySuperadmin } from "@/lib/auth/verifySession";
+import { withAuth } from "@/lib/auth/withAuth";
 
-export async function GET(request: Request) {
+/**
+ * GET /api/comments
+ * Lists managed comments with optional filters.
+ * Restricted to Superadmins.
+ */
+export const GET = withAuth(async (request) => {
   try {
     const { searchParams } = new URL(request.url);
     const month = searchParams.get("month") || undefined;
@@ -15,9 +20,14 @@ export async function GET(request: Request) {
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}
+}, { role: 'superadmin' });
 
-export async function POST(request: Request) {
+/**
+ * POST /api/comments
+ * Triggers re-sync of comments from source.
+ * Restricted to Superadmins.
+ */
+export const POST = withAuth(async (request) => {
   try {
     const body = await request.json();
     const result = await syncComments(body.force === true);
@@ -25,4 +35,4 @@ export async function POST(request: Request) {
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}
+}, { role: 'superadmin' });
