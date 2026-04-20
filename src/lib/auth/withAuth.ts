@@ -63,7 +63,6 @@ export function withAuth(handler: AuthenticatedHandler, config: AuthConfig = {})
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
       
-      console.error("[withAuth] Error:", error);
       return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
   };
