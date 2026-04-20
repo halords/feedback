@@ -1,18 +1,22 @@
 # STATE.md
 
-> **Status**: `PHASE_2_COMPLETE`
+> **Status**: `PLANNING_COMPLETE`
 > **Current Position**
-- **Phase**: 2: Endpoint Migration & Hardening (completed)
-- **Task**: All tasks complete
-- **Status**: Verified
-
-## Last Session Summary
-Phase 2 executed successfully. Migrated and hardened 6 vulnerable API routes (Comments, User Assignments, Dashboard Metrics, and PDF Generation) using the unified `withAuth` wrapper. Automated office-scoping is now active for analytics endpoints.
+- **Phase**: 3: Integration Testing Framework
+- **Task**: Planning complete
+- **Status**: Ready for execution
 
 ## Next Steps
-1. Proceed to Phase 3: Integration Testing Framework
+1. /execute 3
+
+## Summary
+Resetting project direction to address critical security regressions using a "Global Enforcement" strategy.
 
 ## Key Constraints
 - Unified Handler Wrapper implementation
 - Secure-by-default Middleware
 - Integration-test verified outcomes
+
+## Active Memory
+- Phase 1 & 2 completed: Perimeter lockdown and endpoint migration verified manually via curl.
+- Phase 3 will formalize this into a permanent Vitest suite.
