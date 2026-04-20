@@ -3,14 +3,11 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useTheme } from "@/context/ThemeContext";
 import { Shell } from "@/components/layout/Shell";
 import { Card } from "@/components/ui/Card";
 import {
   User,
   Shield,
-  Moon,
-  Palette,
   Monitor,
   Lock,
   RefreshCw,
@@ -45,7 +42,6 @@ export function SettingsClient() {
   const tabs = [
     { id: "profile", name: "Profile", icon: User },
     { id: "security", name: "Security", icon: Shield },
-    { id: "appearance", name: "Appearance", icon: Palette },
     ...(user?.user_type?.toLowerCase() === 'superadmin' ? [{ id: "data", name: "Data Management", icon: Database }] : []),
   ];
 
@@ -107,7 +103,6 @@ export function SettingsClient() {
           <div className="animate-in fade-in duration-500">
             {activeTab === "profile" && <ProfileSection user={user} />}
             {activeTab === "security" && <SecuritySection />}
-            {activeTab === "appearance" && <AppearanceSection />}
             {activeTab === "data" && <DataSection />}
 
           </div>
@@ -316,63 +311,6 @@ function SecuritySection() {
   );
 }
 
-function AppearanceSection() {
-  const { theme, setTheme } = useTheme();
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <Card
-        onClick={() => setTheme("dark")}
-        className={clsx(
-          "p-6 border-on-surface/5 flex flex-col items-center text-center space-y-3 transition-all cursor-pointer group",
-          theme === "dark" ? "border-primary/20 bg-primary/5 shadow-lg shadow-primary/5" : "hover:border-primary/20"
-        )}
-      >
-        <div className={clsx(
-          "w-16 h-16 rounded-2xl flex items-center justify-center transition-all",
-          theme === "dark" ? "bg-primary text-white shadow-xl shadow-primary/20" : "bg-surface-low text-on-surface/30 group-hover:text-primary"
-        )}>
-          <Moon className="w-8 h-8" />
-        </div>
-        <div>
-          <h4 className={clsx("font-black", theme === "dark" ? "text-primary" : "text-on-surface")}>Dark Mode</h4>
-          <p className="text-xs text-on-surface/40 font-bold">Switch to a darker interface for low light conditions.</p>
-        </div>
-        <div className="w-full h-2 rounded-full bg-on-surface/5 overflow-hidden">
-          <div className={clsx("h-full bg-primary transition-all duration-500", theme === "dark" ? "w-full" : "w-0")} />
-        </div>
-        <p className={clsx("text-[10px] font-black uppercase", theme === "dark" ? "text-primary" : "text-primary/40")}>
-          {theme === "dark" ? "Active Theme" : "Click to Enable"}
-        </p>
-      </Card>
-
-      <Card
-        onClick={() => setTheme("light")}
-        className={clsx(
-          "p-6 border-on-surface/5 flex flex-col items-center text-center space-y-3 transition-all cursor-pointer group",
-          theme === "light" ? "border-primary/20 bg-primary/5 shadow-lg shadow-primary/5" : "hover:border-primary/20"
-        )}
-      >
-        <div className={clsx(
-          "w-16 h-16 rounded-2xl flex items-center justify-center transition-all",
-          theme === "light" ? "bg-primary text-white shadow-xl shadow-primary/20" : "bg-surface-low text-on-surface/30 group-hover:text-primary"
-        )}>
-          <Monitor className="w-8 h-8" />
-        </div>
-        <div>
-          <h4 className={clsx("font-black", theme === "light" ? "text-primary" : "text-on-surface")}>Indigo Light</h4>
-          <p className="text-xs text-on-surface/40 font-bold">The current premium indigo slate professional theme.</p>
-        </div>
-        <div className="w-full h-2 rounded-full bg-on-surface/5 overflow-hidden">
-          <div className={clsx("h-full bg-primary transition-all duration-500", theme === "light" ? "w-full" : "w-0")} />
-        </div>
-        <p className={clsx("text-[10px] font-black uppercase", theme === "light" ? "text-primary" : "text-primary/40")}>
-          {theme === "light" ? "Active Theme" : "Click to Select"}
-        </p>
-      </Card>
-    </div>
-  );
-}
 
 function DataSection() {
   const router = useRouter();
