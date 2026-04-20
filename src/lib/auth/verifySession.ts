@@ -1,12 +1,6 @@
 import { cookies } from 'next/headers';
-import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify, SignJWT } from 'jose';
-
-if (!process.env.JWT_SECRET) {
-  throw new Error("FATAL: JWT_SECRET environment variable is missing. It is legally required to sign user session cookies securely.");
-}
-
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
+import { NextResponse } from 'next/server';
+import { auth, db } from '@/lib/firebase/admin';
 
 export interface SessionUser {
   uid: string;
@@ -21,30 +15,76 @@ export interface SessionUser {
 }
 
 /**
- * Creates a signed JWT for the user session
- */
-export async function createSessionToken(user: SessionUser): Promise<string> {
-  return await new SignJWT({ ...user })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('7d')
-    .sign(JWT_SECRET);
-}
-
-/**
- * Verifies a session token from request cookies
+ * Verifies a Firebase session cookie from request cookies
  */
 export async function getSessionUser(): Promise<SessionUser | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get('__session')?.value;
+  const sessionCookie = cookieStore.get('__session')?.value;
 
-  if (!token) return null;
+  if (!sessionCookie) return null;
 
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-    return payload as unknown as SessionUser;
-  } catch (error) {
-    console.error('Session verification failed:', error);
+    // 1. Verify the session cookie.
+    const decodedClaims = await auth.verifySessionCookie(sessionCookie, true);
+    
+    // 2. Check if custom claims are present. 
+    // If essential profile data is missing, fall back to Firestore.
+    if (!decodedClaims.idno || !decodedClaims.full_name) {
+      // Fallback: Fetch user metadata from Firestore
+      const identifier = (decodedClaims.email || "").split('@')[0];
+      
+      let userSnapshot = await db.collection("users").where("idno", "==", identifier).get();
+      if (userSnapshot.empty) {
+        userSnapshot = await db.collection("users").where("username", "==", identifier).get();
+      }
+
+      if (userSnapshot.empty) return null;
+
+      const userData = userSnapshot.docs[0].data();
+      const idno = userData.idno; // Official ID number for profile lookup
+
+      const profileSnapshot = await db.collection("user_data").where("idnumber", "==", idno).get();
+      const profileData = !profileSnapshot.empty ? profileSnapshot.docs[0].data() : {};
+      
+      const officeSnapshot = await db.collection("office_assignment").where("idno", "==", idno).get();
+      let offices: string[] = [];
+      officeSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (Array.isArray(data.office)) offices = offices.concat(data.office);
+        else if (typeof data.office === "string") offices.push(data.office);
+      });
+
+      return {
+        uid: decodedClaims.uid,
+        idno: idno,
+        username: userData.username || idno,
+        email: decodedClaims.email || "",
+        user_type: userData.user_type || "Office Admin",
+        full_name: profileData.full_name || "Unknown User",
+        offices: [...new Set(offices)],
+        requiresPasswordChange: !!userData.requiresPasswordChange,
+        is_analytics_enabled: !!profileData.is_analytics_enabled,
+      };
+    }
+
+    // 3. Map Firebase claims back to our SessionUser structure
+    return {
+      uid: decodedClaims.uid,
+      idno: decodedClaims.idno as string || "",
+      username: decodedClaims.username as string || "",
+      email: decodedClaims.email || "",
+      user_type: decodedClaims.user_type as string || "Office Admin",
+      full_name: decodedClaims.full_name as string || "Unknown User",
+      offices: decodedClaims.offices as string[] || [],
+      requiresPasswordChange: decodedClaims.requiresPasswordChange as boolean || false,
+      is_analytics_enabled: decodedClaims.is_analytics_enabled as boolean || false,
+    };
+  } catch (error: any) {
+    // If the cookie is invalid or formatted for the old JWT system, we treat it as no session.
+    if (error.code === 'auth/argument-error' || error.message.includes('kid')) {
+       return null; 
+    }
+    console.error('Firebase session verification failed:', error);
     return null;
   }
 }
@@ -82,13 +122,13 @@ export function hasGlobalAccess(user: SessionUser): boolean {
 /**
  * Helper to set the session cookie in a response
  */
-export function setSessionCookie(response: NextResponse, token: string) {
-  response.cookies.set('__session', token, {
+export function setSessionCookie(response: NextResponse, cookie: string) {
+  response.cookies.set('__session', cookie, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 60 * 24 * 7, // 1 week
+    maxAge: 60 * 60 * 24 * 7, // 1 week (matches Firebase default max session)
   });
 }
 

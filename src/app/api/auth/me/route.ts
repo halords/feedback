@@ -5,8 +5,10 @@ export async function GET() {
   try {
     const user = await getSessionUser();
     
+    // We return 200 even if no user found to prevent noisy "401 Unauthorized" 
+    // red errors in the browser console during legitimate unauthenticated states.
     if (!user) {
-      return NextResponse.json({ user: null }, { status: 401 });
+      return NextResponse.json({ user: null });
     }
 
     return NextResponse.json({ user });

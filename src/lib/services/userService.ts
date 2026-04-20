@@ -1,4 +1,4 @@
-import { db } from "@/lib/firebase/admin";
+import { db, auth } from "@/lib/firebase/admin";
 import bcrypt from "bcryptjs";
 
 export interface UserProfile {
@@ -83,7 +83,7 @@ export async function getAllUsers(): Promise<UserProfile[]> {
 }
 
 /**
- * Adds a new user, profile, and office assignments in an atomic-like batch.
+ * adds a new user to both Firestore AND Firebase Authentication.
  */
 export async function addUser(userData: {
   idno: string;
@@ -95,21 +95,50 @@ export async function addUser(userData: {
   is_analytics_enabled?: boolean;
 }) {
   try {
-    const hashedPassword = await bcrypt.hash("p@ssw0rd", 12);
+    const rawPassword = "p@ssw0rd";
+    const hashedPassword = await bcrypt.hash(rawPassword, 12);
+    const identifier = `${userData.idno}@feedback.internal`;
+
+    // 1. Create in Firebase Authentication
+    // We attempt to set the UID to the idno for system consistency.
+    let firebaseUser;
+    try {
+      firebaseUser = await auth.createUser({
+        uid: userData.idno,
+        email: identifier,
+        password: rawPassword,
+        displayName: userData.full_name,
+      });
+      
+      // Set initial custom claims for the new user
+      await auth.setCustomUserClaims(firebaseUser.uid, {
+        idno: userData.idno,
+        user_type: userData.user_type,
+        full_name: userData.full_name,
+        is_analytics_enabled: !!userData.is_analytics_enabled
+      });
+    } catch (authError: any) {
+      if (authError.code === 'auth/uid-already-exists' || authError.code === 'auth/email-already-exists') {
+        console.warn(`[UserService] User ${userData.idno} already exists in Firebase Auth. Continuing with Firestore sync.`);
+      } else {
+        throw authError;
+      }
+    }
+
     const batch = db.batch();
 
-    // 1. Create entry in 'users' (auth)
+    // 2. Create entry in 'users' (legacy compatibility and metadata)
     const userRef = db.collection("users").doc();
     batch.set(userRef, {
       idno: userData.idno,
-      username: userData.idno, // Default username is ID number
+      username: userData.idno, 
       user_type: userData.user_type,
-      password: hashedPassword,
+      password: hashedPassword, // Kept for legacy system compatibility
       createdAt: new Date().toISOString(),
-      requiresPasswordChange: true
+      requiresPasswordChange: false
     });
 
-    // 2. Create entry in 'user_data' (profile)
+    // 3. Create entry in 'user_data' (profile)
     const profileRef = db.collection("user_data").doc();
     batch.set(profileRef, {
       full_name: userData.full_name,
@@ -120,7 +149,7 @@ export async function addUser(userData: {
       createdAt: new Date().toISOString()
     });
 
-    // 3. Create entries in 'office_assignment'
+    // 4. Create entries in 'office_assignment'
     userData.office_assignment.forEach(officeId => {
       const assignRef = db.collection("office_assignment").doc();
       batch.set(assignRef, {

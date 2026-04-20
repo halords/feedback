@@ -318,20 +318,13 @@ function AddUserModal({ isOpen, onClose, offices, allAssignedOffices, onSuccess 
             value={formData.position}
             onChange={(e) => setFormData({...formData, position: e.target.value})}
           />
-          <div className="space-y-1 px-1">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-on-surface/60">Primary Office</label>
-            <select 
-              className="w-full bg-surface border-b-2 border-border-strong/50 px-4 py-3 rounded-t-lg font-sans text-on-surface outline-none focus:border-primary transition-colors"
-              value={formData.office}
-              required
-              onChange={(e) => setFormData({...formData, office: e.target.value})}
-            >
-              <option value="">Select Office...</option>
-              {offices?.filter((o: any) => o.status === "active" && !allAssignedOffices.has(o.name)).map((o: any) => (
-                <option key={o.id} value={o.name}>{o.name}</option>
-              ))}
-            </select>
-          </div>
+          <Input 
+            label="Primary Office" 
+            required 
+            placeholder="e.g. OPA-ASMU"
+            value={formData.office}
+            onChange={(e) => setFormData({...formData, office: e.target.value})}
+          />
           <div className="space-y-1 px-1">
             <label className="block text-xs font-semibold uppercase tracking-wider text-on-surface/60">User Type</label>
             <div className="flex gap-4">

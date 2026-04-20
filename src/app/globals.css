@@ -17,20 +17,51 @@
 }
 
 .dark {
-  --background: #0f172a; /* Report background */
-  --foreground: #f1f5f9; /* Slate 100 */
+  --background: #2D2E37;
+  --foreground: #D1D9D9;
   
-  --surface-low: #1e293b; /* Report sections (Slate 800) */
-  --surface-lowest: #1e293b; 
-  --on-surface: #e2e8f0; /* Slate 200 */
+  --surface-low: #3F4049;
+  --surface-lowest: #3F4049; 
+  --on-surface: #D1D9D9;
   
-  --primary: #38bdf8; /* Lighter sky blue matches the slate theme better */
-  --primary-container: #1e3a8a;
-  --tertiary: #2dd4bf;
+  --primary: #735E5C;
+  --primary-container: #3F4049;
+  --tertiary: #A69492;
 
-  /* Custom borders to match report's vibe */
-  --border-dim: #1e293b;
-  --border-strong: #334155; /* Section borders from report */
+  --border-dim: #3F4049;
+  --border-strong: #735E5C;
+}
+
+.theme-red {
+  --background: #FDF0D5;
+  --foreground: #331111;
+  
+  --surface-low: #FFCBA4;
+  --surface-lowest: #FFFFFF;
+  --on-surface: #331111;
+  
+  --primary: #FF3B3B;
+  --primary-container: #FF8C8C;
+  --tertiary: #FFCBA4;
+
+  --border-dim: #FFCBA4;
+  --border-strong: #FF8C8C;
+}
+
+.theme-standard {
+  --background: #FDFCF0;
+  --foreground: #1A1A1A;
+  
+  --surface-low: #EAE0C1;
+  --surface-lowest: #FFFFFF;
+  --on-surface: #1A1A1A;
+  
+  --primary: #8BB3D1;
+  --primary-container: #8BB3D1;
+  --tertiary: #D32F2F;
+
+  --border-dim: #EAE0C1;
+  --border-strong: #8BB3D1;
 }
 
 @theme {
@@ -56,10 +87,12 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
+  transition: color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .custom-scrollbar-reports {

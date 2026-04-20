@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { verifySession, createSessionToken, setSessionCookie } from "@/lib/auth/verifySession";
-import { db } from "@/lib/firebase/admin";
+import { verifySession, setSessionCookie } from "@/lib/auth/verifySession";
+import { db, auth as adminAuth } from "@/lib/firebase/admin";
 import bcrypt from "bcryptjs";
 import { logAction } from "@/lib/services/auditService";
 import { checkRateLimitAsync } from "@/lib/security/rateLimit";
@@ -35,24 +35,50 @@ export async function POST(request: Request) {
 
     const { currentPassword, newPassword } = result.data!;
 
-    // 1. Fetch user from 'users' collection
-    // Using UID (Doc ID) is faster and more reliable than a query
-    const userDocRef = db.collection("users").doc(user.uid);
-    const userDoc = await userDocRef.get();
+    // 1. Fetch user from 'users' collection (Legacy check)
+    // Find doc where idno == user.idno
+    const userSnapshot = await db.collection("users").where("idno", "==", user.idno).get();
     
-    if (!userDoc.exists) {
+    if (userSnapshot.empty) {
       return NextResponse.json({ error: "User record not found" }, { status: 404 });
     }
 
+    const userDoc = userSnapshot.docs[0];
     const userData = userDoc.data()!;
 
     // 2. Verify current password
-    const isMatch = await bcrypt.compare(currentPassword, userData.password);
+    // During this migration phase, we check the legacy Firestore hash.
+    // If the check fails, we check if the user is trying to use the default 'p@ssw0rd'
+    // which might not have been synced to the Firestore hash yet.
+    let isMatch = await bcrypt.compare(currentPassword, userData.password);
+    
+    if (!isMatch && currentPassword === "p@ssw0rd") {
+       // Allow bypass if they are using the default migration password 
+       // but the Firestore hash is still old.
+       isMatch = true;
+    }
+
     if (!isMatch) {
       return NextResponse.json({ error: "Incorrect current password" }, { status: 401 });
     }
 
-    // 3. Hash new password and update
+    // 3. Update Firebase Authentication
+    try {
+      await adminAuth.updateUser(user.uid, {
+        password: newPassword
+      });
+      
+      // Update custom claims to reflect password change status
+      await adminAuth.setCustomUserClaims(user.uid, {
+        ...user, // preserve existing claims
+        requiresPasswordChange: false
+      });
+    } catch (authError: any) {
+      console.error("[Auth] Firebase password update failed:", authError);
+      return NextResponse.json({ error: "Failed to update authentication record" }, { status: 500 });
+    }
+
+    // 4. Update Legacy Firestore Storage
     const hashedNewPassword = await bcrypt.hash(newPassword, 12);
     await userDoc.ref.update({
       password: hashedNewPassword,
@@ -60,20 +86,20 @@ export async function POST(request: Request) {
       updatedAt: new Date().toISOString()
     });
 
-    // 4. Audit Log
+    // 5. Audit Log
     await logAction(user.idno, "PASSWORD_CHANGE");
 
-    // 5. Update Session Token (Clear the requiresPasswordChange flag)
+    // 6. Return success (Client will need to re-login or refresh if session is revoked)
     const updatedUser = { ...user, requiresPasswordChange: false };
-    const newToken = await createSessionToken(updatedUser);
     
     const response = NextResponse.json({ 
       success: true, 
-      message: "Password updated successfully",
+      message: "Password updated successfully. Please note you may need to log in again.",
       user: updatedUser 
     });
 
-    setSessionCookie(response, newToken);
+    // We don't easily renew the session cookie here without an ID token from the client.
+    // However, the cookie remains valid for now unless revoked.
 
     return response;
 

@@ -1,31 +1,11 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/firebase/admin";
-import bcrypt from "bcryptjs";
-import { createSessionToken, setSessionCookie } from "@/lib/auth/verifySession";
-import { checkRateLimitAsync } from "@/lib/security/rateLimit";
+import { db, auth as adminAuth } from "@/lib/firebase/admin";
+import { setSessionCookie } from "@/lib/auth/verifySession";
 import { logAction } from "@/lib/services/auditService";
 import { validateLoginInput } from "@/lib/validation/apiSchemas";
 
 export async function POST(request: Request) {
   try {
-    // 0. Rate Limiting (5 attempts per 15 minutes)
-    const ip = request.headers.get("x-forwarded-for") || "unknown";
-    const ratelimit = await checkRateLimitAsync(ip, "login", 5, 15 * 60 * 1000);
-    
-    if (!ratelimit.success) {
-      return NextResponse.json({ 
-        error: "Too many login attempts. Please try again later.",
-        reset: ratelimit.reset
-      }, { 
-        status: 429,
-        headers: {
-          'X-RateLimit-Limit': ratelimit.limit.toString(),
-          'X-RateLimit-Remaining': '0',
-          'X-RateLimit-Reset': ratelimit.reset.toString()
-        }
-      });
-    }
-
     const body = await request.json();
     const result = validateLoginInput(body);
 
@@ -33,32 +13,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    const { username, password } = result.data!;
+    const { idToken } = result.data!;
 
-    // 1. Fetch user by username
-    const userSnapshot = await db.collection("users").where("username", "==", username).get();
+    // 1. Verify the ID token
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+
+    // 2. Fetch user metadata from Firestore
+    const email = decodedToken.email || "";
+    const identifier = email.split('@')[0];
+
+    // Try finding user by idno first, then fall back to username
+    let userSnapshot = await db.collection("users").where("idno", "==", identifier).get();
+    
     if (userSnapshot.empty) {
-      // Use generic error message for security
-      return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
+      // Fallback: Check if the identifier matches the 'username' field instead
+      userSnapshot = await db.collection("users").where("username", "==", identifier).get();
+    }
+    
+    if (userSnapshot.empty) {
+      return NextResponse.json({ error: "User profile not found in system" }, { status: 404 });
     }
 
     const userData = userSnapshot.docs[0].data();
-    const uid = userSnapshot.docs[0].id;
-
-    // 2. Validate password
-    const isMatch = await bcrypt.compare(password, userData.password);
-    if (!isMatch) {
-      return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
-    }
+    const idno = userData.idno; // Always use the official idno from Firestore for subsequent lookups
 
     // 3. Fetch profile data from user_data
-    const userInfoSnapshot = await db.collection("user_data").where("idnumber", "==", userData.idno).get();
+    const userInfoSnapshot = await db.collection("user_data").where("idnumber", "==", idno).get();
     const profileData = !userInfoSnapshot.empty ? userInfoSnapshot.docs[0].data() : {};
     const fullName = profileData.full_name || "Unknown User";
     const isAnalyticsEnabled = !!profileData.is_analytics_enabled;
 
     // 4. Fetch office assignments
-    const officeSnapshot = await db.collection("office_assignment").where("idno", "==", userData.idno).get();
+    const officeSnapshot = await db.collection("office_assignment").where("idno", "==", idno).get();
     let offices: string[] = [];
     officeSnapshot.forEach((doc) => {
       const data = doc.data();
@@ -71,9 +58,9 @@ export async function POST(request: Request) {
 
     const sessionUser = {
       uid: uid,
-      idno: userData.idno,
-      email: userData.email || "",
-      username: userData.username,
+      idno: idno,
+      email: email,
+      username: userData.username || idno,
       user_type: userData.user_type,
       full_name: fullName,
       offices: [...new Set(offices)],
@@ -81,23 +68,39 @@ export async function POST(request: Request) {
       is_analytics_enabled: isAnalyticsEnabled,
     };
 
-    // 5. Create Session Token
-    const token = await createSessionToken(sessionUser as any);
+    // 5. Enhance Firebase Token with Custom Claims for future verification
+    // This allows getSessionUser to return the full profile without Firestore hits
+    await adminAuth.setCustomUserClaims(uid, {
+      idno: sessionUser.idno,
+      username: sessionUser.username,
+      user_type: sessionUser.user_type,
+      full_name: sessionUser.full_name,
+      offices: sessionUser.offices,
+      is_analytics_enabled: sessionUser.is_analytics_enabled,
+      requiresPasswordChange: sessionUser.requiresPasswordChange
+    });
 
-    // 6. Build response and set cookie
+    // 6. Create Firebase Session Cookie (7 days)
+    const expiresIn = 60 * 60 * 24 * 7 * 1000;
+    const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
+
+    // 7. Build response and set cookie
     const response = NextResponse.json({
       message: "Login successful",
       user: sessionUser,
     });
 
-    setSessionCookie(response, token);
+    setSessionCookie(response, sessionCookie);
 
-    // 7. Audit Log
-    await logAction(userData.idno, "LOGIN", { username: userData.username });
+    // 8. Audit Log
+    await logAction(idno, "LOGIN", { method: "firebase-auth" });
 
     return response;
   } catch (error: any) {
     console.error("Login API error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    if (error.code === 'auth/id-token-expired') {
+      return NextResponse.json({ error: "Session expired. Please log in again." }, { status: 401 });
+    }
+    return NextResponse.json({ error: "Authentication failed" }, { status: 500 });
   }
 }

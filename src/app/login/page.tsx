@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { BarChart2, Lock, User, ArrowRight } from "lucide-react";
+import { auth } from "@/lib/firebase/client";
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -20,22 +22,56 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
+      // 1. Resolve Username/ID to the official ID Number (idno)
+      // This handles cases like 'halords' being mapped to '96028'
+      const resolveRes = await fetch(`/api/auth/resolve-id?identifier=${encodeURIComponent(username.trim())}`);
+      const resolveData = await resolveRes.json();
+      
+      if (!resolveRes.ok) {
+        throw new Error(resolveData.error || "Invalid username or password");
+      }
+      
+      const officialIdno = resolveData.idno;
+
+      // 2. Map official ID to Firebase Identifier Template
+      const email = `${officialIdno}@feedback.internal`;
+
+      // 3. Perform Client-Side Firebase Authentication
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      // 4. Retrieve ID Token
+      const idToken = await userCredential.user.getIdToken();
+
+      // 5. Send ID Token to Server to establish Session Cookie
       const response = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ idToken }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Login failed");
+        throw new Error(data.error || "Session establishment failed");
       }
 
+      // 5. Update Auth Context and Redirect
       login(data.user);
       window.location.href = "/dashboard";
     } catch (err: any) {
-      setError(err.message);
+      console.error("[Login] Error:", err.code, err.message);
+      
+      // Map Firebase Auth errors to user-friendly messages
+      let friendlyMessage = "Invalid username or password";
+      if (err.code === "auth/user-not-found" || err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") {
+        friendlyMessage = "Invalid username or password";
+      } else if (err.code === "auth/too-many-requests") {
+        friendlyMessage = "Too many failed attempts. Please try again later.";
+      } else if (err.message) {
+        friendlyMessage = err.message;
+      }
+      
+      setError(friendlyMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -97,7 +133,7 @@ export default function LoginPage() {
               </div>
               <Input
                 type="password"
-                placeholder="••••••••"
+                placeholder="•••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required

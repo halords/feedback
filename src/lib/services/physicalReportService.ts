@@ -1,4 +1,4 @@
-import { db } from "@/lib/firebase/admin";
+import { db, admin } from "@/lib/firebase/admin";
 import { calculateQuestionRate, calculateSatisfactionAverages } from "./analyticsService";
 
 export interface PhysicalReport {
@@ -65,7 +65,7 @@ export async function updatePhysicalReport(id: string, data: Partial<PhysicalRep
   const docRef = db.collection("physical_report").doc(id);
   await docRef.update({
     ...data,
-    updatedAt: new Date()
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
   });
   return { id, success: true };
 }
@@ -73,8 +73,8 @@ export async function updatePhysicalReport(id: string, data: Partial<PhysicalRep
 export async function createPhysicalReport(data: Omit<PhysicalReport, "id">) {
   const docRef = await db.collection("physical_report").add({
     ...data,
-    createdAt: new Date(),
-    updatedAt: new Date()
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
   });
   return { id: docRef.id, success: true };
 }

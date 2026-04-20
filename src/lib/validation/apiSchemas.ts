@@ -106,8 +106,8 @@ const userBaseSchema = z.object({
   full_name: z.string().min(1, "Missing or invalid 'full_name'"),
   position: z.string().default("Unknown"),
   office: z.string().default("Unknown"),
-  user_type: z.enum(["Super Admin", "Office Admin"], {
-    errorMap: () => ({ message: "user_type must be 'Super Admin' or 'Office Admin'" })
+  user_type: z.enum(["Superadmin", "User"], {
+    errorMap: () => ({ message: "user_type must be 'Superadmin' or 'User'" })
   }),
   office_assignment: z.array(z.string()).default([]),
   is_analytics_enabled: z.boolean().optional()
@@ -140,7 +140,7 @@ export function validateUserPatchInput(body: any): ValidationResult<{ analyticsE
  */
 const officeAssignmentSchema = z.object({
   idno: z.string().min(1, "Missing or invalid 'idno'"),
-  offices: z.array(z.string()).min(1, "Offices array cannot be empty"),
+  offices: z.array(z.string()), // Removed .min(1) to allow clearing all assignments
 });
 
 export function validateOfficeAssignmentInput(body: any): ValidationResult<{ idno: string, offices: string[] }> {
@@ -169,11 +169,16 @@ export function validateOfficeInput(body: any): ValidationResult<z.infer<typeof 
  * 8. Login Schema
  */
 const loginSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-  password: z.string().min(1, "Password is required"),
+  username: z.string().optional(),
+  password: z.string().optional(),
+  idToken: z.string().min(1, "ID Token is required"),
 });
 
-export function validateLoginInput(body: any): ValidationResult<z.infer<typeof loginSchema>> {
+export function validateLoginInput(body: any): ValidationResult<{
+  username?: string;
+  password?: string;
+  idToken: string;
+}> {
   const result = loginSchema.safeParse(body);
   if (!result.success) return { success: false, error: result.error.errors[0].message };
   return { success: true, data: result.data };

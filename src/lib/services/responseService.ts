@@ -1,4 +1,4 @@
-import { db } from "@/lib/firebase/admin";
+import { db, admin } from "@/lib/firebase/admin";
 import { getMonthBounds } from "@/lib/utils/dateUtils";
 import { getJsonArchive } from "./storageService";
 import { resolveTargetOffices } from "./aggregatorService";
@@ -135,7 +135,10 @@ export async function classifyComments(
   
   assignments.forEach(({ docId, classification }) => {
     const docRef = db.collection('Responses').doc(docId);
-    batch.update(docRef, { Class: classification });
+    batch.update(docRef, { 
+      Class: classification,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
   });
 
   await batch.commit();

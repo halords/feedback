@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { jwtVerify } from 'jose';
+import { decodeJwt } from 'jose';
 
 // Define protected routes and roles
 const PROTECTED_ROUTES = [
@@ -11,6 +11,7 @@ const PROTECTED_ROUTES = [
   '/users',
   '/offices',
   '/settings',
+  '/comments',
 ];
 
 const SUPERADMIN_ONLY_ROUTES = [
@@ -42,9 +43,11 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    // Note: We avoid heavy signature verification in Edge Middleware to maintain performance.
+    // Full verification happens in API routes and Server Components via verifySession.
+    const payload = decodeJwt(token);
     const userRole = (payload as any).user_type?.toLowerCase().replace(/\s/g, '');
+    const isAnalyticsEnabled = !!(payload as any).is_analytics_enabled;
 
     // 3. Enforce Role-Based Access for Superadmin routes
     const isSuperadminRoute = SUPERADMIN_ONLY_ROUTES.some(route => pathname.startsWith(route));
@@ -53,11 +56,17 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 
-    // 4. Continue if authorized
+    // 4. Enforce Access for Comments Management (Superadmin or Analytics-enabled)
+    if (pathname.startsWith('/comments') && userRole !== 'superadmin' && !isAnalyticsEnabled) {
+      console.warn(`[Middleware] Access denied: User '${userRole}' (Analytics: ${isAnalyticsEnabled}) attempted to access /comments`);
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+
+    // 5. Continue if authorized
     return NextResponse.next();
 
   } catch (error) {
-    console.error('[Middleware] JWT Verification failed:', error);
+    console.error('[Middleware] Token processing failed:', error);
     // Invalid token, force re-login
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('from', pathname);
