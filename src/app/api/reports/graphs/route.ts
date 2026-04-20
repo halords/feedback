@@ -1,13 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { NextResponse } from "next/server";
+import { PDFDocument } from "pdf-lib";
+import { withAuth } from "@/lib/auth/withAuth";
 
-export async function POST(req: NextRequest) {
+/**
+ * POST /api/reports/graphs
+ * Generates a PDF of chart images.
+ * Protected by Global Auth.
+ */
+export const POST = withAuth(async (req) => {
   try {
     let images, month, year;
 
     const contentType = req.headers.get("content-type") || "";
     if (contentType.includes("application/json")) {
-      const body = await req.json();
+      const body = await req.clone().json();
       images = body.images;
       month = body.month;
       year = body.year;
@@ -63,4 +69,4 @@ export async function POST(req: NextRequest) {
     console.error("[API] Graphs Report Error:", error);
     return new Response(error.message || "Internal server error", { status: 500 });
   }
-}
+});
