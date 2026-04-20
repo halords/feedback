@@ -1,14 +1,17 @@
 import { getDashboardMetrics } from "@/lib/services/metricsService";
 import { generateSummaryReport } from "@/lib/reports/pdfGenerator";
-import { verifySession } from "@/lib/auth/verifySession";
-import { resolveAuthorizedOffices } from "@/lib/auth/rbac";
 import { checkRateLimitAsync } from "@/lib/security/rateLimit";
+import { withAuth } from "@/lib/auth/withAuth";
 
-
-export async function GET(request: Request) {
+/**
+ * GET /api/reports/summary
+ * Generates a summary PDF report.
+ * Automatically scoped based on user role.
+ */
+export const GET = withAuth(async (request, context, user, scopedOffices) => {
   try {
     const ip = request.headers.get("x-forwarded-for") || "unknown";
-    const ratelimit = await checkRateLimitAsync(ip, "pdf_summary", 5, 5 * 60 * 1000); // 5 per 5 mins
+    const ratelimit = await checkRateLimitAsync(ip, "pdf_summary", 5, 5 * 60 * 1000);
 
     if (!ratelimit.success) {
       return new Response("Too many report requests. Please wait before trying again.", { 
@@ -28,19 +31,14 @@ export async function GET(request: Request) {
       return new Response("Missing parameters", { status: 400 });
     }
 
-    const user = await verifySession();
-    const isAdmin = user.user_type?.toLowerCase() === "superadmin";
-
-    // 1. Fetch metrics for authorized offices
-    // RBAC: Non-admins are limited to their assignments via resolveAuthorizedOffices
-    const officeList = resolveAuthorizedOffices(user, ["ALL"], true);
-    const allMetrics = await getDashboardMetrics(officeList, month, year);
+    // Use scopedOffices injected by the wrapper
+    const allMetrics = await getDashboardMetrics(scopedOffices || [], month, year);
     
     if (!allMetrics || allMetrics.length === 0) {
       return new Response("No data found for the selected period", { status: 404 });
     }
 
-    // 2. Sort by department to match legacy matrix orientation
+    // Sort by department
     allMetrics.sort((a, b) => a.department.localeCompare(b.department));
 
     const pdfBytes = await generateSummaryReport(allMetrics, month, year);
@@ -52,9 +50,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: any) {
-    if (error.message === 'Unauthorized') return new Response("Unauthorized", { status: 401 });
-    if (error.message === 'Forbidden') return new Response("Forbidden", { status: 403 });
     console.error("[API] Summary Report Error:", error);
     return new Response(error.message || "Internal server error", { status: 500 });
   }
-}
+}, { requireOfficeScoping: true });

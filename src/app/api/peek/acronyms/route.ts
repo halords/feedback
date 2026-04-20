@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase/admin";
-import { verifySuperadmin } from "@/lib/auth/verifySession";
+import { withAuth } from "@/lib/auth/withAuth";
 
-export async function GET() {
+/**
+ * GET /api/peek/acronyms
+ * Superadmin-only utility to inspect raw database record structure for debugging.
+ */
+export const GET = withAuth(async () => {
   try {
-    // 1. Enforce Super Admin only
-    await verifySuperadmin();
-
     const results: any = {};
 
     // Peek at physical_report
@@ -23,6 +24,7 @@ export async function GET() {
 
     return NextResponse.json(results);
   } catch (error: any) {
+    console.error("Peek Acronyms Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}
+}, { role: "superadmin" });

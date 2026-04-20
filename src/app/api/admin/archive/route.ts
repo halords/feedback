@@ -1,15 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { verifySuperadmin } from '@/lib/auth/verifySession';
+import { NextResponse } from 'next/server';
 import { db, storage } from '@/lib/firebase/admin';
 import { getDashboardMetrics } from '@/lib/services/metricsService';
 import { getEffectiveOfficesForPeriod } from '@/lib/services/officeService';
+import { withAuth } from '@/lib/auth/withAuth';
 
-export async function POST(req: NextRequest) {
+/**
+ * POST /api/admin/archive
+ * Triggers the snapshot archival of a specific month/year.
+ * Restricted to Superadmins.
+ */
+export const POST = withAuth(async (req) => {
   try {
-    // 1. Authorization
-    await verifySuperadmin();
-    
-    const { month, year } = await req.json();
+    const { month, year } = await req.clone().json();
 
     if (!month || !year) {
       return NextResponse.json({ error: 'Month and year are required' }, { status: 400 });
@@ -24,11 +26,9 @@ export async function POST(req: NextRequest) {
     
     console.log(`[Archive] Archiving ${officeIds.length} offices...`);
     
-    // Pass IDs to metrics service
     const metrics = await getDashboardMetrics(officeIds, month, year);
 
-    // 3. Fetch Raw Responses Data (Individual Table/PDF)
-    // We fetch targeting the date range for performance
+    // 3. Fetch Raw Responses Data
     const monthMap: Record<string, string> = {
       'January': '01', 'February': '02', 'March': '03', 'April': '04',
       'May': '05', 'June': '06', 'July': '07', 'August': '08',
@@ -46,48 +46,38 @@ export async function POST(req: NextRequest) {
     
     responsesSnapshot.forEach(doc => {
       const data = doc.data();
-      const officeId = data.officeId || data.Office; // Support legacy and normalized
+      const officeId = data.officeId || data.Office;
       
-      // Filter by office ID
       if (!officeIds.includes(officeId)) return;
 
-      // RESOLVE NAME SNAPSHOT: Preserve the current name for the history capsule
       const currentName = officeIdToNameMap[officeId] || data.Office || officeId;
 
       responses.push({ 
         id: doc.id, 
         ...data, 
-        officeId,        // Ensure ID is present
-        Office: currentName // SNAPSHOT: Use the resolved name at time of archive
+        officeId,
+        Office: currentName
       });
     });
 
-    // 4. Upload to Firebase Storage
-    // Structure: archives/{year}/{month}/...
     const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET;
-    console.log(`[Archive] Using bucket: ${bucketName}`);
-    
     if (!bucketName) {
-      throw new Error("Storage bucket name not configured. Check NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET.");
+      throw new Error("Storage bucket name not configured.");
     }
 
     const bucket = storage.bucket(bucketName);
     const metricsPath = `archives/${year}/${month}/metrics.json`;
     const responsesPath = `archives/${year}/${month}/responses.json`;
 
-    console.log(`[Archive] Saving metrics to ${metricsPath} (${metrics?.length || 0} items)...`);
     await bucket.file(metricsPath).save(JSON.stringify(metrics || [], null, 2), {
       contentType: 'application/json',
       metadata: { cacheControl: 'public, max-age=31536000' }
     });
 
-    console.log(`[Archive] Saving responses to ${responsesPath} (${responses?.length || 0} items)...`);
     await bucket.file(responsesPath).save(JSON.stringify(responses || [], null, 2), {
       contentType: 'application/json',
       metadata: { cacheControl: 'public, max-age=31536000' }
     });
-
-    console.log(`[Archive] Upload complete for ${month} ${year}. Sending response...`);
 
     return NextResponse.json({
       success: true,
@@ -102,21 +92,16 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('❌ Archival critical error:', error);
-    const status = error.message === 'Forbidden' ? 403 : error.message === 'Unauthorized' ? 401 : 500;
-    return NextResponse.json({ 
-      error: error.message || 'Internal Server Error',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    }, { status });
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
-}
-
+}, { role: "superadmin" });
 
 /**
- * GET requests can be used to check status of an archive
+ * GET /api/admin/archive
+ * Checks status of archives or returns available years.
  */
-export async function GET(req: NextRequest) {
+export const GET = withAuth(async (req) => {
   try {
-    await verifySuperadmin();
     const { searchParams } = new URL(req.url);
     const mode = searchParams.get('mode');
 
@@ -132,7 +117,6 @@ export async function GET(req: NextRequest) {
 
     const month = searchParams.get('month');
     const year = searchParams.get('year');
-
 
     if (!month || !year) {
       return NextResponse.json({ error: 'Month and year are required' }, { status: 400 });
@@ -154,11 +138,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('❌ Archive GET error:', error);
-    const status = error.message === 'Forbidden' ? 403 : error.message === 'Unauthorized' ? 401 : 500;
-    return NextResponse.json({ 
-      error: error.message || 'Internal Server Error',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    }, { status });
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
-
-}
+}, { role: "superadmin" });

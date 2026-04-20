@@ -1,11 +1,14 @@
-import { NextResponse } from "next/server";
 import { getDashboardMetrics } from "@/lib/services/metricsService";
 import { getOfficeAssignee } from "@/lib/services/officeService";
 import { generateIndividualReport, ReportData } from "@/lib/reports/pdfGenerator";
-import { verifySession } from "@/lib/auth/verifySession";
-import { resolveAuthorizedOffices } from "@/lib/auth/rbac";
+import { withAuth } from "@/lib/auth/withAuth";
 
-export async function GET(request: Request) {
+/**
+ * GET /api/reports/individual
+ * Generates an individual PDF report for a specific office.
+ * Automatically scoped based on user role.
+ */
+export const GET = withAuth(async (request, context, user, scopedOffices) => {
   try {
     const { searchParams } = new URL(request.url);
     const office = searchParams.get("office");
@@ -16,10 +19,8 @@ export async function GET(request: Request) {
       return new Response("Missing parameters", { status: 400 });
     }
 
-    const user = await verifySession();
-    const authorizedOffices = resolveAuthorizedOffices(user, [office]);
-
-    if (authorizedOffices.length === 0 || !authorizedOffices.includes(office)) {
+    // Verify user has access to this specific office
+    if (!(scopedOffices || []).includes(office)) {
       return new Response("Forbidden: You do not have access to this office", { status: 403 });
     }
 
@@ -76,9 +77,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: any) {
-    if (error.message === 'Unauthorized') return new Response("Unauthorized", { status: 401 });
-    if (error.message === 'Forbidden') return new Response("Forbidden", { status: 403 });
     console.error("Individual Report API error:", error);
     return new Response(error.message || "Internal server error", { status: 500 });
   }
-}
+}, { requireOfficeScoping: true });

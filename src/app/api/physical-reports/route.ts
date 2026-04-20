@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
-import { verifySuperadmin } from "@/lib/auth/verifySession";
 import { getAllPhysicalReports, createPhysicalReport } from "@/lib/services/physicalReportService";
 import { validatePhysicalReportInput } from "@/lib/validation/apiSchemas";
+import { withAuth } from "@/lib/auth/withAuth";
 
-export async function GET(request: Request) {
+/**
+ * GET /api/physical-reports
+ * Returns list of physical reports.
+ * Restricted to Superadmins.
+ */
+export const GET = withAuth(async (request) => {
   try {
-    await verifySuperadmin();
     const { searchParams } = new URL(request.url);
     const month = searchParams.get("month");
     const year = searchParams.get("year");
@@ -13,21 +17,21 @@ export async function GET(request: Request) {
     const reports = await getAllPhysicalReports(month, year);
     return NextResponse.json(reports);
   } catch (error: any) {
-    if (error.message === 'Forbidden' || error.message === 'Unauthorized') {
-      return NextResponse.json({ error: error.message }, { status: error.message === 'Forbidden' ? 403 : 401 });
-    }
     console.error("API error fetching physical reports:", error);
     return NextResponse.json({ error: "Failed to fetch physical reports" }, { status: 500 });
   }
-}
+}, { role: "superadmin" });
 
-export async function POST(request: Request) {
+/**
+ * POST /api/physical-reports
+ * Creates a new physical report.
+ * Restricted to Superadmins.
+ */
+export const POST = withAuth(async (request) => {
   try {
-    await verifySuperadmin();
-    
     let body;
     try {
-      body = await request.json();
+      body = await request.clone().json();
     } catch (e) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
@@ -40,10 +44,7 @@ export async function POST(request: Request) {
     const result = await createPhysicalReport(validation.data!);
     return NextResponse.json(result);
   } catch (error: any) {
-    if (error.message === 'Forbidden' || error.message === 'Unauthorized') {
-      return NextResponse.json({ error: error.message }, { status: error.message === 'Forbidden' ? 403 : 401 });
-    }
     console.error("API error creating physical report:", error);
     return NextResponse.json({ error: "Failed to create physical report" }, { status: 500 });
   }
-}
+}, { role: "superadmin" });

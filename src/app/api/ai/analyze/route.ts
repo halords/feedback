@@ -1,31 +1,32 @@
-import { NextRequest, NextResponse } from "next/server";
-import { verifySession } from "@/lib/auth/verifySession";
+import { NextResponse } from "next/server";
 import { getDashboardMetrics } from "@/lib/services/metricsService";
 import { analyzeFeedbackData } from "@/lib/ai/gemini";
 import { saveAIReport } from "@/lib/services/aiReportService";
+import { withAuth } from "@/lib/auth/withAuth";
 
 const ALL_MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
 ];
 
-export async function POST(req: NextRequest) {
+/**
+ * POST /api/ai/analyze
+ * Generates an AI insight report.
+ * Automatically scoped based on user role.
+ */
+export const POST = withAuth(async (req, context, user, scopedOffices) => {
   try {
-    const session = await verifySession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const body = await req.json();
+    const body = await req.clone().json();
     const { year, officeId, scope = "organization" } = body;
 
     if (!year) {
       return NextResponse.json({ error: "Year is required" }, { status: 400 });
     }
 
-    // 1. Fetch optimized metrics (STRICTLY uses JSON archives - Zero Firestore Reads)
-    const targetOffices = (scope === "office" && officeId) ? [officeId] : ["ALL"];
-    const metrics = await getDashboardMetrics(targetOffices, ALL_MONTHS, year, false, true);
+    // Use scopedOffices injected by the wrapper
+    // If user requested organization scope but is constrained to an office, 
+    // scopedOffices will already reflect the constrained list.
+    const metrics = await getDashboardMetrics(scopedOffices || [], ALL_MONTHS, year, false, true);
     
     // 2. Filter out entries with no activity to save tokens
     const activeMetrics = metrics.filter(m => m.collection > 0 || m.visitor > 0);
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No data found for this period" }, { status: 404 });
     }
 
-    // 3. Map to AI-friendly structure (already computed by metricsService)
+    // 3. Map to AI-friendly structure
     const aggregatedData = activeMetrics.map(m => ({
       month: m.month,
       department: m.department,
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
 
     // 5. Save report for persistence
     const reportId = await saveAIReport({
-      userId: session.uid,
+      userId: user.uid,
       scope,
       officeId: officeId || null,
       year,
@@ -90,4 +91,4 @@ export async function POST(req: NextRequest) {
     console.error("AI Analysis Error:", error);
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
-}
+}, { requireOfficeScoping: true });

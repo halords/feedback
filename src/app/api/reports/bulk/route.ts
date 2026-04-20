@@ -2,14 +2,18 @@ import { getDashboardMetrics } from "@/lib/services/metricsService";
 import { getAllOfficeAssignees } from "@/lib/services/officeService";
 import { generateIndividualReport, mergeReportPDFs, ReportData } from "@/lib/reports/pdfGenerator";
 import { logAction } from "@/lib/services/auditService";
-import { verifySession } from "@/lib/auth/verifySession";
-import { resolveAuthorizedOffices } from "@/lib/auth/rbac";
 import { checkRateLimitAsync } from "@/lib/security/rateLimit";
+import { withAuth } from "@/lib/auth/withAuth";
 
-export async function GET(request: Request) {
+/**
+ * GET /api/reports/bulk
+ * Generates a merged PDF of all office reports.
+ * Automatically scoped based on user role.
+ */
+export const GET = withAuth(async (request, context, user, scopedOffices) => {
   try {
     const ip = request.headers.get("x-forwarded-for") || "unknown";
-    const ratelimit = await checkRateLimitAsync(ip, "pdf_bulk", 5, 5 * 60 * 1000); // 5 per 5 mins
+    const ratelimit = await checkRateLimitAsync(ip, "pdf_bulk", 5, 5 * 60 * 1000);
 
     if (!ratelimit.success) {
       return new Response("Too many report requests. Please wait before trying again.", { 
@@ -25,17 +29,13 @@ export async function GET(request: Request) {
     const month = searchParams.get("month");
     const year = searchParams.get("year");
     const search = searchParams.get("search");
-    const officesParam = searchParams.get("offices");
 
     if (!month || !year) {
       return new Response("Missing parameters", { status: 400 });
     }
 
-    const user = await verifySession();
-
-    // 1. Fetch metrics for targeted offices (RBAC aware)
-    const officeList = resolveAuthorizedOffices(user, officesParam ? officesParam.split(",") : ["ALL"]);
-    const allMetrics = await getDashboardMetrics(officeList, month, year);
+    // Use scopedOffices injected by the wrapper
+    const allMetrics = await getDashboardMetrics(scopedOffices || [], month, year);
     
     if (!allMetrics || allMetrics.length === 0) {
       return new Response("No data found for the selected period", { status: 404 });
@@ -43,7 +43,6 @@ export async function GET(request: Request) {
 
     // 2. Fetch all office assignees for signatures
     const assigneeMap = await getAllOfficeAssignees();
-
     const pdfBuffers: Uint8Array[] = [];
 
     // Filter and Sort
@@ -56,7 +55,7 @@ export async function GET(request: Request) {
 
     activeMetrics.sort((a, b) => a.department.localeCompare(b.department));
 
-    // 3. Process in batches to manage memory
+    // 3. Process in batches
     const BATCH_SIZE = 5;
     for (let i = 0; i < activeMetrics.length; i += BATCH_SIZE) {
       const batch = activeMetrics.slice(i, i + BATCH_SIZE);
@@ -109,7 +108,7 @@ export async function GET(request: Request) {
     const mergedPdfBytes = await mergeReportPDFs(pdfBuffers);
 
     // 4. Audit Log
-    await logAction(user.uid, "BULK_REPORT_GENERATED", { month, year, offices: officeList });
+    await logAction(user.uid, "BULK_REPORT_GENERATED", { month, year, offices: scopedOffices });
 
     return new Response(Buffer.from(mergedPdfBytes), {
       headers: {
@@ -118,9 +117,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: any) {
-    if (error.message === 'Unauthorized') return new Response("Unauthorized", { status: 401 });
-    if (error.message === 'Forbidden') return new Response("Forbidden", { status: 403 });
     console.error("Bulk Report API error:", error);
     return new Response(error.message || "Internal server error", { status: 500 });
   }
-}
+}, { requireOfficeScoping: true });

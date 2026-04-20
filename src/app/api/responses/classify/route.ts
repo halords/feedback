@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { classifyComments } from "@/lib/services/responseService";
-import { verifySession } from "@/lib/auth/verifySession";
-import { resolveAuthorizedOffices, hasGlobalAccess } from "@/lib/auth/rbac";
 import { db } from "@/lib/firebase/admin";
 import { checkRateLimitAsync } from "@/lib/security/rateLimit";
 import { validateClassificationInput } from "@/lib/validation/apiSchemas";
+import { withAuth } from "@/lib/auth/withAuth";
 
-export async function POST(request: Request) {
+/**
+ * POST /api/responses/classify
+ * Updates classifications for multiple feedback entries.
+ * Automatically scoped based on user role.
+ */
+export const POST = withAuth(async (request, context, user, scopedOffices) => {
   try {
     // 0. Rate Limiting (10 attempts per minute)
     const ip = request.headers.get("x-forwarded-for") || "unknown";
@@ -25,10 +29,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // 1. Authenticate user
-    const user = await verifySession();
-
-    const body = await request.json();
+    const body = await request.clone().json();
     const result = validateClassificationInput(body);
 
     if (!result.success) {
@@ -38,18 +39,16 @@ export async function POST(request: Request) {
     const { assignments } = result.data!;
 
     // 2. Enforce RBAC for non-superadmins
-    if (!hasGlobalAccess(user)) {
-      const authorizedOffices = resolveAuthorizedOffices(user);
-      
-      // Fetch documents to verify office ownership
-      // This preserves Functional Immutability of responseService.ts
+    const type = user.user_type?.toLowerCase().replace(/\s/g, '');
+    if (type !== 'superadmin') {
       const docRefs = assignments.map(a => db.collection('Responses').doc(a.docId));
       const snapshots = await db.getAll(...docRefs);
 
       const isUnauthorized = snapshots.some(snap => {
         if (!snap.exists) return true;
         const data = snap.data();
-        return !authorizedOffices.includes(data?.Office);
+        const officeId = data?.officeId || data?.Office;
+        return !(scopedOffices || []).includes(officeId);
       });
 
       if (isUnauthorized) {
@@ -63,10 +62,7 @@ export async function POST(request: Request) {
     await classifyComments(assignments);
     return NextResponse.json({ success: true, message: "Classifications updated" });
   } catch (error: any) {
-    if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
     console.error("API Error in /api/responses/classify:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-}
+}, { requireOfficeScoping: true });
