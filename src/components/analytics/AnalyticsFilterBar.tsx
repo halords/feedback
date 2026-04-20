@@ -3,7 +3,7 @@
 import React, { useMemo, useEffect } from "react";
 import { useAnalytics } from "@/context/AnalyticsContext";
 import { useAuth } from "@/context/AuthContext";
-import { ChevronDown, Calendar, FileText, Search, Loader2, Users } from "lucide-react";
+import { ChevronDown, Calendar, FileText, Search, Loader2, Users, Brain } from "lucide-react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/Button";
 import { clsx } from "clsx";
@@ -16,6 +16,7 @@ const allMonths = [
 export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
   const { user } = useAuth();
   const { month, year, search, selectedUserId, setFilters, isGraphsReady, isLoading } = useAnalytics();
+  const [isAIAnalyzing, setIsAIAnalyzing] = React.useState(false);
   
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -51,6 +52,27 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
     }
     return [];
   }, [isSuperadmin, selectedUserId, users]);
+
+  const handleAIAnalysis = async () => {
+    setIsAIAnalyzing(true);
+    try {
+       const res = await fetch('/api/ai/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ year, scope: 'organization' })
+       });
+       const data = await res.json();
+       if (data.reportId) {
+          window.open(`/analytics/ai-report/${data.reportId}`, '_blank');
+       } else {
+          alert(data.error || "AI Analysis failed. Check if GEMINI_API_KEY is configured.");
+       }
+    } catch (err) {
+       alert("Failed to connect to AI engine");
+    } finally {
+       setIsAIAnalyzing(false);
+    }
+ };
 
   return (
     <div className="bg-surface-low rounded-2xl p-3 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 shadow-sm border border-border-strong/50 w-full transition-colors duration-300">
@@ -127,41 +149,61 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
         )}
       </div>
 
-      {/* Generate PDF Button */}
-      <Button 
-        variant="primary" 
-        className={clsx(
-          "h-11 px-6 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-3 whitespace-nowrap shadow-md shadow-primary/10 hover:translate-y-[-1px] transition-all",
-          (isLoading || (activeTab === "graphs" && !isGraphsReady)) ? "opacity-50 cursor-not-allowed grayscale" : ""
-        )}
-        disabled={isLoading || (activeTab === "graphs" && !isGraphsReady)}
-        onClick={() => {
-          if (activeTab === "summary") {
-            const url = `/api/reports/summary?month=${month}&year=${year}`;
-            window.open(url, '_blank');
-          } else if (activeTab === "graphs") {
-            window.dispatchEvent(new CustomEvent('export-graphs'));
-          } else {
-            const params = new URLSearchParams({ month, year });
-            if (search) params.set("search", search);
-            
-            // If superadmin has selected a user, pass those offices to the bulk generator
-            if (isSuperadmin && currentTargetOffices.length > 0) {
-              params.set("offices", currentTargetOffices.join(","));
+      <div className="flex items-center gap-2">
+        {/* AI Analysis Button */}
+        <Button 
+          variant="outline" 
+          className={clsx(
+            "h-11 px-6 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-3 whitespace-nowrap border-primary/20 text-primary bg-primary/5 hover:bg-primary/10 transition-all",
+            (isAIAnalyzing || isLoading) ? "opacity-50 cursor-not-allowed" : ""
+          )}
+          disabled={isAIAnalyzing || isLoading}
+          onClick={handleAIAnalysis}
+        >
+          {isAIAnalyzing ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Brain className="w-4 h-4" />
+          )}
+          {isAIAnalyzing ? "Processing..." : "AI Insights"}
+        </Button>
+
+        {/* Generate PDF Button */}
+        <Button 
+          variant="primary" 
+          className={clsx(
+            "h-11 px-6 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-3 whitespace-nowrap shadow-md shadow-primary/10 hover:translate-y-[-1px] transition-all",
+            (isLoading || (activeTab === "graphs" && !isGraphsReady)) ? "opacity-50 cursor-not-allowed grayscale" : ""
+          )}
+          disabled={isLoading || (activeTab === "graphs" && !isGraphsReady)}
+          onClick={() => {
+            if (activeTab === "summary") {
+              const url = `/api/reports/summary?month=${month}&year=${year}`;
+              window.open(url, '_blank');
+            } else if (activeTab === "graphs") {
+              window.dispatchEvent(new CustomEvent('export-graphs'));
+            } else {
+              const params = new URLSearchParams({ month, year });
+              if (search) params.set("search", search);
+              
+              // If superadmin has selected a user, pass those offices to the bulk generator
+              if (isSuperadmin && currentTargetOffices.length > 0) {
+                params.set("offices", currentTargetOffices.join(","));
+              }
+              
+              const url = `/api/reports/bulk?${params.toString()}`;
+              window.open(url, '_blank');
             }
-            
-            const url = `/api/reports/bulk?${params.toString()}`;
-            window.open(url, '_blank');
-          }
-        }}
-      >
-        {isLoading || (activeTab === "graphs" && !isGraphsReady) ? (
-          <Loader2 className="w-4 h-4 text-tertiary animate-spin" />
-        ) : (
-          <FileText className="w-4 h-4 text-tertiary" />
-        )}
-        {activeTab === "summary" ? "Generate Summary" : "Generate Report"}
-      </Button>
+          }}
+        >
+          {isLoading || (activeTab === "graphs" && !isGraphsReady) ? (
+            <Loader2 className="w-4 h-4 text-tertiary animate-spin" />
+          ) : (
+            <FileText className="w-4 h-4 text-tertiary" />
+          )}
+          {activeTab === "summary" ? "Generate Summary" : "Generate Report"}
+        </Button>
+      </div>
       {activeTab === "graphs" && !isGraphsReady && !isLoading && (
         <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-black text-primary uppercase tracking-widest animate-pulse whitespace-nowrap">
           * Waiting for charts to render...
