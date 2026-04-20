@@ -1,33 +1,41 @@
 # ROADMAP.md
 
-> **Current Milestone**: AI-INSIGHTS-V5
-> **Goal**: Integrate Gemini AI to provide deep trend analysis and automated reporting for departments and the organization as a whole.
+> **Current Milestone**: v3.3.0-SECURITY-UNIFICATION
+> **Goal**: 100% Verified Secure-by-Default Architecture
 
-## Must-Haves
-- [x] Gemini API integration (Next.js Server-side).
-- [x] Aggregated data provider for trends (Monthly rating, collection, Citizen's Charter).
-- [x] AI-Generated Report Page (Dynamic rendering of insights and charts).
-- [x] "Generate AI Analysis" buttons for per-office and organizational views.
-- [x] Full Year Organization-wide analysis.
+## Must-Haves (from SPEC)
+- [ ] Global "Deny-by-Default" Middleware
+- [ ] Unified `withAuth` API Handler Wrapper
+- [ ] Integration Test Suite for all `/api` routes
+- [ ] Hardened `/api/users/assignment` & `/api/comments`
 
 ## Phases
 
-### Phase 1: Gemini Setup & Data Aggregator
-**Status**: ✅ Complete
-**Objective**: Configure Gemini API on the server and create a robust data aggregator that fetches and prepares multi-month trends for AI analysis.
+### Phase 1: Perimeter Defense (Global)
+**Status**: ⬜ Not Started
+**Objective**: Lock the front door. Reconfigure Middleware to protect everything by default and create the `withAuth` higher-order function.
+**Deliverables**:
+- Secure-by-default `middleware.ts`
+- `src/lib/auth/withAuth.ts` utility
 
-### Phase 2: Structured Analysis Engine
-**Status**: ✅ Complete
-**Objective**: Implement prompt engineering and structured JSON output handling to ensure Gemini returns useful, data-backed insights and chart configurations.
+### Phase 2: Endpoint Migration & Hardening
+**Status**: ⬜ Not Started
+**Objective**: Apply the shield to all handlers. Migrate vulnerable endpoints to the `withAuth` wrapper and fix missing RBAC scoping.
+**Deliverables**:
+- Hardened Comments API
+- Hardened Users/Assignment API
+- Hardened Dashboard Metrics APIs
 
-### Phase 3: Dynamic Report View (Custom Page)
-**Status**: ✅ Complete
-**Objective**: Build a dedicated `/analytics/ai-report` route that renders AI-generated insights using a premium, printable layout with dynamic charts.
+### Phase 3: Integration Testing Framework
+**Status**: ⬜ Not Started
+**Objective**: Build the "Immune System". Set up Vitest mock environments for Next.js Request/Response and implement negative security tests.
+**Deliverables**:
+- `src/integration-tests/security.test.ts`
+- Automated test runs for all API endpoints
 
-### Phase 4: UI Integration & "New Tab" Feature
-**Status**: ✅ Complete
-**Objective**: Add AI trigger points in the Dashboard and Office views, implementing the "Open in New Tab" functionality as requested.
-
-### Phase 5: RBAC & Security Hardening
-**Status**: ✅ Complete
-**Objective**: Secure the AI routes to prevent unauthorized data access and audit the rendering logic for security against injection.
+### Phase 4: Final Audit & Polish
+**Status**: ⬜ Not Started
+**Objective**: Verification and cleanup. Re-run the full system audit and remove any legacy "masking" logic in favor of true scoping.
+**Deliverables**:
+- Passed `AUDIT_REPORT.md`
+- Removed technical debt from `responseService.ts`

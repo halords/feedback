@@ -3,26 +3,33 @@
 > **Status**: `FINALIZED`
 
 ## Vision
-Achieve a 100% fortified, future-proof codebase by establishing a rigorous automated testing pipeline and comprehensively rolling out strict Zod validation schemas across all endpoints, ensuring that our recently secured architecture is immune to developer regressions.
+Transform the system into a **Secure-by-Default** architecture where the API perimeter is globally enforced by middleware and a unified handler wrapper, ensuring that any new code is protected automatically and verified by empirical integration tests.
 
 ## Goals
-1. **Automated Defense Line**: Implement a robust testing framework (Vitest/Jest) that automatically verifies our complex RBAC scoping rules against simulated user profiles, guaranteeing the `"ALL"` bypass leak can never secretly return.
-2. **Universal Schema Integrity**: Expand the powerful `Zod` validation system established in Phase 8 to cover all remaining auxiliary API endpoints perfectly mapping the data structures.
-3. **Database Rules Finalization**: Formally audit and document the `firestore.rules` file to permanently enforce the backend-only access architecture (Admin SDK reliance), locking the Firebase frontend doors permanently.
+1. **Perimeter Hardening**: Shift the Middleware from a whitelist approach to a **Secure-by-Default** (blacklist) logic, ensuring all `/api/` and `page` routes are protected unless explicitly public.
+2. **Unified Security Wrapper**: Implement a Global Higher-Order Handler for API routes to centralize `verifySession()`, RBAC scoping, and rate limiting, eliminating the "forgotten guard" regression risk.
+3. **Empirical Integration Suite**: Establish a Vitest-based integration testing suite that verifies:
+    - **Authentication**: Unauthenticated requests to any `/api` endpoint return `401`.
+    - **Authorization**: Non-superadmin requests for unauthorized offices return empty or 403.
+    - **Integrity**: Zod validation is applied to all incoming payloads.
+4. **Zero-Trust Migration**: Migrate all existing vulnerable endpoints (Comments, Assignments, Dashboard Metrics) to the new global handler.
 
 ## Non-Goals (Out of Scope)
-- Developing new dashboard UI features or metrics.
-- Changing existing database design or rewriting `responseService.ts`.
-- Migrating the codebase to a radically different framework architecture (e.g., App Router rewrites, if keeping Pages/API routes).
+- Developing new business features (Charts, AI Reports).
+- Refactoring the Firestore database schema or storage architecture.
+- Replacing the Next.js App Router or the current Shell UI.
 
 ## Users
-- Future development teams and auditors who need guaranteed proof that the codebase maintains a secure standard during maintenance cycles.
+- **Superadmins**: Expecting guaranteed organizational data protection.
+- **Office Admins**: Expecting to only access their assigned office data.
+- **Developers**: Expecting a friction-less but safe API development experience.
 
 ## Constraints
-- **Zero Integration Breaking**: The new testing framework must not disrupt the current functional application.
-- **Node Alignment**: Operations should maintain the standard of the `engines: ">=20"` configuration as recently verified.
+- **Functional Integrity**: No changes to existing UI behavior or data presentation for authorized users.
+- **Deployment Platform**: Must remain compatible with Firebase App Hosting environment.
 
 ## Success Criteria
-- [ ] CI/CD-ready test suite successfully passes and asserts office scoping logic.
-- [ ] 100% of writable `/api` endpoints have `z.object()` structured validations instead of basic vanilla if/else checks.
-- [ ] `firestore.rules` is fully documented, audited, and intentionally implemented as purely server-access only.
+- [ ] Middleware blocks unauthenticated access to any newly created API route by default.
+- [ ] Integration test suite covers 100% of `/api` endpoints with "Failure-to-Bypass" assertions.
+- [ ] All high-risk endpoints (`/api/users/assignment`, `/api/comments`, etc.) are protected by the Unified Security Wrapper.
+- [ ] System Audit (v3) returns `PASS` for all Security and RBAC categories.
