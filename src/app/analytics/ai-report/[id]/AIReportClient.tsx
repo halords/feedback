@@ -53,6 +53,12 @@ interface AIReportClientProps {
 export function AIReportClient({ report }: AIReportClientProps) {
   const { content } = report;
 
+  const formatMetric = (val: any) => {
+    if (val === null || val === undefined || val === 0 || val === "NA" || val === "N/A") return "N/A";
+    if (typeof val === 'number') return val.toFixed(1) + "%";
+    return val;
+  };
+
   const satisfactionData = useMemo(() => ({
     labels: content.trends.months,
     datasets: [
@@ -168,27 +174,34 @@ export function AIReportClient({ report }: AIReportClientProps) {
         </Card>
 
         {/* Key Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard 
             icon={<TrendingUp className="w-5 h-5 text-indigo-500" />}
             label="Annual Satisfaction"
-            value={content.metrics.avgSatisfaction + "%"}
+            value={formatMetric(content.metrics.avgSatisfaction)}
             description="Overall citizen delight index"
             color="indigo"
           />
           <MetricCard 
             icon={<Users className="w-5 h-5 text-emerald-500" />}
             label="Collection Rate"
-            value={content.metrics.avgCollection + "%"}
+            value={formatMetric(content.metrics.avgCollection)}
             description="Feedback forms vs unique visitors"
             color="emerald"
           />
           <MetricCard 
             icon={<Eye className="w-5 h-5 text-amber-500" />}
-            label="CC Visibility"
-            value={content.metrics.ccVisibilityScore + "%"}
-            description="Citizen's Charter accessibility"
+            label="CC Implementation"
+            value={formatMetric(content.metrics.ccComplianceScore)}
+            description="Familiarity, Visibility & Helpfulness"
             color="amber"
+          />
+          <MetricCard 
+            icon={<Brain className="w-5 h-5 text-violet-500" />}
+            label="Digital Adoption"
+            value={formatMetric(content.metrics.digitalAdoptionRate)}
+            description="Online vs Offline feedback ratio"
+            color="indigo"
           />
         </div>
 

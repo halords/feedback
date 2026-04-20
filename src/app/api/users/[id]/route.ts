@@ -39,7 +39,7 @@ export async function PATCH(
     if (error.message === 'Unauthorized') return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (error.message === 'Forbidden') return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     
-    console.error(`[API/Users/${params.id}] PATCH Error:`, error);
+    console.error(`[API/Users/${id}] PATCH Error:`, error);
     return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
   }
 }

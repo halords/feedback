@@ -38,7 +38,7 @@ export interface DashboardMetrics {
   collectionRate: string;
 }
 
-export async function getDashboardMetrics(offices: string[], month: string | string[], year: string, skipArchive = false): Promise<DashboardMetrics[]> {
+export async function getDashboardMetrics(offices: string[], month: string | string[], year: string, skipArchive = false, onlyArchive = false): Promise<DashboardMetrics[]> {
   if (!Array.isArray(offices)) return [];
   const activeOffices = await import("./officeService").then(m => m.getAllOffices());
   const resolvedOffices = await resolveTargetOffices(offices, year);
@@ -70,8 +70,8 @@ export async function getDashboardMetrics(offices: string[], month: string | str
   }
 
 
-  // 2. Fetch remaining months from Firestore
-  if (monthsToFetchLive.length > 0) {
+  // 2. Fetch remaining months from Firestore (ONLY if not strictly using archives)
+  if (monthsToFetchLive.length > 0 && !onlyArchive) {
     const months = [
       "January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December"

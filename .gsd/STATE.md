@@ -1,23 +1,18 @@
 # STATE.md
 
-> **Status**: `PLANNING_COMPLETE`
+> **Status**: `PHASE_1_COMPLETE`
 > **Current Position**
-- **Phase**: 1: Perimeter Defense
-- **Task**: Planning complete
-- **Status**: Ready for execution
+- **Phase**: 1: Perimeter Defense (completed)
+- **Task**: All tasks complete
+- **Status**: Verified
+
+## Last Session Summary
+Phase 1 executed successfully. Reconfigured middleware to a "Secure-by-Default" model and implemented the `withAuth` higher-order handler with automated office scoping. Verified the lockdown by testing `/api/peek`.
 
 ## Next Steps
-1. /execute 1
-
-## Summary
-Resetting project direction to address critical security regressions using a "Global Enforcement" strategy.
+1. Proceed to Phase 2: Endpoint Migration & Hardening
 
 ## Key Constraints
 - Unified Handler Wrapper implementation
 - Secure-by-default Middleware
 - Integration-test verified outcomes
-
-## Active Memory
-- Audit (v2.2) revealed widespread API guard omissions.
-- Middleware currently uses a weak whitelist.
-- User demands "Global" security without major UI changes.

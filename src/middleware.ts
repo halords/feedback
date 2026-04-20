@@ -2,17 +2,23 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { decodeJwt } from 'jose';
 
-// Define protected routes and roles
-const PROTECTED_ROUTES = [
-  '/dashboard',
-  '/analytics',
-  '/responses',
-  '/physical-reports',
-  '/users',
-  '/offices',
-  '/settings',
-  '/comments',
+// 1. Define Public Routes (Secure-by-Default)
+const PUBLIC_ROUTES = [
+  '/',
+  '/login',
+  '/api/login',
+  '/api/auth/resolve-id',
 ];
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Allow public assets, Next.js internals, and whitelisted APIs to bypass
+  const isPublicRoute = PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(route));
+  
+  if (isPublicRoute) {
+    return NextResponse.next();
+  }
 
 const SUPERADMIN_ONLY_ROUTES = [
   '/users',
@@ -21,21 +27,13 @@ const SUPERADMIN_ONLY_ROUTES = [
   '/physical-reports', // Physical reports editor is superadmin only per UI layout
 ];
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // 1. Check if the route is protected
-  const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname.startsWith(route));
-
-  // Allow public assets, Next.js internals, and login APIs to bypass
-  if (!isProtectedRoute) {
-    return NextResponse.next();
-  }
-
   // 2. Extract and verify session token
   const token = request.cookies.get('__session')?.value;
 
   if (!token) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     // Return unauthorized / redirect to login
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('from', pathname);

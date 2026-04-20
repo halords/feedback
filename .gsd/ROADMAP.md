@@ -12,7 +12,7 @@
 ## Phases
 
 ### Phase 1: Perimeter Defense (Global)
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Lock the front door. Reconfigure Middleware to protect everything by default and create the `withAuth` higher-order function.
 **Deliverables**:
 - Secure-by-default `middleware.ts`
