@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifySuperadmin, getSessionUser, verifySession } from "@/lib/auth/verifySession";
 import { getAllOffices, createOffice, updateOffice, getEffectiveOfficesForPeriod } from "@/lib/services/officeService";
+import { validateOfficeInput } from "@/lib/validation/apiSchemas";
 
 /**
  * GET /api/offices
@@ -44,14 +45,17 @@ export async function GET(req: Request) {
 export async function POST(request: Request) {
   try {
     await verifySuperadmin();
-    const { name, fullName } = await request.json();
+    const body = await request.json();
+    const result = validateOfficeInput(body);
 
-    if (!name || !fullName) {
-      return NextResponse.json({ error: "Name and Full Name are required" }, { status: 400 });
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    const result = await createOffice(name, fullName);
-    return NextResponse.json(result);
+    const { name, fullName } = result.data!;
+
+    const createResult = await createOffice(name, fullName);
+    return NextResponse.json(createResult);
   } catch (error: any) {
     if (error.message === 'Forbidden' || error.message === 'Unauthorized') {
       return NextResponse.json({ error: error.message }, { status: error.message === 'Forbidden' ? 403 : 401 });
@@ -68,14 +72,21 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     await verifySuperadmin();
-    const { id, name, fullName, status } = await request.json();
+    const body = await request.json();
+    const result = validateOfficeInput(body);
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+
+    const { id, name, fullName, status } = result.data!;
 
     if (!id) {
       return NextResponse.json({ error: "Office ID is required" }, { status: 400 });
     }
 
-    const result = await updateOffice(id, { name, fullName, status });
-    return NextResponse.json(result);
+    const updateResult = await updateOffice(id, { name, fullName, status });
+    return NextResponse.json(updateResult);
   } catch (error: any) {
     if (error.message === 'Forbidden' || error.message === 'Unauthorized') {
       return NextResponse.json({ error: error.message }, { status: error.message === 'Forbidden' ? 403 : 401 });

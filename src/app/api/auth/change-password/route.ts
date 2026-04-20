@@ -3,19 +3,37 @@ import { verifySession, createSessionToken, setSessionCookie } from "@/lib/auth/
 import { db } from "@/lib/firebase/admin";
 import bcrypt from "bcryptjs";
 import { logAction } from "@/lib/services/auditService";
+import { checkRateLimitAsync } from "@/lib/security/rateLimit";
+import { validateChangePasswordInput } from "@/lib/validation/apiSchemas";
 
 export async function POST(request: Request) {
   try {
+    // 0. Rate Limiting (5 attempts per 15 minutes)
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    const ratelimit = await checkRateLimitAsync(ip, "auth_password_change", 5, 900000);
+
+    if (!ratelimit.success) {
+      return NextResponse.json({ 
+        error: "Too many attempts. Please try again in 15 minutes.",
+      }, { 
+        status: 429,
+        headers: {
+          'X-RateLimit-Limit': ratelimit.limit.toString(),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': ratelimit.reset.toString()
+        }
+      });
+    }
+
     const user = await verifySession();
-    const { currentPassword, newPassword } = await request.json();
+    const body = await request.json();
+    const result = validateChangePasswordInput(body);
 
-    if (!currentPassword || !newPassword) {
-      return NextResponse.json({ error: "Missing password fields" }, { status: 400 });
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    if (newPassword.length < 6) {
-      return NextResponse.json({ error: "New password must be at least 6 characters" }, { status: 400 });
-    }
+    const { currentPassword, newPassword } = result.data!;
 
     // 1. Fetch user from 'users' collection
     // Using UID (Doc ID) is faster and more reliable than a query

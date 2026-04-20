@@ -3,17 +3,39 @@ import { classifyComments } from "@/lib/services/responseService";
 import { verifySession } from "@/lib/auth/verifySession";
 import { resolveAuthorizedOffices, hasGlobalAccess } from "@/lib/auth/rbac";
 import { db } from "@/lib/firebase/admin";
+import { checkRateLimitAsync } from "@/lib/security/rateLimit";
+import { validateClassificationInput } from "@/lib/validation/apiSchemas";
 
 export async function POST(request: Request) {
   try {
+    // 0. Rate Limiting (10 attempts per minute)
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    const ratelimit = await checkRateLimitAsync(ip, "response_classify", 10, 60000);
+
+    if (!ratelimit.success) {
+      return NextResponse.json({ 
+        error: "Too many classify requests. Please try again in a minute.",
+      }, { 
+        status: 429,
+        headers: {
+          'X-RateLimit-Limit': ratelimit.limit.toString(),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': ratelimit.reset.toString()
+        }
+      });
+    }
+
     // 1. Authenticate user
     const user = await verifySession();
 
-    const { assignments } = await request.json();
+    const body = await request.json();
+    const result = validateClassificationInput(body);
 
-    if (!assignments || !Array.isArray(assignments)) {
-      return NextResponse.json({ error: "Invalid classification data" }, { status: 400 });
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
     }
+
+    const { assignments } = result.data!;
 
     // 2. Enforce RBAC for non-superadmins
     if (!hasGlobalAccess(user)) {

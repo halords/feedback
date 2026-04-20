@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { createSessionToken, setSessionCookie } from "@/lib/auth/verifySession";
 import { checkRateLimitAsync } from "@/lib/security/rateLimit";
 import { logAction } from "@/lib/services/auditService";
+import { validateLoginInput } from "@/lib/validation/apiSchemas";
 
 export async function POST(request: Request) {
   try {
@@ -25,11 +26,14 @@ export async function POST(request: Request) {
       });
     }
 
-    const { username, password } = await request.json();
+    const body = await request.json();
+    const result = validateLoginInput(body);
 
-    if (!username || !password) {
-      return NextResponse.json({ error: "Username and password required" }, { status: 400 });
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
     }
+
+    const { username, password } = result.data!;
 
     // 1. Fetch user by username
     const userSnapshot = await db.collection("users").where("username", "==", username).get();

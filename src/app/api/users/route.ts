@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAllUsers, addUser } from "@/lib/services/userService";
 import { verifySuperadmin } from "@/lib/auth/verifySession";
 import { logAction } from "@/lib/services/auditService";
+import { validateUserInput } from "@/lib/validation/apiSchemas";
 
 /**
  * GET /api/users
@@ -33,20 +34,20 @@ export async function POST(request: Request) {
     // 1. Enforce Super Admin only
     const admin = await verifySuperadmin();
 
-    const userData = await request.json();
+    const body = await request.json();
+    const result = validateUserInput(body);
     
-    // Basic validation
-    const { idno, full_name, user_type } = userData;
-    if (!idno || !full_name || !user_type) {
-      return NextResponse.json({ error: "Missing required fields (idno, full_name, user_type)" }, { status: 400 });
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    const result = await addUser(userData);
+    const userData = result.data!;
+    const addUserResult = await addUser(userData);
 
     // 2. Audit Log
-    await logAction(admin.idno, "USER_CREATED", { newUserId: idno, fullName: full_name });
+    await logAction(admin.idno, "USER_CREATED", { newUserId: userData.idno, fullName: userData.full_name });
 
-    return NextResponse.json(result);
+    return NextResponse.json(addUserResult);
   } catch (error: any) {
     if (error.message === 'Unauthorized') return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (error.message === 'Forbidden') return NextResponse.json({ error: "Forbidden" }, { status: 403 });

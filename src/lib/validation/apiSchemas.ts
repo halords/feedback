@@ -1,6 +1,8 @@
+import { z } from "zod";
+
 /**
- * API Validation Schemas (Vanilla Implementation)
- * This provides a similar interface to Zod for strict input validation.
+ * API Validation Schemas (Zod Implementation)
+ * Provides robust, type-safe validation for all API inputs.
  */
 
 export interface ValidationResult<T> {
@@ -10,123 +12,201 @@ export interface ValidationResult<T> {
 }
 
 /**
- * Validates the responses API input
+ * 1. Responses API Schema
  */
+const responsesSchema = z.object({
+  offices: z.array(z.string()).min(1, "Invalid or missing 'offices' array"),
+  month: z.string().min(1, "Invalid or missing 'month' string"),
+  year: z.union([z.string(), z.number()]).transform((val) => String(val)).refine((val) => /^\d{4}$/.test(val), {
+    message: "Year must be a 4-digit number",
+  }),
+});
+
 export function validateResponsesInput(body: any): ValidationResult<{
   offices: string[];
   month: string;
   year: string;
 }> {
-  const { offices, month, year } = body;
-
-  if (!offices || !Array.isArray(offices) || offices.length === 0) {
-    return { success: false, error: "Invalid or missing 'offices' array" };
+  const result = responsesSchema.safeParse(body);
+  if (!result.success) {
+    return { success: false, error: result.error.errors[0].message };
   }
-
-  if (!month || typeof month !== 'string') {
-    return { success: false, error: "Invalid or missing 'month' string" };
-  }
-
-  if (!year || (typeof year !== 'string' && typeof year !== 'number')) {
-    return { success: false, error: "Invalid or missing 'year'" };
-  }
-
-  // Normalize year to string
-  const normalizedYear = String(year);
-  if (!/^\d{4}$/.test(normalizedYear)) {
-    return { success: false, error: "Year must be a 4-digit number" };
-  }
-
-  return {
-    success: true,
-    data: { offices, month, year: normalizedYear }
-  };
+  return { success: true, data: result.data };
 }
 
 /**
- * Validates the dashboard API input
+ * 2. Dashboard API Schema
  */
+const dashboardSchema = z.object({
+  offices: z.array(z.string()).min(1, "Invalid or missing 'offices' array"),
+  month: z.union([z.string(), z.array(z.string())]).refine(val => val.length > 0, {
+    message: "Invalid or missing 'month' (string or array)"
+  }),
+  year: z.union([z.string(), z.number()]).transform((val) => String(val)),
+});
+
 export function validateDashboardInput(body: any): ValidationResult<{
   offices: string[];
   month: string | string[];
   year: string;
 }> {
-  const { offices, month, year } = body;
-
-  if (!offices || !Array.isArray(offices) || offices.length === 0) {
-    return { success: false, error: "Invalid or missing 'offices' array" };
+  const result = dashboardSchema.safeParse(body);
+  if (!result.success) {
+    return { success: false, error: result.error.errors[0].message };
   }
-
-  if (!month || (typeof month !== 'string' && !Array.isArray(month))) {
-    return { success: false, error: "Invalid or missing 'month' (string or array)" };
-  }
-
-  if (!year || (typeof year !== 'string' && typeof year !== 'number')) {
-    return { success: false, error: "Invalid or missing 'year'" };
-  }
-
-  return {
-    success: true,
-    data: { offices, month, year: String(year) }
-  };
+  return { success: true, data: result.data };
 }
 
 /**
- * Validates physical report input
+ * 3. Physical Report Schema
  */
+const physicalReportSchema = z.object({
+  officeId: z.string().min(1, "Missing or invalid 'officeId'"),
+  period_iso: z.string().regex(/^\d{4}-\d{2}$/, "Invalid 'period_iso'. Expected YYYY-MM format."),
+  FOR_THE_MONTH_OF: z.string().min(1, "Missing 'FOR_THE_MONTH_OF' month name"),
+  COLLECTED_FORMS: z.coerce.number(),
+  VISITORS: z.coerce.number(),
+  MALE: z.coerce.number(),
+  FEMALE: z.coerce.number(),
+  LGBTQ: z.coerce.number(),
+  PREFER_NOT_TO_SAY: z.coerce.number(),
+  CITIZEN: z.coerce.number(),
+  BUSINESS: z.coerce.number(),
+  GOVERNMENT: z.coerce.number(),
+  YES: z.coerce.number(),
+  JUST_NOW: z.coerce.number(),
+  NO: z.coerce.number(),
+  VISIBLE: z.coerce.number(),
+  SOMEWHAT_VISIBLE: z.coerce.number(),
+  DIFFICULT_TO_SEE: z.coerce.number(),
+  NOT_VISIBLE: z.coerce.number(),
+  NA: z.coerce.number(),
+  VERY_MUCH: z.coerce.number(),
+  SOMEWHAT: z.coerce.number(),
+  DID_NOT_HELP: z.coerce.number(),
+  NA2: z.coerce.number(),
+}).passthrough(); // Allow other fields to pass through if necessary
+
 export function validatePhysicalReportInput(body: any): ValidationResult<any> {
-  const { 
-    officeId, 
-    period_iso, 
-    FOR_THE_MONTH_OF, 
-    COLLECTED_FORMS, 
-    VISITORS,
-    MALE, FEMALE, LGBTQ, PREFER_NOT_TO_SAY,
-    CITIZEN, BUSINESS, GOVERNMENT,
-    YES, JUST_NOW, NO,
-    VISIBLE, SOMEWHAT_VISIBLE, DIFFICULT_TO_SEE, NOT_VISIBLE, NA,
-    VERY_MUCH, SOMEWHAT, DID_NOT_HELP, NA2
-  } = body;
-
-  // 1. Core Identity & Timing
-  if (!officeId || typeof officeId !== 'string') {
-    return { success: false, error: "Missing or invalid 'officeId'" };
+  const result = physicalReportSchema.safeParse(body);
+  if (!result.success) {
+    // Return the first specific error message found
+    const err = result.error.errors[0];
+    const message = err.code === 'invalid_type' ? `'${err.path[0]}' must be a valid number` : err.message;
+    return { success: false, error: message };
   }
-  if (!period_iso || !/^\d{4}-\d{2}$/.test(period_iso)) {
-    return { success: false, error: "Invalid 'period_iso'. Expected YYYY-MM format." };
-  }
-  if (!FOR_THE_MONTH_OF || typeof FOR_THE_MONTH_OF !== 'string') {
-    return { success: false, error: "Missing 'FOR_THE_MONTH_OF' month name" };
-  }
+  return { success: true, data: result.data };
+}
 
-  // 2. Numeric Validation Utility
-  const validateNumeric = (val: any, name: string) => {
-    const num = Number(val);
-    if (isNaN(num)) return { success: false, error: `'${name}' must be a valid number` };
-    return { success: true, value: num };
-  };
+/**
+ * 4. User Core Schema
+ */
+const userBaseSchema = z.object({
+  idno: z.string().min(1, "Missing or invalid 'idno'"),
+  full_name: z.string().min(1, "Missing or invalid 'full_name'"),
+  position: z.string().default("Unknown"),
+  office: z.string().default("Unknown"),
+  user_type: z.enum(["Super Admin", "Office Admin"], {
+    errorMap: () => ({ message: "user_type must be 'Super Admin' or 'Office Admin'" })
+  }),
+  office_assignment: z.array(z.string()).default([]),
+  is_analytics_enabled: z.boolean().optional()
+});
 
-  // 3. Batch validate numbers
-  const numericFields: Record<string, any> = {
-    COLLECTED_FORMS, VISITORS,
-    MALE, FEMALE, LGBTQ, PREFER_NOT_TO_SAY,
-    CITIZEN, BUSINESS, GOVERNMENT,
-    YES, JUST_NOW, NO,
-    VISIBLE, SOMEWHAT_VISIBLE, DIFFICULT_TO_SEE, NOT_VISIBLE, NA,
-    VERY_MUCH, SOMEWHAT, DID_NOT_HELP, NA2
-  };
+export function validateUserInput(body: any): ValidationResult<z.infer<typeof userBaseSchema>> {
+  const result = userBaseSchema.safeParse(body);
+  if (!result.success) return { success: false, error: result.error.errors[0].message };
+  return { success: true, data: result.data };
+}
 
-  const validatedData: any = { ...body };
+/**
+ * 5. User Analytics Patch Schema
+ */
+const userAnalyticsPatchSchema = z.object({
+  analyticsEnabled: z.boolean({
+    required_error: "Missing 'analyticsEnabled'",
+    invalid_type_error: "analyticsEnabled must be a boolean",
+  }),
+});
 
-  for (const [key, val] of Object.entries(numericFields)) {
-    if (val === undefined || val === null) continue; // Allow optionality during partial updates if needed
-    const result = validateNumeric(val, key);
-    if (!result.success) return result;
-    validatedData[key] = result.value;
-  }
+export function validateUserPatchInput(body: any): ValidationResult<{ analyticsEnabled: boolean }> {
+  const result = userAnalyticsPatchSchema.safeParse(body);
+  if (!result.success) return { success: false, error: result.error.errors[0].message };
+  return { success: true, data: result.data };
+}
 
-  return {
-    success: true,
-    data: validatedData
-  };
+/**
+ * 6. Office Assignment Schema
+ */
+const officeAssignmentSchema = z.object({
+  idno: z.string().min(1, "Missing or invalid 'idno'"),
+  offices: z.array(z.string()).min(1, "Offices array cannot be empty"),
+});
+
+export function validateOfficeAssignmentInput(body: any): ValidationResult<{ idno: string, offices: string[] }> {
+  const result = officeAssignmentSchema.safeParse(body);
+  if (!result.success) return { success: false, error: result.error.errors[0].message };
+  return { success: true, data: result.data };
+}
+
+/**
+ * 7. Office Schema
+ */
+const officeSchema = z.object({
+  name: z.string().min(1, "Missing or invalid 'name'"),
+  fullName: z.string().min(1, "Missing or invalid 'fullName'"),
+  status: z.string().optional(),
+  id: z.string().optional()
+});
+
+export function validateOfficeInput(body: any): ValidationResult<z.infer<typeof officeSchema>> {
+  const result = officeSchema.safeParse(body);
+  if (!result.success) return { success: false, error: result.error.errors[0].message };
+  return { success: true, data: result.data };
+}
+
+/**
+ * 8. Login Schema
+ */
+const loginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
+});
+
+export function validateLoginInput(body: any): ValidationResult<z.infer<typeof loginSchema>> {
+  const result = loginSchema.safeParse(body);
+  if (!result.success) return { success: false, error: result.error.errors[0].message };
+  return { success: true, data: result.data };
+}
+
+/**
+ * 9. Change Password Schema
+ */
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string().min(6, "New password must be at least 6 characters"),
+});
+
+export function validateChangePasswordInput(body: any): ValidationResult<z.infer<typeof changePasswordSchema>> {
+  const result = changePasswordSchema.safeParse(body);
+  if (!result.success) return { success: false, error: result.error.errors[0].message };
+  return { success: true, data: result.data };
+}
+
+/**
+ * 10. Classification Assignment Schema
+ */
+const classificationSchema = z.object({
+  assignments: z.array(
+    z.object({
+      docId: z.string().min(1, "Missing comment ID"),
+      classification: z.string().min(1, "Missing new category"),
+    })
+  ).min(1, "Assignments array cannot be empty"),
+});
+
+export function validateClassificationInput(body: any): ValidationResult<z.infer<typeof classificationSchema>> {
+  const result = classificationSchema.safeParse(body);
+  if (!result.success) return { success: false, error: result.error.errors[0].message };
+  return { success: true, data: result.data };
 }
