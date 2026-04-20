@@ -19,7 +19,7 @@
 - `src/lib/auth/withAuth.ts` utility
 
 ### Phase 2: Endpoint Migration & Hardening
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Apply the shield to all handlers. Migrate vulnerable endpoints to the `withAuth` wrapper and fix missing RBAC scoping.
 **Deliverables**:
 - Hardened Comments API
