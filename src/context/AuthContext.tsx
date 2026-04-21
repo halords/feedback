@@ -32,7 +32,8 @@ const fetcher = (url: string) => fetch(url).then((res) => {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Use SWR to manage session state synced with the server-side cookie
   const { data: user, mutate, isLoading } = useSWR<UserProfile | null>("/api/auth/me", fetcher, {
-    revalidateOnFocus: true,
+    revalidateOnFocus: false, // Stops aggressive polling on tab switch
+    refreshInterval: 5 * 60 * 1000, // Background refresh every 5 mins
     shouldRetryOnError: false,
     dedupingInterval: 10000, // Dedup requests within 10s
   });

@@ -133,23 +133,25 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
       </div>
 
       <div className="flex items-center gap-2">
-        {/* AI Analysis Button */}
-        <Button 
-          variant="outline" 
-          className={clsx(
-            "h-11 px-6 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-3 whitespace-nowrap border-primary/20 text-primary bg-primary/5 hover:bg-primary/10 transition-all",
-            (isAIAnalyzing || isLoading || isValidating) ? "opacity-50 cursor-not-allowed" : ""
-          )}
-          disabled={isAIAnalyzing || isLoading || isValidating}
-          onClick={handleAIAnalysis}
-        >
-          {isAIAnalyzing ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Brain className="w-4 h-4" />
-          )}
-          {isAIAnalyzing ? "Processing..." : "AI Insights"}
-        </Button>
+        {/* AI Analysis Button - Superadmin Only */}
+        {isSuperadmin && (
+          <Button 
+            variant="outline" 
+            className={clsx(
+              "h-11 px-6 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-3 whitespace-nowrap border-primary/20 text-primary bg-primary/5 hover:bg-primary/10 transition-all",
+              (isAIAnalyzing || isLoading || isValidating) ? "opacity-50 cursor-not-allowed" : ""
+            )}
+            disabled={isAIAnalyzing || isLoading || isValidating}
+            onClick={handleAIAnalysis}
+          >
+            {isAIAnalyzing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Brain className="w-4 h-4" />
+            )}
+            {isAIAnalyzing ? "Processing..." : "AI Insights"}
+          </Button>
+        )}
 
         {/* Generate PDF Button */}
         <Button 

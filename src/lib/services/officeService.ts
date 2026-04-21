@@ -8,28 +8,51 @@ export interface Office {
   updatedAt?: string;
 }
 
+let officesCache = {
+  data: [] as Office[],
+  timestamp: 0
+};
+
+export function invalidateOfficesCache() {
+  officesCache.timestamp = 0;
+}
+
 export async function getAllOffices(includeDisabled = false): Promise<Office[]> {
+  const now = Date.now();
+  
+  if (officesCache.data.length > 0 && now - officesCache.timestamp < 60000) {
+    return includeDisabled 
+      ? officesCache.data 
+      : officesCache.data.filter(o => o.status === "active");
+  }
+
   const snapshot = await db.collection("offices").get();
   console.log(`[OfficeService] Firestore fetch: ${snapshot.size} documents found in 'offices' collection.`);
-  const offices: Office[] = [];
+  const allOffices: Office[] = [];
   
   snapshot.forEach((doc: any) => {
     const data = doc.data();
     const status = data.status || "active";
     
-    // Return based on inclusion flag
-    if (includeDisabled || status === "active") {
-      offices.push({
-        id: doc.id,
-        name: data.name || data.Office || doc.id,
-        fullName: data.fullName || data.name || "",
-        status: status as "active" | "disabled",
-        updatedAt: data.updatedAt
-      });
-    }
+    allOffices.push({
+      id: doc.id,
+      name: data.name || data.Office || doc.id,
+      fullName: data.fullName || data.name || "",
+      status: status as "active" | "disabled",
+      updatedAt: data.updatedAt
+    });
   });
 
-  return offices.sort((a, b) => a.name.localeCompare(b.name));
+  allOffices.sort((a, b) => a.name.localeCompare(b.name));
+  
+  officesCache = {
+    data: allOffices,
+    timestamp: now
+  };
+
+  return includeDisabled 
+    ? allOffices 
+    : allOffices.filter(o => o.status === "active");
 }
 
 /**
@@ -44,6 +67,7 @@ export async function createOffice(acronym: string, fullName: string) {
     updatedAt: new Date().toISOString()
   };
   await docRef.set(data);
+  invalidateOfficesCache();
   return { id: acronym, ...data };
 }
 
@@ -75,6 +99,7 @@ export async function updateOffice(id: string, updates: { name?: string; fullNam
     await cleanupDisabledOfficeAssignments(id);
   }
 
+  invalidateOfficesCache();
   return { success: true };
 }
 
@@ -133,6 +158,7 @@ export async function getOfficeAssignee(officeId: string): Promise<string> {
       const data = profileQuery.docs[0].data();
       return (data.full_name || data.fullName || "__________________________").toUpperCase();
     }
+    return "__________________________";
   } catch (error) {
     console.error(`Error fetching assignee for ${officeId}:`, error);
     return "__________________________";

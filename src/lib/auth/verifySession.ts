@@ -128,7 +128,7 @@ export function setSessionCookie(response: NextResponse, cookie: string) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 60 * 24 * 7, // 1 week (matches Firebase default max session)
+    maxAge: 60 * 60 * 10, // 10 hours — matches Firebase session cookie duration set in /api/login
   });
 }
 

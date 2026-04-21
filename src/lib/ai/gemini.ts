@@ -105,3 +105,43 @@ export async function analyzeFeedbackData(request: AIAnalysisRequest) {
 
   throw lastError || new Error("All AI models are currently unavailable.");
 }
+export async function clusterFeedbackPatterns(comments: string[]) {
+  if (!comments || comments.length === 0) return [];
+
+  const prompt = `
+    You are an AI Support Analyst. Analyze the following list of raw feedback comments from citizens.
+    Your goal is to identify the TOP 5 RECURRING THEMES (the "gist" of the complaints).
+    
+    RAW COMMENTS:
+    ${comments.slice(0, 100).join("\n- ")}
+    
+    OUTPUT FORMAT (JSON):
+    [
+      {
+        "gist": "String - A short, 3-5 word summary of the recurring issue (e.g., 'Slow Processing Time', 'Unprofessional Staff Behavior')",
+        "description": "String - A brief explanation of why this is a pattern",
+        "count": "Number - Approximate number of comments that fit this theme",
+        "representativeExample": "String - One actual quote from the list that best represents this theme"
+      }
+    ]
+    
+    INSTRUCTIONS:
+    - Group similar meanings together even if phrasing is different.
+    - Be concise and professional.
+    - Focus on the most frequent and actionable issues.
+  `;
+
+  try {
+    const model = genAI.getGenerativeModel({
+      model: AI_MODEL,
+      generationConfig: { responseMimeType: "application/json" }
+    });
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    return JSON.parse(text.replace(/```json\n?|```/g, "").trim());
+  } catch (err) {
+    console.error("AI Pattern Clustering Error:", err);
+    return []; // Fallback to empty if AI fails
+  }
+}

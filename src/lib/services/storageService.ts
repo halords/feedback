@@ -10,12 +10,12 @@ export async function getJsonArchive<T>(path: string): Promise<T | null> {
     const bucket = storage.bucket(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET);
     const file = bucket.file(path);
     
-    const [exists] = await file.exists();
-    if (!exists) return null;
-
     const [content] = await file.download();
     return JSON.parse(content.toString()) as T;
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === 404) {
+      return null; // Quietly handle non-existent files
+    }
     console.error(`Error fetching archive at ${path}:`, error);
     return null;
   }

@@ -21,6 +21,7 @@ import { useToast } from "@/components/ui/Toast";
 import { Modal } from "@/components/ui/Modal";
 import { Card } from "@/components/ui/Card";
 import { clsx } from "clsx";
+import { AnalysisDashboard } from "@/components/comments/AnalysisDashboard";
 
 type Status = "Pending" | "Ongoing" | "Resolved";
 type Sentiment = "Positive" | "Negative" | "Suggestion";
@@ -47,7 +48,7 @@ export default function CommentsPage() {
   const router = useRouter();
   const { showToast } = useToast();
   
-  const [activeTab, setActiveTab] = useState<"action" | "positive">("action");
+  const [activeTab, setActiveTab] = useState<"action" | "positive" | "analysis">("action");
   const [comments, setComments] = useState<Comment[]>([]);
   const [isFetching, setIsFetching] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -122,8 +123,8 @@ export default function CommentsPage() {
   };
 
   useEffect(() => {
-    if (user) fetchComments();
-  }, [user, selectedMonth, selectedYear]);
+    if (user && activeTab !== "analysis") fetchComments();
+  }, [user, selectedMonth, selectedYear, activeTab]);
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -163,6 +164,7 @@ export default function CommentsPage() {
 
   // 1. First, distinguish comments based on the ACTIVE tab
   const tabFilteredComments = useMemo(() => {
+    if (activeTab === "analysis") return [];
     return comments.filter(c => 
       activeTab === "positive" 
         ? (c.sentiment === "Positive") 
@@ -238,6 +240,16 @@ export default function CommentsPage() {
                 count={comments.filter(c => c.sentiment === "Positive").length}
                 color="green"
               />
+              {user?.user_type?.toLowerCase() === "superadmin" && (
+                <TabButtonCompact 
+                  active={activeTab === "analysis"} 
+                  onClick={() => setActiveTab("analysis")}
+                  label="Analysis" 
+                  count={0}
+                  color="blue"
+                  icon={<AlertCircle className="w-3.5 h-3.5" />}
+                />
+              )}
             </div>
 
             {/* Divider */}
@@ -245,17 +257,23 @@ export default function CommentsPage() {
 
             {/* Filters Group (Dynamic based on Tab) */}
             <div className="flex items-center gap-3">
-               <FilterSelectCompact label="Office" value={officeFilter} options={offices} onChange={setOfficeFilter} />
+               {activeTab !== "analysis" && (
+                 <FilterSelectCompact label="Office" value={officeFilter} options={offices} onChange={setOfficeFilter} />
+               )}
                
                <div className="flex items-center gap-2 bg-on-surface/5 px-2 py-1 rounded-2xl border border-on-surface/5">
-                <select
-                  className="bg-transparent py-1.5 px-2 text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                >
-                  {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-                <div className="w-px h-3 bg-on-surface/10" />
+                {activeTab !== "analysis" && (
+                  <>
+                    <select
+                      className="bg-transparent py-1.5 px-2 text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer"
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
+                    >
+                      {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                    <div className="w-px h-3 bg-on-surface/10" />
+                  </>
+                )}
                 <select
                   className="bg-transparent py-1.5 px-2 text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer"
                   value={selectedYear}
@@ -267,22 +285,32 @@ export default function CommentsPage() {
             </div>
 
             {/* Search Input */}
-            <div className="flex-1 min-w-[200px] relative group px-2">
-               <Search className="w-3.5 h-3.5 absolute left-6 top-1/2 -translate-y-1/2 text-on-surface/20 group-focus-within:text-primary transition-colors" />
-               <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Quick find comments..." className="w-full bg-on-surface/5 border border-transparent focus:border-primary/20 rounded-xl pl-10 pr-4 py-2.5 text-xs font-semibold outline-none transition-all placeholder:text-on-surface/20" />
-            </div>
+            {activeTab !== "analysis" && (
+              <div className="flex-1 min-w-[200px] relative group px-2">
+                <Search className="w-3.5 h-3.5 absolute left-6 top-1/2 -translate-y-1/2 text-on-surface/20 group-focus-within:text-primary transition-colors" />
+                <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Quick find comments..." className="w-full bg-on-surface/5 border border-transparent focus:border-primary/20 rounded-xl pl-10 pr-4 py-2.5 text-xs font-semibold outline-none transition-all placeholder:text-on-surface/20" />
+              </div>
+            )}
 
             {/* Sync Button */}
-            <button onClick={handleSync} disabled={isSyncing} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all text-[10px] font-black uppercase tracking-widest shadow-sm border border-primary/10">
-               {isSyncing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-               Sync
-            </button>
+            {user?.user_type?.toLowerCase() === "superadmin" && (
+              <button 
+                onClick={handleSync} 
+                disabled={isSyncing} 
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all text-[10px] font-black uppercase tracking-widest shadow-sm border border-primary/10"
+              >
+                 {isSyncing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                 Sync
+              </button>
+            )}
 
           </div>
         </div>
 
-        {/* Data Table */}
-        <Card className="p-0 overflow-hidden border border-border-strong/50 shadow-xl bg-surface-low">
+        {activeTab === "analysis" && user?.user_type?.toLowerCase() === "superadmin" ? (
+          <AnalysisDashboard year={selectedYear} />
+        ) : (
+          <Card className="p-0 overflow-hidden border border-border-strong/50 shadow-xl bg-surface-low">
           <div className="overflow-x-auto">
             <table className="w-full text-left font-sans border-collapse">
               <thead>
@@ -395,7 +423,8 @@ export default function CommentsPage() {
               </div>
             </div>
           )}
-        </Card>
+          </Card>
+        )}
       </div>
 
       {/* Detail Modal */}
@@ -411,7 +440,13 @@ export default function CommentsPage() {
   );
 }
 
-function TabButtonCompact({ active, onClick, label, count, color }: { active: boolean; onClick: () => void; label: string; count: number; color: "red" | "green" }) {
+function TabButtonCompact({ active, onClick, label, count, color, icon }: { active: boolean; onClick: () => void; label: string; count: number; color: "red" | "green" | "blue"; icon?: React.ReactNode }) {
+  const colorStyles = {
+    red: active ? "bg-red-500/10 text-red-600" : "bg-on-surface/5 text-on-surface/30",
+    green: active ? "bg-emerald-500/10 text-emerald-600" : "bg-on-surface/5 text-on-surface/30",
+    blue: active ? "bg-blue-500/10 text-blue-600" : "bg-on-surface/5 text-on-surface/30"
+  };
+  
   return (
     <button onClick={onClick} className={clsx(
       "flex items-center gap-2 px-4 py-2.5 rounded-xl font-sans text-sm font-bold transition-all duration-300",
@@ -419,8 +454,9 @@ function TabButtonCompact({ active, onClick, label, count, color }: { active: bo
         ? "bg-white text-primary shadow-md translate-y-[-1px]" 
         : "text-on-surface/40 hover:text-on-surface/60 hover:bg-white/50"
     )}>
+      {icon}
       {label}
-      <span className={clsx("px-2 py-0.5 rounded-md text-[8px] font-black", active ? (color === "red" ? "bg-red-500/10 text-red-600" : "bg-emerald-500/10 text-emerald-600") : "bg-on-surface/5 text-on-surface/30")}>{count}</span>
+      {count > 0 && <span className={clsx("px-2 py-0.5 rounded-md text-[8px] font-black", colorStyles[color])}>{count}</span>}
     </button>
   );
 }
@@ -443,9 +479,23 @@ function SentimentBadge({ sentiment }: { sentiment: Sentiment }) {
 }
 
 function StatusBadge({ status }: { status: Status }) {
-  const styles = { Pending: "bg-slate-500/5 text-slate-400 font-bold", Ongoing: "bg-primary/5 text-primary", Resolved: "bg-emerald-500/5 text-emerald-600 font-bold" };
-  const Icon = { Pending: Clock, Ongoing: RefreshCw, Resolved: CheckCircle }[status];
-  return <span className={clsx("flex items-center gap-2 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest mx-auto justify-center", styles[status])}><Icon className={clsx("w-3 h-3", status === "Ongoing" && "animate-spin")} />{status}</span>;
+  const styles = { 
+    Pending: "bg-slate-500/5 text-slate-400 font-bold", 
+    Ongoing: "bg-primary/5 text-primary", 
+    Resolved: "bg-emerald-500/5 text-emerald-600 font-bold" 
+  };
+  
+  // Use a fallback icon if status is not matched
+  const IconMap: any = { Pending: Clock, Ongoing: RefreshCw, Resolved: CheckCircle };
+  const Icon = IconMap[status] || AlertCircle;
+  const currentStyle = styles[status] || "bg-on-surface/5 text-on-surface/30";
+  
+  return (
+    <span className={clsx("flex items-center gap-2 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest mx-auto justify-center", currentStyle)}>
+      <Icon className={clsx("w-3 h-3", status === "Ongoing" && "animate-spin")} />
+      {status || "Unknown"}
+    </span>
+  );
 }
 
 function EditModal({ comment, isOpen, onClose, onSave }: { comment: Comment, isOpen: boolean, onClose: () => void, onSave: (id: string, updates: Partial<ManagedComment>) => void }) {

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { verifySession, verifySuperadmin, SessionUser } from "./verifySession";
 import { resolveAuthorizedOffices, hasGlobalAccess } from "./rbac";
+import { logAction } from "@/lib/services/auditService";
 
 export interface AuthConfig {
-  role?: "superadmin";
+  role?: "superadmin" | "analytics";
   requireOfficeScoping?: boolean;
 }
 
@@ -24,6 +25,11 @@ export function withAuth(handler: AuthenticatedHandler, config: AuthConfig = {})
       let user: SessionUser;
       if (config.role === "superadmin") {
         user = await verifySuperadmin();
+      } else if (config.role === "analytics") {
+        user = await verifySession();
+        if (user.user_type?.toLowerCase() !== 'superadmin' && !user.is_analytics_enabled) {
+          throw new Error('Forbidden');
+        }
       } else {
         user = await verifySession();
       }
@@ -56,10 +62,21 @@ export function withAuth(handler: AuthenticatedHandler, config: AuthConfig = {})
       return await handler(request, context, user, scopedOffices);
 
     } catch (error: any) {
+      // Fire-and-forget audit log for security events — never delays the rejection response
       if (error.message === 'Unauthorized') {
+        logAction('anonymous', 'AUTH_REJECTED_401', {
+          path: (request as any).url || 'unknown',
+          reason: 'No valid session cookie',
+        }).catch(() => {});
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
       if (error.message === 'Forbidden') {
+        // user may or may not be populated depending on where the error was thrown
+        const userId = (error as any)._userId || 'unknown';
+        logAction(userId, 'AUTH_REJECTED_403', {
+          path: (request as any).url || 'unknown',
+          reason: 'Insufficient role or permissions',
+        }).catch(() => {});
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
       

@@ -3,6 +3,8 @@
 import React, { useMemo } from "react";
 import { AIReport } from "@/lib/services/aiReportService";
 import { Shell } from "@/components/layout/Shell";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import ReactMarkdown from "react-markdown";
 import {
@@ -51,7 +53,26 @@ interface AIReportClientProps {
 }
 
 export function AIReportClient({ report }: AIReportClientProps) {
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
   const { content } = report;
+
+  // Authorization Check: AI Insights are restricted to superadmins
+  React.useEffect(() => {
+    if (!authLoading && user && user.user_type?.toLowerCase() !== "superadmin") {
+      router.replace("/analytics");
+    }
+  }, [user, authLoading, router]);
+
+  if (authLoading || !user || user.user_type?.toLowerCase() !== "superadmin") {
+    return (
+      <Shell>
+        <div className="h-[60vh] flex items-center justify-center">
+           <p className="text-on-surface/40 font-black uppercase tracking-widest animate-pulse">Checking Permissions...</p>
+        </div>
+      </Shell>
+    );
+  }
 
   const formatMetric = (val: any) => {
     if (val === null || val === undefined || val === 0 || val === "NA" || val === "N/A") return "N/A";

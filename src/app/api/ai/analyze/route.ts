@@ -3,6 +3,7 @@ import { getDashboardMetrics } from "@/lib/services/metricsService";
 import { analyzeFeedbackData } from "@/lib/ai/gemini";
 import { saveAIReport } from "@/lib/services/aiReportService";
 import { withAuth } from "@/lib/auth/withAuth";
+import { checkRateLimitAsync } from "@/lib/security/rateLimit";
 
 const ALL_MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -16,6 +17,23 @@ const ALL_MONTHS = [
  */
 export const POST = withAuth(async (req, context, user, scopedOffices) => {
   try {
+    // Rate Limiting: 10 AI analysis requests per hour per IP
+    const ip = req.headers.get("x-forwarded-for") || "unknown";
+    const ratelimit = await checkRateLimitAsync(ip, "ai_analyze", 10, 60 * 60 * 1000);
+    if (!ratelimit.success) {
+      return NextResponse.json(
+        { error: "Too many AI analysis requests. Please try again later." },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Limit": ratelimit.limit.toString(),
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": ratelimit.reset.toString(),
+          },
+        }
+      );
+    }
+
     const body = await req.clone().json();
     const { year, officeId, scope = "organization" } = body;
 
@@ -91,4 +109,4 @@ export const POST = withAuth(async (req, context, user, scopedOffices) => {
     console.error("AI Analysis Error:", error);
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
-}, { requireOfficeScoping: true });
+}, { role: "superadmin", requireOfficeScoping: true });

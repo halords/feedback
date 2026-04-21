@@ -4,7 +4,8 @@
 > **Goal**: Address outstanding security debt, eliminate technical vulnerabilities, optimize application bottlenecks (Firestore reads), and enforce TypeScript strictness across the codebase.
 
 ## Must-Haves
-- [ ] **Performance Optimization**: Implement 60s TTL cache for `getAllOffices()`, optimize `getJsonArchive()` API calls, and fix `AuthContext` polling.
+- [ ] **ZERO REGRESSIONS (NON-NEGOTIABLE)**: Absolutely no existing function should break. All current functionality must continue to work flawlessly throughout these changes.
+- [x] **Performance Optimization**: Implement 60s TTL cache for `getAllOffices()`, optimize `getJsonArchive()` API calls, and fix `AuthContext` polling.
 - [ ] **Auth Hardening**: Add app-level rate limiting to `/api/login` and implement immediate token revocation when roles change.
 - [ ] **Codebase Strictness**: Fix pre-existing TypeScript errors in `AnalysisDashboard.tsx` and UI components and remove `ignoreBuildErrors: true`.
 - [ ] **CSP Hardening**: Implement script nonce strategy in Next.js middleware and remove `'unsafe-inline'` from CSP headers.
@@ -13,7 +14,7 @@
 ## Phases
 
 ### Phase 1: Performance & Low-Hanging Fruit
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Implement in-memory caching for `officeService`, remove redundant `file.exists()` in `storageService`, and adjust SWR revalidation rules in `AuthContext`.
 
 ### Phase 2: Auth Hardening

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mockAuthUser, createMockRequest, invokeHandler, MOCK_USERS } from "./helpers";
-import { GET as peekGET } from "@/app/api/peek/route";
+import { GET as peekGET } from "@/app/api/peek/acronyms/route";
 import { POST as assignPOST } from "@/app/api/users/assignment/route";
 import { POST as awarenessPOST } from "@/app/api/dashboard/cc-awareness/route";
 

@@ -364,7 +364,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 </button>
 
                 <button
-                  onClick={() => setIsOverrideModalOpen(true)}
+                  onClick={() => isOverrideActive ? setOverrideActive(false) : setIsOverrideModalOpen(true)}
                   className={clsx(
                     "flex items-center h-12 w-full transition-colors relative group/override",
                     isCollapsed ? "justify-center" : "px-8 gap-4",
@@ -484,11 +484,22 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
         <div className="p-5 md:p-8 pt-6 w-full animate-page-entry">
           {isOverrideActive && (
-            <div className="mb-6 bg-amber-600 text-white p-3 rounded-2xl flex items-center justify-between shadow-lg shadow-amber-600/20">
+            <div className="mb-6 bg-amber-600 text-white p-4 rounded-2xl flex items-center justify-between shadow-lg shadow-amber-600/20 group animate-in slide-in-from-top duration-500">
               <div className="flex items-center gap-3">
-                <ShieldCheck className="w-5 h-5" />
-                <span className="text-xs font-black uppercase tracking-widest">Archive Override Active</span>
+                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest leading-none mb-1">Archive Override Active</p>
+                  <p className="text-[8px] font-bold text-white/60">Data integrity guardrails are currently bypassed for archiving.</p>
+                </div>
               </div>
+              <button 
+                onClick={() => setOverrideActive(false)}
+                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+              >
+                Deactivate
+              </button>
             </div>
           )}
           {children}

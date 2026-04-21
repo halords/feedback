@@ -1,15 +1,19 @@
 import { db, admin } from "@/lib/firebase/admin";
 import { getAllOffices } from "./officeService";
 import { ensureArray } from "@/lib/utils/parsingUtils";
+import { getJsonArchive } from "./storageService";
+import { DashboardMetrics } from "./metricsService";
+import { getSmartClusters } from "../ai/aiService";
 
 export interface ManagedComment {
   id: string;
   sourceId: string;
-  sourceCollection: "Responses" | "physical_report";
+  sourceCollection: "Responses" | "physical_report" | "Archive";
   commentText: string;
   sentiment: "Positive" | "Negative" | "Suggestion" | "Not Applicable";
-  office: string;
-  month: string; // Formatting: "January 2026"
+  office: string; // Internal: Stores Office ID
+  officeName?: string; // Virtual: Stores Acronym for UI
+  month: string;
   date: any;
   actionPlan?: string;
   expectedOutcome?: string;
@@ -18,16 +22,12 @@ export interface ManagedComment {
   updatedAt: any;
 }
 
-/**
- * Helper to format month from date or period_iso
- */
 function getMonthLabel(dateInput: any, sourceData?: any): string {
   if (sourceData?.period_iso) {
     const [y, m] = sourceData.period_iso.split("-");
     const d = new Date(parseInt(y), parseInt(m) - 1);
     return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
   }
-
   const date = new Date(dateInput);
   if (isNaN(date.getTime())) {
     if (sourceData?.FOR_THE_MONTH_OF) return sourceData.FOR_THE_MONTH_OF;
@@ -36,288 +36,377 @@ function getMonthLabel(dateInput: any, sourceData?: any): string {
   return date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 }
 
-/**
- * Syncs classified comments from original collections into the unified management collection.
- */
 export async function syncComments(force = false) {
-  // 0. Fetch active offices list first (NEW)
   const activeOffices = await getAllOffices(false);
-  const activeOfficeNames = new Set(activeOffices.map(o => o.name));
+  const activeIdsSet = new Set(activeOffices.map(o => o.id.toLowerCase()));
 
-  const metaRef = db.collection("system_metadata").doc("comment_sync_meta");
-  const metaSnap = await metaRef.get();
-  const lastSyncTime = (metaSnap.exists && !force) ? metaSnap.data()?.lastSyncTime : null;
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const now = new Date();
+  const syncPeriods: { month: string; year: string }[] = [];
+  for (let y = 2025; y <= now.getFullYear(); y++) {
+    for (const m of months) {
+      syncPeriods.push({ month: m, year: String(y) });
+      if (y === now.getFullYear() && months.indexOf(m) === now.getMonth()) break;
+    }
+  }
 
-  const syncLimit = 500;
+  let totalSynced = 0;
   let batch = db.batch();
   let operationCount = 0;
-  let totalSynced = 0;
 
-  console.log(`[Sync] Starting sync. Last Sync: ${lastSyncTime?.toDate()?.toISOString() || "FULL SCAN"}`);
+  for (const period of syncPeriods) {
+    const monthYearLabel = `${period.month} ${period.year}`;
+    const archivePath = `archives/${period.year}/${period.month}/metrics.json`;
+    const archiveData = await getJsonArchive<DashboardMetrics[]>(archivePath);
+    
+    const existingSnap = await db.collection("comment_management").where("month", "==", monthYearLabel).get();
+    const existingDocs = existingSnap.docs.map(d => ({ id: d.id, ...d.data() as ManagedComment }));
+    const claimedDocIds = new Set<string>();
 
-  // 1. Fetch Source Data
-  let responsesQuery: any = db.collection("Responses")
-    .where("Class", "in", ["Positive", "Negative", "Suggestion"]);
-  if (lastSyncTime) {
-    responsesQuery = responsesQuery.where("updatedAt", ">", lastSyncTime);
-  }
-  const responsesSnapshot = await responsesQuery.get();
+    if (archiveData) {
+      for (const officeMetrics of archiveData) {
+        const officeIdRaw = officeMetrics.department;
+        const canonical = activeOffices.find(o => 
+          o.id.toLowerCase() === officeIdRaw.toLowerCase() || 
+          o.name.toLowerCase() === officeIdRaw.toLowerCase()
+        );
+        
+        // STORE ID (canonical) in DB
+        const officeKey = canonical ? canonical.id : officeIdRaw;
+        if (!activeIdsSet.has(officeKey.toLowerCase())) continue;
 
-  let physicalQuery: any = db.collection("physical_report");
-  if (lastSyncTime) {
-    physicalQuery = physicalQuery.where("updatedAt", ">", lastSyncTime);
-  }
-  const physicalSnapshot = await physicalQuery.get();
+        const sentiments = {
+          Positive: officeMetrics.comments?.positive || [],
+          Negative: officeMetrics.comments?.negative || [],
+          Suggestion: officeMetrics.comments?.suggestions || []
+        } as Record<string, string[]>;
 
-  // 2. Optimization: Bulk fetch existing potential target IDs
-  const responseTargetIds = responsesSnapshot.docs.map(doc => `Responses_${doc.id}`);
-  const physicalTargetIds: string[] = [];
-  physicalSnapshot.docs.forEach(doc => {
-    const data = doc.data();
-    const commentsList = ensureArray(data.COMMENTS);
-    const count = commentsList.length;
-    for (let i = 0; i < count; i++) physicalTargetIds.push(`physical_report_${doc.id}_${i}`);
-  });
+        for (const [sentiment, comments] of Object.entries(sentiments)) {
+          for (let i = 0; i < comments.length; i++) {
+            const commentText = comments[i];
+            if (!commentText || commentText.trim().length < 2) continue;
 
-  const allTargetIds = [...responseTargetIds, ...physicalTargetIds];
-  const existingMap = new Map<string, boolean>();
+            const matchingDoc = existingDocs.find(d => 
+              !claimedDocIds.has(d.id) && 
+              d.commentText === commentText && 
+              (d.office.toLowerCase() === officeKey.toLowerCase() || (canonical && d.office.toLowerCase() === canonical.name.toLowerCase())) &&
+              d.sentiment === sentiment
+            );
 
-  for (let i = 0; i < allTargetIds.length; i += 1000) {
-    const chunk = allTargetIds.slice(i, i + 1000);
-    const refs = chunk.map(id => db.collection("comment_management").doc(id));
-    const snaps = await db.getAll(...refs);
-    snaps.forEach((snap, idx) => existingMap.set(chunk[idx], snap.exists));
-  }
-
-  // 3. Process Responses
-  for (const doc of responsesSnapshot.docs) {
-    const data = doc.data();
-    // Match using ID, Name, or Full Name to ensure canonical ID is used
-    const rawOfficeSearch = (data.Office || data.officeId || "").trim().toLowerCase();
-    const canonical = activeOffices.find(o => 
-      o.id.toLowerCase() === rawOfficeSearch || 
-      o.name.toLowerCase() === rawOfficeSearch || 
-      (o.fullName && o.fullName.toLowerCase() === rawOfficeSearch)
-    );
-
-    // Skip if office not found or disabled
-    if (!canonical) continue;
-    const office = canonical.id; 
-    const managedId = `response_${doc.id}`;
-    const ref = db.collection("comment_management").doc(managedId);
-    const exists = existingMap.get(managedId);
-
-    const baseData = {
-      sourceId: doc.id,
-      sourceCollection: "Responses",
-      commentText: data.Comment || "",
-      sentiment: data.Class,
-      office: office,
-      month: getMonthLabel(data.Date),
-      date: data.Date ? (data.Date.toDate ? data.Date.toDate() : new Date(data.Date)) : new Date(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-
-    if (!exists) {
-      batch.set(ref, {
-        ...baseData,
-        status: "Pending",
-        actionPlan: "",
-        expectedOutcome: "",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+            const docId = matchingDoc ? matchingDoc.id : `archive_${period.year}_${period.month}_${officeKey}_${sentiment.toLowerCase()}_${i}`;
+            const ref = db.collection("comment_management").doc(docId);
+            
+            if (matchingDoc) {
+              claimedDocIds.add(matchingDoc.id);
+              batch.update(ref, { office: officeKey, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+            } else {
+              batch.set(ref, {
+                sourceId: `archive_${period.year}_${period.month}`,
+                sourceCollection: "Archive",
+                commentText, sentiment, office: officeKey, month: monthYearLabel,
+                date: new Date(`${period.month} 1, ${period.year}`),
+                status: "Pending", actionPlan: "", expectedOutcome: "",
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              });
+            }
+            totalSynced++;
+            operationCount++;
+            if (operationCount >= 500) { await batch.commit(); batch = db.batch(); operationCount = 0; }
+          }
+        }
+      }
     } else {
-      batch.update(ref, baseData);
-    }
-
-    operationCount++;
-    totalSynced++;
-    if (operationCount >= syncLimit) {
-      await batch.commit();
-      batch = db.batch();
-      operationCount = 0;
-    }
-  }
-
-  // 4. Process Physical Reports
-  for (const doc of physicalSnapshot.docs) {
-    const data = doc.data();
-    // Match using ID, Name, or Full Name to ensure legacy data maps correctly
-    const rawOfficeSearch = (data.DEPARTMENT || data.officeId || "").trim().toLowerCase();
-    const canonical = activeOffices.find(o => 
-      o.id.toLowerCase() === rawOfficeSearch || 
-      o.name.toLowerCase() === rawOfficeSearch || 
-      (o.fullName && o.fullName.toLowerCase() === rawOfficeSearch)
-    );
-
-    // Skip if office not found or disabled
-    if (!canonical) continue;
-    const office = canonical.id; 
-
-    const comments = ensureArray(data.COMMENTS, true);
-    const classes = ensureArray(data.CLASSIFY);
-    const reportMonth = getMonthLabel(data.DATE_COLLECTED, data);
-
-    for (let index = 0; index < comments.length; index++) {
-      const sentiment = (classes[index] || "").trim();
-      const normalizedSentiment = sentiment.charAt(0).toUpperCase() + sentiment.slice(1).toLowerCase();
-      if (!["Positive", "Negative", "Suggestion"].includes(normalizedSentiment)) continue;
-
-      const managedId = `physical_report_${doc.id}_${index}`;
-      const ref = db.collection("comment_management").doc(managedId);
-      const exists = existingMap.get(managedId);
-      
-      const baseData = {
-        sourceId: doc.id,
-        sourceCollection: "physical_report",
-        commentText: comments[index],
-        sentiment: sentiment,
-        office: office,
-        month: reportMonth,
-        date: data.DATE_COLLECTED ? (data.DATE_COLLECTED.toDate ? data.DATE_COLLECTED.toDate() : new Date(data.DATE_COLLECTED)) : new Date(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      const monthMap: Record<string, string> = {
+        'January': '01', 'February': '02', 'March': '03', 'April': '04',
+        'May': '05', 'June': '06', 'July': '07', 'August': '08',
+        'September': '09', 'October': '10', 'November': '11', 'December': '12'
       };
+      const periodIso = `${period.year}-${monthMap[period.month]}`;
+      const startDateIso = `${periodIso}-01`;
+      const endDateIso = `${periodIso}-31`;
 
-      if (!exists) {
-        batch.set(ref, {
-          ...baseData,
-          status: "Pending",
-          actionPlan: "",
-          expectedOutcome: "",
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      } else {
-        batch.update(ref, baseData);
-      }
+      const resSnap = await db.collection("Responses").where("date_iso", ">=", startDateIso).where("date_iso", "<=", endDateIso).get();
+      for (const doc of resSnap.docs) {
+        const data = doc.data();
+        const rawOffice = (data.officeId || data.Office || "").trim().toLowerCase();
+        const canonical = activeOffices.find(o => o.id.toLowerCase() === rawOffice || o.name.toLowerCase() === rawOffice);
+        if (!canonical) continue;
 
-      operationCount++;
-      totalSynced++;
-      if (operationCount >= syncLimit) {
-        await batch.commit();
-        batch = db.batch();
-        operationCount = 0;
+        let sentiment = "";
+        const rawClass = (data.Class || "").toLowerCase().trim();
+        if (rawClass === "positive") sentiment = "Positive";
+        else if (rawClass === "negative") sentiment = "Negative";
+        else if (rawClass === "suggestion" || rawClass === "suggestions") sentiment = "Suggestion";
+        else continue;
+
+        batch.set(db.collection("comment_management").doc(`response_${doc.id}`), {
+          sourceId: doc.id, sourceCollection: "Responses",
+          commentText: data.Comment, sentiment, office: canonical.id, month: monthYearLabel,
+          date: data.Date ? (typeof data.Date === 'string' ? new Date(data.Date) : (data.Date.toDate ? data.Date.toDate() : new Date())) : new Date(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        totalSynced++;
+        operationCount++;
       }
+      if (operationCount > 0) { await batch.commit(); batch = db.batch(); operationCount = 0; }
     }
   }
-
-  batch.set(metaRef, { 
-    lastSyncTime: admin.firestore.FieldValue.serverTimestamp(),
-    totalSyncedCount: admin.firestore.FieldValue.increment(totalSynced)
-  }, { merge: true });
-
   await batch.commit();
   return totalSynced;
 }
 
-export async function upsertManagedComment(
-  sourceCollection: "Responses" | "physical_report",
-  sourceId: string,
-  data: any,
-  index?: number
-) {
+export async function upsertManagedComment(sourceCollection: "Responses" | "physical_report", sourceId: string, data: any, index?: number) {
   const office = (sourceCollection === "Responses" ? data.Office : data.DEPARTMENT) || "Unknown";
-  
-  // Check if office is active
   const activeOffices = await getAllOffices(false);
-  const activeOfficeNames = new Set(activeOffices.map(o => o.name));
-  
-  const managedId = index !== undefined 
-    ? `${sourceCollection}_${sourceId}_${index}` 
-    : `${sourceCollection}_${sourceId}`;
-  
+  const canonical = activeOffices.find(o => o.id.toLowerCase() === office.toLowerCase() || o.name.toLowerCase() === office.toLowerCase());
+  if (!canonical) return;
+
+  const sentiment = sourceCollection === "Responses" ? data.Class : ensureArray(data.CLASSIFY)[index!];
+  const rawClass = (sentiment || "").trim().toLowerCase();
+  let normalizedSentiment = "";
+  if (rawClass === "positive") normalizedSentiment = "Positive";
+  else if (rawClass === "negative") normalizedSentiment = "Negative";
+  else if (rawClass === "suggestion" || rawClass === "suggestions") normalizedSentiment = "Suggestion";
+  else return;
+
+  const managedId = index !== undefined ? `${sourceCollection}_${sourceId}_${index}` : `${sourceCollection}_${sourceId}`;
   const ref = db.collection("comment_management").doc(managedId);
   const existing = await ref.get();
 
-  // If office is disabled, delete from management if it exists (NEW)
-  if (!activeOfficeNames.has(office)) {
-    if (existing.exists) await ref.delete();
-    return;
-  }
-
-  const commentText = sourceCollection === "Responses" 
-    ? data.Comment 
-    : ensureArray(data.COMMENTS, true)[index!];
-  const sentiment = sourceCollection === "Responses" 
-    ? data.Class 
-    : ensureArray(data.CLASSIFY)[index!];
-  
-  const normalizedSentiment = (sentiment || "").trim().charAt(0).toUpperCase() + (sentiment || "").trim().slice(1).toLowerCase();
-  
-  if (!["Positive", "Negative", "Suggestion"].includes(normalizedSentiment)) {
-    if (existing.exists) await ref.delete();
-    return;
-  }
-
   const baseData = {
-    sourceId,
-    sourceCollection,
-    commentText: commentText || "",
-    sentiment,
-    office: office,
+    sourceId, sourceCollection, commentText: (sourceCollection === "Responses" ? data.Comment : ensureArray(data.COMMENTS, true)[index!]) || "",
+    sentiment: normalizedSentiment, office: canonical.id,
     month: getMonthLabel(sourceCollection === "Responses" ? data.Date : data.DATE_COLLECTED, data),
     date: (sourceCollection === "Responses" ? data.Date : data.DATE_COLLECTED) ? new Date(sourceCollection === "Responses" ? data.Date : data.DATE_COLLECTED) : new Date(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 
   if (!existing.exists) {
-    await ref.set({
-      ...baseData,
-      status: "Pending",
-      actionPlan: "",
-      expectedOutcome: "",
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    await ref.set({ ...baseData, status: "Pending", actionPlan: "", expectedOutcome: "", createdAt: admin.firestore.FieldValue.serverTimestamp() });
   } else {
     await ref.update(baseData);
   }
 }
 
-export async function getManagedComments(filters: { 
-  sentiment?: string; 
-  status?: string;
-  month?: string;
-  year?: string;
-} = {}) {
-  // 1. Get active offices to filter out disabled office data (NEW)
+export async function getManagedComments(filters: any = {}) {
   const activeOffices = await getAllOffices(false);
-  const activeOfficeNames = new Set(activeOffices.map(o => o.name));
+  const officeMap = new Map(activeOffices.map(o => [o.id.toLowerCase(), o.name]));
+  activeOffices.forEach(o => officeMap.set(o.name.toLowerCase(), o.name));
 
   let query: any = db.collection("comment_management");
-
-  if (filters.month && filters.year) {
-    const formattedMonth = `${filters.month} ${filters.year}`;
-    query = query.where("month", "==", formattedMonth);
-  }
-
-  if (filters.sentiment) {
-    query = query.where("sentiment", "==", filters.sentiment);
-  }
-  if (filters.status) {
-    query = query.where("status", "==", filters.status);
-  }
+  if (filters.month && filters.year) query = query.where("month", "==", `${filters.month} ${filters.year}`);
+  if (filters.sentiment) query = query.where("sentiment", "==", filters.sentiment);
+  if (filters.status) query = query.where("status", "==", filters.status);
 
   const snapshot = await query.get();
-  
-  const results = snapshot.docs.map((doc: any) => ({
-    id: doc.id,
-    ...doc.data(),
-    date: doc.data().date?.toDate()?.toISOString() || null,
-    createdAt: doc.data().createdAt?.toDate()?.toISOString() || null,
-    updatedAt: doc.data().updatedAt?.toDate()?.toISOString() || null,
-  })).filter((c: any) => activeOfficeNames.has(c.office)) as ManagedComment[]; // FILTER HERE (NEW)
-
-  return results.sort((a, b) => {
-    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return timeB - timeA;
-  });
+  return snapshot.docs.map((doc: any) => {
+    const data = doc.data();
+    const acronym = officeMap.get((data.office || "").toLowerCase()) || data.office;
+    return {
+      id: doc.id, ...data,
+      office: acronym, // Virtual: Return Acronym to UI for display/filter
+      officeId: data.office, // Virtual: Also provide ID just in case
+      date: data.date?.toDate()?.toISOString() || null,
+      createdAt: data.createdAt?.toDate()?.toISOString() || null,
+      updatedAt: data.updatedAt?.toDate()?.toISOString() || null,
+    };
+  }).filter((c: any) => {
+     const off = (c.officeId || "").toLowerCase();
+     return activeOffices.some(o => o.id.toLowerCase() === off || o.name.toLowerCase() === off);
+  }).sort((a: any, b: any) => (new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()));
 }
 
-export async function updateCommentAction(id: string, updates: Partial<ManagedComment>) {
+export async function updateCommentAction(id: string, updates: any) {
   const ref = db.collection("comment_management").doc(id);
-  await ref.update({
-    ...updates,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  await ref.update({ ...updates, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
   return { success: true };
+}
+
+export async function getCommentAnalytics(year: string) {
+  const activeOffices = await getAllOffices(false);
+  const officeMap = new Map(activeOffices.map(o => [o.id.toLowerCase(), o.name]));
+  activeOffices.forEach(o => officeMap.set(o.name.toLowerCase(), o.name));
+
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  
+  const startOfYear = new Date(parseInt(year), 0, 1);
+  const endOfYear = new Date(parseInt(year), 11, 31, 23, 59, 59);
+
+  const snapshot = await db.collection("comment_management")
+    .where("date", ">=", startOfYear)
+    .where("date", "<=", endOfYear)
+    .get();
+
+  const allDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() as ManagedComment }));
+
+  const monthlyData = months.map(m => ({
+    month: m,
+    negative: 0,
+    resolvedNegative: 0,
+    suggestion: 0,
+    resolvedSuggestion: 0,
+    positive: 0
+  }));
+
+  const officeStats: Record<string, { negative: number; resolved: number; total: number }> = {};
+  const commentPatterns: Record<string, { text: string; count: number; offices: Set<string> }> = {};
+
+  allDocs.forEach(doc => {
+    const monthName = doc.month.split(" ")[0];
+    const monthIdx = months.indexOf(monthName);
+    if (monthIdx === -1) return;
+
+    const data = monthlyData[monthIdx];
+    const sentiment = doc.sentiment;
+    const isResolved = doc.status === "Resolved";
+    const officeId = (doc.office || "").toLowerCase();
+    const officeName = officeMap.get(officeId) || doc.office || "Unknown";
+
+    // Track monthly counts
+    if (sentiment === "Negative") {
+      data.negative++;
+      if (isResolved) data.resolvedNegative++;
+    } else if (sentiment === "Suggestion") {
+      data.suggestion++;
+      if (isResolved) data.resolvedSuggestion++;
+    } else if (sentiment === "Positive") {
+      data.positive++;
+    }
+
+    // Track office stats
+    if (!officeStats[officeName]) officeStats[officeName] = { negative: 0, resolved: 0, total: 0 };
+    officeStats[officeName].total++;
+    if (sentiment === "Negative") {
+      officeStats[officeName].negative++;
+      if (isResolved) officeStats[officeName].resolved++;
+    }
+
+    // Track comment patterns (Repetitive comments) - Only for Negative
+    if (sentiment === "Negative") {
+      // Normalize: lowercase, trim, remove some punctuation
+      const normalizedText = doc.commentText.toLowerCase().trim().replace(/[.,!?;:]/g, "");
+      if (normalizedText.length > 5) { // Only track meaningful comments
+        if (!commentPatterns[normalizedText]) {
+          commentPatterns[normalizedText] = { text: doc.commentText, count: 0, offices: new Set() };
+        }
+        commentPatterns[normalizedText].count++;
+        commentPatterns[normalizedText].offices.add(officeName);
+      }
+    }
+  });
+
+  // Calculate resolution rates
+  const yearlyStats = {
+    totalNegative: monthlyData.reduce((acc, m) => acc + m.negative, 0),
+    resolvedNegative: monthlyData.reduce((acc, m) => acc + m.resolvedNegative, 0),
+    totalSuggestions: monthlyData.reduce((acc, m) => acc + m.suggestion, 0),
+    resolvedSuggestions: monthlyData.reduce((acc, m) => acc + m.resolvedSuggestion, 0),
+  };
+
+  const topOffices = Object.entries(officeStats)
+    .map(([name, stats]) => ({ name, ...stats }))
+    .sort((a, b) => b.negative - a.negative)
+    .slice(0, 10);
+
+  const repetitiveComments = await getSmartClusters(allDocs.filter(d => d.sentiment === "Negative").map(d => d.commentText));
+
+  return {
+    year,
+    monthlyData,
+    overall: {
+      negativeResolutionRate: yearlyStats.totalNegative > 0 
+        ? (yearlyStats.resolvedNegative / yearlyStats.totalNegative) * 100 
+        : 0,
+      combinedResolutionRate: (yearlyStats.totalNegative + yearlyStats.totalSuggestions) > 0
+        ? ((yearlyStats.resolvedNegative + yearlyStats.resolvedSuggestions) / (yearlyStats.totalNegative + yearlyStats.totalSuggestions)) * 100 
+        : 0,
+      totalNegative: yearlyStats.totalNegative,
+      resolvedNegative: yearlyStats.resolvedNegative,
+      totalSuggestions: yearlyStats.totalSuggestions,
+      resolvedSuggestions: yearlyStats.resolvedSuggestions,
+      totalResolved: yearlyStats.resolvedNegative + yearlyStats.resolvedSuggestions
+    },
+    topOffices,
+    allOffices: Object.keys(officeStats).sort(),
+    repetitiveComments
+  };
+}
+export async function getOfficeAnalytics(year: string, officeName: string) {
+  const activeOffices = await getAllOffices(false);
+  const office = activeOffices.find(o => o.name.toLowerCase() === officeName.toLowerCase() || o.id.toLowerCase() === officeName.toLowerCase());
+  
+  if (!office) throw new Error("Office not found");
+  const canonicalId = office.id;
+
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const startOfYear = new Date(parseInt(year), 0, 1);
+  const endOfYear = new Date(parseInt(year), 11, 31, 23, 59, 59);
+
+  const snapshot = await db.collection("comment_management")
+    .where("office", "==", canonicalId)
+    .where("date", ">=", startOfYear)
+    .where("date", "<=", endOfYear)
+    .get();
+
+  const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() as ManagedComment }));
+
+  const monthlyData = months.map(m => ({
+    month: m,
+    negative: 0,
+    resolvedNegative: 0,
+    suggestion: 0,
+    resolvedSuggestion: 0,
+    resolutionRate: 0
+  }));
+
+  const officePatterns: Record<string, { text: string; count: number }> = {};
+
+  docs.forEach(doc => {
+    const monthName = doc.month.split(" ")[0];
+    const monthIdx = months.indexOf(monthName);
+    if (monthIdx === -1) return;
+
+    const data = monthlyData[monthIdx];
+    const sentiment = doc.sentiment;
+    const isResolved = doc.status === "Resolved";
+
+    if (sentiment === "Negative") {
+      data.negative++;
+      if (isResolved) data.resolvedNegative++;
+      
+      const normalizedText = doc.commentText.toLowerCase().trim().replace(/[.,!?;:]/g, "");
+      if (normalizedText.length > 5) {
+        if (!officePatterns[normalizedText]) officePatterns[normalizedText] = { text: doc.commentText, count: 0 };
+        officePatterns[normalizedText].count++;
+      }
+    } else if (sentiment === "Suggestion") {
+      data.suggestion++;
+      if (isResolved) data.resolvedSuggestion++;
+    }
+
+    // Calculate monthly rate so far
+    if (data.negative > 0) {
+      data.resolutionRate = (data.resolvedNegative / data.negative) * 100;
+    }
+  });
+
+  const totals = {
+    negative: monthlyData.reduce((acc, m) => acc + m.negative, 0),
+    resolvedNegative: monthlyData.reduce((acc, m) => acc + m.resolvedNegative, 0),
+    suggestion: monthlyData.reduce((acc, m) => acc + m.suggestion, 0),
+    resolvedSuggestion: monthlyData.reduce((acc, m) => acc + m.resolvedSuggestion, 0),
+  };
+
+  const overallResolutionRate = totals.negative > 0 ? (totals.resolvedNegative / totals.negative) * 100 : 0;
+  const repetitiveComplaints = await getSmartClusters(docs.filter(d => d.sentiment === "Negative").map(d => d.commentText));
+
+  return {
+    officeName: office.name,
+    year,
+    monthlyData,
+    overallResolutionRate,
+    totals,
+    repetitiveComplaints
+  };
 }

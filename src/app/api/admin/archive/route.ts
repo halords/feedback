@@ -3,6 +3,7 @@ import { db, storage } from '@/lib/firebase/admin';
 import { getDashboardMetrics } from '@/lib/services/metricsService';
 import { getEffectiveOfficesForPeriod, getAllOfficeAssignees } from '@/lib/services/officeService';
 import { withAuth } from '@/lib/auth/withAuth';
+import { checkRateLimitAsync } from '@/lib/security/rateLimit';
 
 /**
  * POST /api/admin/archive
@@ -11,6 +12,23 @@ import { withAuth } from '@/lib/auth/withAuth';
  */
 export const POST = withAuth(async (req) => {
   try {
+    // Rate Limiting: 5 archive operations per hour per IP (heavy Firestore + Storage op)
+    const ip = req.headers.get('x-forwarded-for') || 'unknown';
+    const ratelimit = await checkRateLimitAsync(ip, 'admin_archive', 5, 60 * 60 * 1000);
+    if (!ratelimit.success) {
+      return NextResponse.json(
+        { error: 'Too many archive requests. Please wait before triggering another archive.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': ratelimit.limit.toString(),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': ratelimit.reset.toString(),
+          },
+        }
+      );
+    }
+
     const { month, year } = await req.clone().json();
 
     if (!month || !year) {

@@ -18,4 +18,4 @@ export const PATCH = withAuth(async (request, { params }) => {
     console.error("API error updating comment:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-}, { role: 'superadmin' });
+}, { role: 'analytics' });

@@ -20,7 +20,7 @@ export const GET = withAuth(async (request) => {
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}, { role: 'superadmin' });
+}, { role: 'analytics' });
 
 /**
  * POST /api/comments
@@ -35,4 +35,4 @@ export const POST = withAuth(async (request) => {
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}, { role: 'superadmin' });
+}, { role: 'analytics' });
