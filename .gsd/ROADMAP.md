@@ -17,7 +17,7 @@
 **Objective**: Audit and fix filtering logic in the Data View tab to ensure Superadmins can correctly view and filter data across all offices.
 
 ### Phase 2: Personnel-Centric Filtering (Archive-based)
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Dynamically derive the personnel filter list from the actual JSON archive content for the selected period.
 
 ### Phase 3: Individual PDF Generation & Metadata
