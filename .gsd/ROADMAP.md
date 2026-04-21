@@ -12,7 +12,7 @@
 ## Phases
 
 ### Phase 1: Superadmin Data View Filtering
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Audit and fix filtering logic in the Data View tab to ensure Superadmins can correctly view and filter data across all offices.
 
 ### Phase 2: Individual PDF Generation & Metadata
