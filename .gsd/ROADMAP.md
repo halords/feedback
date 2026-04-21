@@ -21,7 +21,7 @@
 **Objective**: Dynamically derive the personnel filter list from the actual JSON archive content for the selected period.
 
 ### Phase 3: Individual PDF Generation & Metadata
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Fix individual report generation logic, ensuring "Personnel in-charge" names are correctly retrieved and rendered in PDF signatures.
 
 ### Phase 4: Integration & Cross-Role Verification
