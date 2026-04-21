@@ -60,7 +60,7 @@ next-env.d.ts
 .agent/
 .agents/
 .continue/
-.gsd/
+!.gsd/
 .gsdV2/
 .gsd-previous/
 .firebase/
@@ -89,8 +89,9 @@ artifacts/
 # Documentation & Markdown
 # Ignore all markdown files by default
 *.md
-# ... but whitelist only the core readme
+# ... but whitelist only the core readme and .gsd files
 !README.md
+!.gsd/**/*.md
 
 
 # Infrastructure
