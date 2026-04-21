@@ -4,62 +4,51 @@ plan: 1
 wave: 1
 ---
 
-# Plan 4.1: Unified Security Migration & Final Audit
+# Plan 4.1: Cross-Role Functional Verification
 
 ## Objective
-Finalize the transition to the Unified Security Architecture by migrating all remaining administrative endpoints to the `withAuth` wrapper and performing a comprehensive system audit to eliminate legacy technical debt.
+Verify strict RBAC enforcement in the reporting module while ensuring functional parity for Superadmins and restricted Office Admins.
 
 ## Context
-- .gsd/SPEC.md
-- src/middleware.ts
-- src/lib/auth/withAuth.ts
-- src/app/api/users/route.ts
-- src/app/api/physical-reports/route.ts
+- src/lib/auth/rbac.ts
+- src/app/api/reports/individual/route.ts
+- src/app/api/reports/bulk/route.ts
 
 ## Tasks
 
 <task type="auto">
-  <name>Migrate Admin Endpoints to withAuth</name>
+  <name>Empirical RBAC Audit</name>
   <files>
-    src/app/api/users/route.ts
-    src/app/api/physical-reports/route.ts
-    src/app/api/physical-reports/[id]/route.ts
+    <file>src/lib/auth/rbac.ts</file>
   </files>
   <action>
-    Refactor these administrative routes to use the 'withAuth' HOF with role: 'superadmin'.
-    - Remove redundant manual 'verifySuperadmin' calls and custom 401/403 catch blocks.
-    - Leverage centralized error handling.
+    - Create a scratch script `verify_rbac.ts` (or .js) to test the `resolveAuthorizedOffices` utility.
+    - Test Suite:
+        1. Superadmin (no request) -> ["ALL"]
+        2. Superadmin (specific office) -> ["specific"]
+        3. Office Admin (no request) -> [assigned offices]
+        4. Office Admin (request unauthorized) -> [] or [assigned intersection]
+        5. Office Admin (request assigned) -> [assigned]
+    - Fix any inconsistencies found during the audit.
   </action>
-  <verify>
-    # Run integration tests to ensure these routes are still protected
-    npm test src/integration-tests/security.test.ts
-  </verify>
-  <done>
-    - Admin routes are standardized on 'withAuth'.
-    - Codebase is cleaner and more maintainable.
-  </done>
+  <verify>Execute the scratch script and confirm all 5 test cases PASS.</verify>
+  <done>RBAC logic is formally verified via simulation.</done>
 </task>
 
 <task type="auto">
-  <name>System-Wide Guard Audit</name>
-  <files>src/**/*.ts(x)</files>
+  <name>Verify Report API Authorization</name>
+  <files>
+    <file>src/app/api/reports/individual/route.ts</file>
+  </files>
   <action>
-    1. Scan the whole codebase for any remaining 'verifySession' or 'verifySuperadmin' calls.
-    2. Ensure every call is correctly 'awaited'. (Previously discovered bugs where these were unawaited, allowing bypass).
-    3. Verify that ALL api routes (excluding whitelisted ones in middleware) are wrapped with 'withAuth' or have explicit manual guards.
+    - Review the `individual` report logic to ensure it doesn't just check for "ALL" but also correctly validates against specific `scopedOffices`.
+    - Ensure the "Forbidden" response is triggered correctly if a user tries to access an office they don't own.
   </action>
-  <verify>
-    grep -r "verifySession" src
-    grep -r "verifySuperadmin" src
-    grep -r "withAuth" src/app/api
-  </verify>
-  <done>
-    - 100% of API endpoints are verified to have active security guards.
-    - All guards are confirmed to be awaited.
-  </done>
+  <verify>Confirm line 31 in individual/route.ts returns 403 when canAccess is false.</verify>
+  <done>Report APIs reliably enforce forbidden access for unauthorized office requests.</done>
 </task>
 
 ## Success Criteria
-- [ ] ALL administrative API routes are protected by the unified 'withAuth' wrapper.
-- [ ] No unawaited security guards exist in the codebase.
-- [ ] Final integration test suite passes 100%.
+- [ ] 100% pass rate in RBAC simulation script.
+- [ ] Confirmed 403 Forbidden protection for individual reports.
+- [ ] Verified Superadmin "ALL" view still functional after Phase 2/3 changes.

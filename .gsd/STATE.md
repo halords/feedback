@@ -1,12 +1,14 @@
 # STATE.md
 
 ## Current Position
-- **Phase**: 3 (completed)
-- **Task**: All tasks complete
-- **Status**: Verified
-
-## Last Session Summary
-Phase 3 executed successfully. Meta-data retrieval for "Personnel in-charge" is fixed, ensuring signatures render correctly even for historical/disabled offices.
+- **Phase**: 4
+- **Task**: Planning complete
+- **Status**: Ready for execution
 
 ## Next Steps
-1. /plan 4 — Create execution plan for Phase 4: Integration & Cross-Role Verification
+1. /execute 4 — Run Plan 4.1 to verify RBAC and cross-role functionality.
+
+## Key Constraints
+- Office Admins must be strictly isolated to their own data.
+- Superadmins must retain global visibility via personnel-centric filters.
+- All verification must be empirical.
