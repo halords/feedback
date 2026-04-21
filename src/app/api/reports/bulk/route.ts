@@ -50,7 +50,10 @@ export const GET = withAuth(async (request, context, user, scopedOffices) => {
     
     if (search) {
       const s = search.toLowerCase();
-      activeMetrics = activeMetrics.filter(m => m.department.toLowerCase().includes(s));
+      activeMetrics = activeMetrics.filter(m => 
+        m.department.toLowerCase().includes(s) || 
+        (m.officeName && m.officeName.toLowerCase().includes(s))
+      );
     }
 
     activeMetrics.sort((a, b) => a.department.localeCompare(b.department));
@@ -60,7 +63,8 @@ export const GET = withAuth(async (request, context, user, scopedOffices) => {
     for (let i = 0; i < activeMetrics.length; i += BATCH_SIZE) {
       const batch = activeMetrics.slice(i, i + BATCH_SIZE);
       const batchPromises = batch.map(async (data) => {
-        const assigneeName = (assigneeMap.get(data.department) || "__________________________").toUpperCase();
+        // Use archived fullname if available, otherwise fetch live from map
+        const assigneeName = (data.fullname || assigneeMap.get(data.department) || "__________________________").toUpperCase();
 
         const reportData: ReportData = {
           department: data.department,

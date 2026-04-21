@@ -85,9 +85,11 @@ export function ResponsesClient() {
     return responses.filter((res: any) => {
       const search = searchTerm.toLowerCase();
       const matchesSearch = 
-        res.name.toLowerCase().includes(search) ||
-        res.comment.toLowerCase().includes(search) ||
-        res.office.toLowerCase().includes(search);
+        (res.name || "").toLowerCase().includes(search) ||
+        (res.comment || "").toLowerCase().includes(search) ||
+        (res.office || "").toLowerCase().includes(search) ||
+        (res.classification || "").toLowerCase().includes(search) ||
+        (res.serviceAvailed || "").toLowerCase().includes(search);
 
       return matchesSearch;
     });

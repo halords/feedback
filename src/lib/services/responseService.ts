@@ -25,9 +25,15 @@ export async function getResponses(
 ): Promise<ResponseEntry[]> {
   if (!offices || offices.length === 0) return [];
   const resolvedOffices = await resolveTargetOffices(offices, year);
+  const officesInDb = await import("./officeService").then(m => m.getAllOffices());
 
-  // 1. Try fetching from archives first
-  if (!skipArchive) {
+  // 1. Try fetching from archives first (Skip for current month to avoid stale data)
+  const now = new Date();
+  const currentMonth = now.toLocaleString('en-US', { month: 'long' });
+  const currentYear = now.getFullYear().toString();
+  const isCurrentPeriod = month === currentMonth && year === currentYear;
+
+  if (!skipArchive && !isCurrentPeriod) {
     const archivePath = `archives/${year}/${month}/responses.json`;
     const archivedData = await getJsonArchive<any[]>(archivePath);
 
@@ -36,25 +42,27 @@ export async function getResponses(
       
       const responses = archivedData
         .filter(data => {
-          const id = data.officeId || data.Office || "";
-          return resolvedOffices.some(ro => ro.trim() === id.trim());
+          const id = (data.officeId || data.Office || "").trim().toLowerCase();
+          return resolvedOffices.some(ro => ro.trim().toLowerCase() === id);
         })
         .map(data => {
           const officeId = data.officeId || data.Office;
           const officeName = officesInDb.find(o => o.id === officeId)?.name || officeId;
           return {
             id: data.id,
-            name: data.Name || "Anonymous",
-            clientType: data.Client_Type || "Unknown",
+            name: data.Name || data.name || "Anonymous",
+            clientType: data.Client_Type || data.clientType || "Unknown",
             office: officeName,
-            serviceAvailed: data.Service_Availed || "None",
-            comment: data.Comment || "",
-            classification: data.Class || "Unclassified",
-            date: data.Date
+            serviceAvailed: data.Service_Availed || data.serviceAvailed || "None",
+            comment: data.Comment || data.comment || "",
+            classification: data.Class || data.classification || "Unclassified",
+            date: data.date_iso || data.Date || data.date
           };
         });
         
-      return responses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const sorted = responses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      console.log(`[ResponseService] Archive HIT: Returning ${sorted.length} mapped records.`);
+      return sorted;
     }
   }
 
@@ -99,7 +107,6 @@ export async function getResponses(
     snapshots = await Promise.all(queryPromises);
   }
 
-  const officesInDb = await import("./officeService").then(m => m.getAllOffices());
   const responses: ResponseEntry[] = [];
 
   snapshots.forEach(snapshot => {
@@ -132,9 +139,11 @@ export async function classifyComments(
   assignments: { docId: string; classification: string }[]
 ) {
   const batch = db.batch();
+  console.log(`[Classification] Committing batch of ${assignments.length} updates...`);
   
   assignments.forEach(({ docId, classification }) => {
     const docRef = db.collection('Responses').doc(docId);
+    console.log(`[Classification] ID: ${docId} -> ${classification}`);
     batch.update(docRef, { 
       Class: classification,
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -142,4 +151,5 @@ export async function classifyComments(
   });
 
   await batch.commit();
+  console.log(`[Classification] Successfully updated ${assignments.length} records.`);
 }

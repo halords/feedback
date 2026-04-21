@@ -289,6 +289,7 @@ export default function CommentsPage() {
                 <tr className="bg-background/80 backdrop-blur-md border-b-2 border-border-strong">
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40 w-16 text-center">#</th>
                   <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40">Comment (Feedback)</th>
+                  <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40 text-center">Submitted At</th>
                   <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40 text-center">Sentiment</th>
                   <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40 text-center">Period</th>
                   <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40 text-center">Office</th>
@@ -304,6 +305,7 @@ export default function CommentsPage() {
                     <tr key={i} className="animate-pulse">
                       <td className="px-6 py-5"><div className="h-4 bg-on-surface/5 rounded w-8 mx-auto" /></td>
                       <td className="px-5 py-5"><div className="h-4 bg-on-surface/5 rounded w-full" /></td>
+                      <td className="px-5 py-5"><div className="h-4 bg-on-surface/5 rounded w-20 mx-auto" /></td>
                       <td className="px-5 py-5"><div className="h-4 bg-on-surface/5 rounded w-16 mx-auto" /></td>
                       <td className="px-5 py-5"><div className="h-4 bg-on-surface/5 rounded w-20 mx-auto" /></td>
                       <td className="px-5 py-5"><div className="h-4 bg-on-surface/5 rounded w-24 mx-auto" /></td>
@@ -312,7 +314,7 @@ export default function CommentsPage() {
                     </tr>
                   ))
                 ) : paginatedComments.length === 0 ? (
-                  <tr><td colSpan={7} className="p-20 text-center"><div className="flex flex-col items-center gap-4 opacity-10"><AlertCircle className="w-12 h-12" /><p className="text-sm font-bold uppercase tracking-widest">No entries found for {selectedMonth} {selectedYear}</p></div></td></tr>
+                  <tr><td colSpan={8} className="p-20 text-center"><div className="flex flex-col items-center gap-4 opacity-10"><AlertCircle className="w-12 h-12" /><p className="text-sm font-bold uppercase tracking-widest">No entries found for {selectedMonth} {selectedYear}</p></div></td></tr>
                 ) : (
                   paginatedComments.map((comment, idx) => (
                     <tr key={comment.id} className="hover:bg-on-surface/[0.015] transition-all group">
@@ -323,6 +325,15 @@ export default function CommentsPage() {
                         <p className="text-sm font-semibold text-on-surface/80 group-hover:translate-x-0.5 transition-transform italic leading-relaxed max-w-[600px]">
                           "{comment.commentText}"
                         </p>
+                      </td>
+                      <td className="px-5 py-3.5 text-center">
+                        <span className="text-[10px] font-bold text-on-surface/50 whitespace-nowrap">
+                          {comment.date ? new Date(comment.date).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                          }) : "N/A"}
+                        </span>
                       </td>
                       <td className="px-5 py-3.5 text-center">
                         <SentimentBadge sentiment={comment.sentiment} />
@@ -443,9 +454,10 @@ function EditModal({ comment, isOpen, onClose, onSave }: { comment: Comment, isO
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={isActionNeeded ? "Management Assignment" : "Feedback Analysis"}>
       <div className="space-y-8 p-2">
-         <div className="grid grid-cols-3 gap-4 bg-on-surface/5 p-6 rounded-[2rem] border border-on-surface/5">
+         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-on-surface/5 p-6 rounded-[2rem] border border-on-surface/5">
             <div className="space-y-1"><h4 className="text-[10px] font-black text-on-surface/30 uppercase tracking-[0.2em]">Office</h4><p className="text-sm font-black text-primary truncate">{comment.office}</p></div>
             <div className="space-y-1"><h4 className="text-[10px] font-black text-on-surface/30 uppercase tracking-[0.2em]">Period</h4><p className="text-sm font-bold text-on-surface/60">{comment.month || "Unknown"}</p></div>
+            <div className="space-y-1"><h4 className="text-[10px] font-black text-on-surface/30 uppercase tracking-[0.2em]">Submitted</h4><p className="text-sm font-bold text-on-surface/60">{comment.date ? new Date(comment.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A"}</p></div>
             <div className="space-y-1 text-right"><h4 className="text-[10px] font-black text-on-surface/30 uppercase tracking-[0.2em]">Class</h4><SentimentBadge sentiment={comment.sentiment} /></div>
          </div>
          <div className="space-y-3">

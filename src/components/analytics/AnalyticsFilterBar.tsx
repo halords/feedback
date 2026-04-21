@@ -15,7 +15,7 @@ const allMonths = [
 
 export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
   const { user } = useAuth();
-  const { month, year, search, selectedUserId, setFilters, isGraphsReady, isLoading } = useAnalytics();
+  const { month, year, search, selectedUserId, setFilters, isGraphsReady, isLoading, isValidating, targetOffices, availablePersonnel } = useAnalytics();
   const [isAIAnalyzing, setIsAIAnalyzing] = React.useState(false);
   
   const now = new Date();
@@ -24,7 +24,6 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
   const baselineYear = 2025;
 
   const isSuperadmin = user?.user_type?.toLowerCase() === "superadmin";
-  const { data: users } = useSWR(isSuperadmin ? "/api/users" : null, (url) => fetch(url).then(res => res.json()));
 
   const availableYears = Array.from(
     { length: currentYear - baselineYear + 1 }, 
@@ -45,13 +44,6 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
     }
   }, [availableMonths, month, setFilters]);
   
-  const currentTargetOffices = useMemo(() => {
-    if (isSuperadmin && selectedUserId && Array.isArray(users)) {
-      const selectedUser = users.find(u => u.idno === selectedUserId);
-      return selectedUser?.officeAssignments || [];
-    }
-    return [];
-  }, [isSuperadmin, selectedUserId, users]);
 
   const handleAIAnalysis = async () => {
     setIsAIAnalyzing(true);
@@ -115,19 +107,10 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
                   onChange={(e) => setFilters({ selectedUserId: e.target.value || null })}
                   className="w-full h-11 bg-background/50 pl-11 pr-10 rounded-xl border border-border-strong/50 outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all text-xs font-bold appearance-none cursor-pointer"
                 >
-                  <option value="">User Filter: None</option>
-                  <option value="ALL_OFFICES">All Offices (Global)</option>
-                  {Array.isArray(users) && users
-                    .filter(u => Array.isArray(u.officeAssignments) && u.officeAssignments.length > 0)
-                    .sort((a, b) => {
-                      const aSuper = a.userType?.toLowerCase() === 'superadmin';
-                      const bSuper = b.userType?.toLowerCase() === 'superadmin';
-                      if (aSuper && !bSuper) return -1;
-                      if (!aSuper && bSuper) return 1;
-                      return a.fullName.localeCompare(b.fullName);
-                    })
-                    .map((u: any) => (
-                      <option key={u.idno} value={u.idno}>{u.fullName} {u.userType?.toLowerCase() === 'superadmin' ? '(Superadmin)' : ''}</option>
+                  <option value="">All Offices (Global)</option>
+                  {(availablePersonnel || [])
+                    .map((name: string) => (
+                      <option key={name} value={name}>{name}</option>
                     ))}
                 </select>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface/40 pointer-events-none" />
@@ -155,9 +138,9 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
           variant="outline" 
           className={clsx(
             "h-11 px-6 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-3 whitespace-nowrap border-primary/20 text-primary bg-primary/5 hover:bg-primary/10 transition-all",
-            (isAIAnalyzing || isLoading) ? "opacity-50 cursor-not-allowed" : ""
+            (isAIAnalyzing || isLoading || isValidating) ? "opacity-50 cursor-not-allowed" : ""
           )}
-          disabled={isAIAnalyzing || isLoading}
+          disabled={isAIAnalyzing || isLoading || isValidating}
           onClick={handleAIAnalysis}
         >
           {isAIAnalyzing ? (
@@ -173,9 +156,9 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
           variant="primary" 
           className={clsx(
             "h-11 px-6 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-3 whitespace-nowrap shadow-md shadow-primary/10 hover:translate-y-[-1px] transition-all",
-            (isLoading || (activeTab === "graphs" && !isGraphsReady)) ? "opacity-50 cursor-not-allowed grayscale" : ""
+            (isLoading || isValidating || (activeTab === "graphs" && !isGraphsReady)) ? "opacity-50 cursor-not-allowed grayscale" : ""
           )}
-          disabled={isLoading || (activeTab === "graphs" && !isGraphsReady)}
+          disabled={isLoading || isValidating || (activeTab === "graphs" && !isGraphsReady)}
           onClick={() => {
             if (activeTab === "summary") {
               const url = `/api/reports/summary?month=${month}&year=${year}`;
@@ -186,9 +169,10 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
               const params = new URLSearchParams({ month, year });
               if (search) params.set("search", search);
               
-              // If superadmin has selected a user, pass those offices to the bulk generator
-              if (isSuperadmin && currentTargetOffices.length > 0) {
-                params.set("offices", currentTargetOffices.join(","));
+              // ALWAYS pass the targetOffices from context to the bulk generator
+              // This ensures the server uses the EXACT same scoping as the frontend UI
+              if (targetOffices && targetOffices.length > 0) {
+                params.set("offices", targetOffices.join(","));
               }
               
               const url = `/api/reports/bulk?${params.toString()}`;
@@ -209,7 +193,7 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
           * Waiting for charts to render...
         </span>
       )}
-      {isLoading && (
+      {(isLoading || isValidating) && (
         <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-black text-primary uppercase tracking-widest animate-pulse whitespace-nowrap">
           * Extracting dashboard data...
         </span>

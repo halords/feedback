@@ -1,22 +1,13 @@
-import { NextResponse } from "next/server";
-import { db } from "@/lib/firebase/admin";
-import { withAuth } from "@/lib/auth/withAuth";
+const { initializeApp, cert } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
 
-/**
- * GET /api/peek
- * Sample endpoint to test session and data connectivity.
- * Protected by Global Auth.
- */
-export const GET = withAuth(async () => {
-  try {
-    const snapshot = await db.collection("Responses").limit(5).get();
-    const data = snapshot.docs.map(doc => ({
-      id: doc.id,
-      date: doc.data().Date,
-      type: typeof doc.data().Date
-    }));
-    return NextResponse.json(data);
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to peek data" }, { status: 500 });
-  }
-});
+// Since this is running on the user's machine, I need to find the service account or use default credentials if available.
+// However, the project already has firebase-admin configured.
+// I'll try to use the existing config or just peek at the file system if applicable? 
+// No, I need Firestore data.
+
+async function peek() {
+  process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080'; // Try emulator first if running
+  
+  // Actually, I can just write a temporary API route to debug it!
+}

@@ -8,6 +8,7 @@ import {
   calculateCollectionRate,
   QValues
 } from "./analyticsService";
+import { ensureArray } from "@/lib/utils/parsingUtils";
 
 export interface DashboardMetrics {
   department: string;
@@ -36,11 +37,14 @@ export interface DashboardMetrics {
   };
   dateCollected?: string;
   collectionRate: string;
+  fullname?: string;
+  officeName?: string;
 }
 
 export async function getDashboardMetrics(offices: string[], month: string | string[], year: string, skipArchive = false, onlyArchive = false): Promise<DashboardMetrics[]> {
   if (!Array.isArray(offices)) return [];
   const activeOffices = await import("./officeService").then(m => m.getAllOffices());
+  // Resolve office IDs into all variants (Acronym, Name, ID) to ensure archive lookup resilience
   const resolvedOffices = await resolveTargetOffices(offices, year);
   const monthArray = Array.isArray(month) ? month : [month];
   
@@ -56,8 +60,10 @@ export async function getDashboardMetrics(offices: string[], month: string | str
       if (archivedData) {
         console.log(`[MetricsService] Archive HIT: Using optimized JSON for ${m} ${year} (Zero Firestore Reads)`);
         const filtered = archivedData.filter(item => {
-          const dept = (item.department || "").trim();
-          return resolvedOffices.some(ro => ro.trim() === dept);
+          const dept = (item.department || "").trim().toLowerCase().replace(/-/g, ' ');
+          return resolvedOffices.some(ro => 
+            ro.trim().toLowerCase().replace(/-/g, ' ') === dept
+          );
         });
         results.push(...filtered);
       } else {
@@ -90,8 +96,8 @@ export async function getDashboardMetrics(offices: string[], month: string | str
     const startDateIso = `${year}-${monthMap[minMonth]}-01`;
     const endDateIso = `${year}-${monthMap[maxMonth]}-31`;
 
-    const offlineData = await getOfflineReportInRange(resolvedOffices, monthsToFetchLive, year);
-    const onlineData = await getOnlineReportInRange(resolvedOffices, startDateIso, endDateIso, monthsToFetchLive, year);
+    const offlineData = await getOfflineReportInRange(resolvedOffices, monthsToFetchLive, year, activeOffices);
+    const onlineData = await getOnlineReportInRange(resolvedOffices, startDateIso, endDateIso, monthsToFetchLive, year, activeOffices);
 
     for (const m of monthsToFetchLive) {
       for (const office of resolvedOffices) {
@@ -107,19 +113,32 @@ export async function getDashboardMetrics(offices: string[], month: string | str
   const finalMap = new Map<string, DashboardMetrics>();
   results.forEach(m => {
     // Determine the authority record for this entry
-    const canonical = activeOffices.find(o => o.id === m.department || o.name === m.department);
+    const canonical = activeOffices.find(o => 
+      o.id.toLowerCase() === m.department.toLowerCase() || 
+      o.name.toLowerCase() === m.department.toLowerCase() || 
+      (o.fullName && o.fullName.toLowerCase() === m.department.toLowerCase())
+    );
     const key = `${canonical?.id || m.department}_${m.month}`;
     
-    // Always use the human-readable 'name' for the UI 'department' field
+    // Always use the short acronym (name) or ID for the UI 'department' field
     const displayDepartment = canonical?.name || m.department;
     
     if (!finalMap.has(key)) {
-      finalMap.set(key, { ...m, department: displayDepartment });
+      finalMap.set(key, { 
+        ...m, 
+        department: displayDepartment, 
+        officeName: canonical?.fullName || displayDepartment 
+      });
     } else {
       // Merge values if we somehow got multiple
       const existing = finalMap.get(key)!;
       const merged = mergeReports(existing, m, m.month);
-      finalMap.set(key, { ...merged, department: displayDepartment });
+      finalMap.set(key, { 
+        ...merged, 
+        department: displayDepartment, 
+        fullname: m.fullname || merged.fullname,
+        officeName: canonical?.fullName || displayDepartment
+      });
     }
   });
 
@@ -127,7 +146,7 @@ export async function getDashboardMetrics(offices: string[], month: string | str
 }
 
 
-async function getOnlineReportInRange(offices: string[], startDate: string, endDate: string, targetMonths: string[], year: string) {
+async function getOnlineReportInRange(offices: string[], startDate: string, endDate: string, targetMonths: string[], year: string, activeOffices: any[]) {
   const results: any = {};
   
   // Scoped to date range for massive performance gain vs legacy full-scan
@@ -165,7 +184,14 @@ async function getOnlineReportInRange(offices: string[], startDate: string, endD
         const docYear = yearStr;
 
         if (targetMonths.includes(docMonth) && docYear === year) {
-          const officeId = (data.officeId || data.Office || "").trim();
+          const rawOffice = (data.officeId || data.Office || "").trim().replace(/-/g, ' ').toLowerCase();
+          const canonical = activeOffices.find(o => 
+            o.id.toLowerCase().replace(/-/g, ' ') === rawOffice || 
+            o.name.toLowerCase().replace(/-/g, ' ') === rawOffice || 
+            (o.fullName && o.fullName.toLowerCase().replace(/-/g, ' ') === rawOffice)
+          );
+
+          const officeId = canonical?.id || rawOffice;
           const key = `${officeId}_${docMonth}`;
           if (!results[key]) results[key] = createEmptyResult(officeId, docMonth);
 
@@ -219,7 +245,7 @@ async function getOnlineReportInRange(offices: string[], startDate: string, endD
   return results;
 }
 
-async function getOfflineReportInRange(offices: string[], monthArray: string[], year: string) {
+async function getOfflineReportInRange(offices: string[], monthArray: string[], year: string, activeOffices: any[]) {
   const results: any = {};
   const formattedOffices = offices.map(o => o.replace(/-/g, ' '));
   const monthMap: Record<string, string> = {
@@ -236,30 +262,58 @@ async function getOfflineReportInRange(offices: string[], monthArray: string[], 
   }
 
   const queryPromises: Promise<any>[] = [];
-  officeChunks.forEach(chunk => {
-    targetPeriodIsos.forEach(periodIso => {
-      queryPromises.push(
-        db.collection('physical_report')
-          .where('officeId', 'in', chunk)
-          .where('period_iso', '==', periodIso)
-          .get()
-      );
-    });
+  monthArray.forEach(m => {
+    const periodIso = `${year}-${monthMap[m]}`;
+    const monthYearLabel = `${m} ${year}`;
+    
+    // Performance: Querying all physical reports for the month is efficient as there is usually only 1 per office.
+    // This allows us to handle legacy records that may not have 'officeId' or 'period_iso' properly.
+    queryPromises.push(db.collection('physical_report').where('period_iso', '==', periodIso).get());
+    queryPromises.push(db.collection('physical_report').where('FOR_THE_MONTH_OF', '==', monthYearLabel).get());
   });
 
   const snapshots = await Promise.all(queryPromises);
+  const processedDocIds = new Set<string>();
 
   snapshots.forEach(snapshot => {
     snapshot.forEach((doc: any) => {
+      // Prevent double-processing if a doc matches both queries
+      if (processedDocIds.has(doc.id)) return;
+      processedDocIds.add(doc.id);
+
       const data = doc.data();
       if (!data) return;
 
-      const officeId = data.officeId || offices.find(o => o.replace(/-/g, ' ') === data.DEPARTMENT?.trim()) || offices[0];
+      // Filter by office in-memory using both IDs, Names, and Full Names
+      const deptNormalized = (data.DEPARTMENT || "").trim().replace(/-/g, ' ').toLowerCase();
+      const officeMatch = activeOffices.find(o => 
+        o.id.toLowerCase().replace(/-/g, ' ') === deptNormalized ||
+        o.name.toLowerCase().replace(/-/g, ' ') === deptNormalized ||
+        (o.fullName && o.fullName.toLowerCase().replace(/-/g, ' ') === deptNormalized)
+      );
+
+      if (!officeMatch) return;
+
+      const officeId = officeMatch.id; // Always use ID (Acronym) as the internal key
       const docPeriod = data.FOR_THE_MONTH_OF || "";
-      const docMonth = docPeriod.split(' ')[0];
+      
+      // Resolve month correctly from various legacy schemas
+      let docMonth = docPeriod.split(' ')[0];
+      if (!docMonth && data.period_iso) {
+        const monthNum = data.period_iso.split('-')[1];
+        docMonth = Object.keys(monthMap).find(k => monthMap[k] === monthNum) || "";
+      }
+      
+      if (!docMonth) return; // Skip if we can't determine the month
+      
+      // DIAGNOSTIC LOG: Show which Firestore doc is contributing to which office
+      console.log(`[Offline-Agg] Doc ID: ${doc.id} | DEPT: "${data.DEPARTMENT}" -> matched office: "${officeId}" | Q5_5: ${data['55']} | Q6_5: ${data['65']} | Forms: ${data.COLLECTED_FORMS}`);
       
       const key = `${officeId}_${docMonth}`;
-      if (!results[key]) results[key] = createEmptyResult(officeId, docMonth);
+      
+      // Strict Deduplication: Always overwrite with the latest valid document for this month/office
+      // This prevents rogue duplicates from secretly adding their numbers (like 8 + 9 = 17)
+      results[key] = createEmptyResult(officeId, docMonth);
       const res = results[key];
 
       const safeInt = (val: any) => {
@@ -301,22 +355,38 @@ async function getOfflineReportInRange(offices: string[], monthArray: string[], 
       res.cc3['Did Not Help'] += safeInt(data.DID_NOT_HELP);
       res.cc3['N/A'] += safeInt(data.NA2);
 
-      if (data.COMMENTS && Array.isArray(data.COMMENTS)) {
-        const classifications = Array.isArray(data.CLASSIFY) ? data.CLASSIFY : [];
-        data.COMMENTS.forEach((comment: string, index: number) => {
+      const comments = ensureArray(data.COMMENTS, true);
+      const classifications = ensureArray(data.CLASSIFY);
+
+      if (comments.length > 0) {
+        let docPositive = 0;
+        let docNegative = 0;
+        let docSugg = 0;
+
+        comments.forEach((comment: string, index: number) => {
           if (!comment || typeof comment !== 'string' || comment.trim().length < 2) return;
           
-          const rawClass = (classifications[index] || "").toLowerCase().trim();
-          if (rawClass === "not applicable") return;
+          const rawSentiment = (classifications[index] || "").trim().toLowerCase();
+          if (rawSentiment === "not applicable") return;
 
-          if (rawClass === "positive") {
+          if (rawSentiment === "positive") {
             res.comments.positive.push(comment);
-          } else if (rawClass === "negative") {
+            docPositive++;
+          } else if (rawSentiment === "negative") {
             res.comments.negative.push(comment);
-          } else if (rawClass === "suggestion" || rawClass === "suggestions") {
+            docNegative++;
+          } else if (rawSentiment === "suggestion" || rawSentiment === "suggestions") {
             res.comments.suggestions.push(comment);
+            docSugg++;
           }
         });
+
+        if (docPositive > 0 || docNegative > 0 || docSugg > 0) {
+          console.log(`[Archive-Fix] Extracted ${docPositive + docNegative + docSugg} comments from ${officeId} (${docMonth}): Pos:${docPositive} Neg:${docNegative} Sugg:${docSugg}`);
+          if (comments.length !== classifications.length) {
+            console.warn(`[Archive-Fix] Mismatch in ${officeId}: Comments(${comments.length}) vs Classify(${classifications.length}). Smart-split applied.`);
+          }
+        }
       }
 
       if (data.DATE_COLLECTED) {

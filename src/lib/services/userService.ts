@@ -1,4 +1,5 @@
 import { db, auth } from "@/lib/firebase/admin";
+import { getAllOffices } from "./officeService";
 import bcrypt from "bcryptjs";
 
 export interface UserProfile {
@@ -49,13 +50,16 @@ export async function getAllUsers(): Promise<UserProfile[]> {
         .get();
       snapshot.forEach(doc => {
         const data = doc.data();
-        const existing = assignmentsMap.get(data.idno) || [];
+        const officeVal = data.officeId || data.office;
+        const idno = String(data.idno || "");
         
-        // Handle both string and array formats for legacy compatibility
-        if (Array.isArray(data.office)) {
-          assignmentsMap.set(data.idno, [...existing, ...data.office]);
-        } else if (typeof data.office === "string") {
-          assignmentsMap.set(data.idno, [...existing, data.office]);
+        if (officeVal && idno) {
+          const existing = assignmentsMap.get(idno) || [];
+          if (Array.isArray(officeVal)) {
+            assignmentsMap.set(idno, [...existing, ...officeVal]);
+          } else {
+            assignmentsMap.set(idno, [...existing, officeVal]);
+          }
         }
       });
     }
@@ -150,12 +154,15 @@ export async function addUser(userData: {
     });
 
     // 4. Create entries in 'office_assignment'
-    userData.office_assignment.forEach(officeId => {
-      const assignRef = db.collection("office_assignment").doc();
-      batch.set(assignRef, {
-        idno: userData.idno,
-        office: officeId
-      });
+    const allOffices = await getAllOffices(true);
+    userData.office_assignment.forEach(officeAcronym => {
+        const officeDoc = allOffices.find(o => o.name === officeAcronym);
+        const assignRef = db.collection("office_assignment").doc();
+        batch.set(assignRef, {
+            idno: userData.idno,
+            office: officeAcronym, // Acronym
+            officeId: officeDoc ? officeDoc.id : officeAcronym // Document ID from offices collection
+        });
     });
 
     await batch.commit();
@@ -185,11 +192,14 @@ export async function updateAssignments(idno: string, offices: string[]) {
     });
 
     // Add new assignments
-    offices.forEach(officeId => {
+    const allOffices = await getAllOffices(true);
+    offices.forEach(officeAcronym => {
+      const officeDoc = allOffices.find(o => o.name === officeAcronym);
       const assignRef = db.collection("office_assignment").doc();
       batch.set(assignRef, {
         idno: idno,
-        office: officeId
+        office: officeAcronym, // Acronym
+        officeId: officeDoc ? officeDoc.id : officeAcronym // Document ID
       });
     });
 

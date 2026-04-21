@@ -34,7 +34,9 @@ const ITEMS_PER_PAGE = 10;
 
 export function DataView() {
   const { user } = useAuth();
-  const { data, isLoading, month, year, search } = useAnalytics();
+  const { data, isLoading, isValidating, month, year, search } = useAnalytics();
+  
+  const isActuallyLoading = isLoading || (isValidating && !data);
   
   // Fetch context-aware office list to respect archival inclusion rules
   const { data: rawOfficeList } = useSWR(`/api/offices?month=${month}&year=${year}`, (url) => fetch(url).then(r => r.json()));
@@ -58,7 +60,10 @@ export function DataView() {
 
     if (!search) return filtered;
     const s = search.toLowerCase();
-    return filtered.filter((o: any) => o.department.toLowerCase().includes(s));
+    return filtered.filter((o: any) => 
+      o.department.toLowerCase().includes(s) || 
+      (o.officeName && o.officeName.toLowerCase().includes(s))
+    );
   }, [data, search, user]);
 
   // Reset pagination on filter change
@@ -72,7 +77,7 @@ export function DataView() {
     return displayData.slice(start, start + ITEMS_PER_PAGE);
   }, [displayData, currentPage]);
 
-  if (isLoading && !data) {
+  if (isActuallyLoading) {
     return (
       <Card className="p-0 overflow-hidden border border-border-strong/50 shadow-xl bg-surface-low animate-pulse mb-10">
         <div className="h-14 bg-surface-low border-b border-on-surface/5 w-full" />
@@ -95,7 +100,7 @@ export function DataView() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className={clsx("space-y-4 transition-opacity duration-300", isValidating && "opacity-50 pointer-events-none")}>
       <Card className="p-0 overflow-hidden border border-border-strong/50 shadow-xl bg-surface-low">
         <div className="overflow-x-auto">
           <table className="w-full text-left font-sans border-collapse">

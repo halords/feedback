@@ -7,8 +7,9 @@
   - High-Performance: Generates 'date_iso' for optimized sorting.
 */
 
-// 🔒 Firestore Credentials (DO NOT CHANGE)
-const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDozLg5pFsuLwus\nPmedehvUVgKfUTcrdFE6LGHPLqb6WnT0aD57GWYLbdGFZ9BmjNWSeqbmdreEv/KK\nqRHM3Cr86F1VhFTc9iyxjx/f6n990dpB+XlcAC22sq4k6EtYz7myPkNQ+HgnxqTO\nHYPNw8KMTPBE4K/oTPE0/hP1afdJu/LjtApS3eR0Bv6OdlgWoYmun8idckgpypvv\n4iwqGMcDmuRib/qf1dsMvVJICdGodicfDUp0SEDHFMuZIoyQrnL9o5ipIIhqJEBG\na8yKN1wqY74OBvSHzDhPx32tMuYftvOq+MRmdj6kCpMxrduxvmLxAa7ewQx+l0ne\n6w9zzLDVAgMBAAECggEABLrQDV/A+H29M3krGsB120kKEZmRUOEym0d2j0KH4vM+\niA6sIk0gTSAkjxzOV58J4cl7JZiI3voVX+rScUKR3wSLjOa84KZhvxPE1oRJpdFD\nKW77n7pjM2CK+DX9/eZug+gO7xC1RD2dcJCZ8m7FP5t6kDOubz5M8kItPqGyA/3z\nIc3bOqprfbHTNS9bi7Mbn/HqzTrSCvbqxDSkVxKlhrJMimNpmeWHDKecumVI6XUc\nRyzA/Rcf+QRwNX2Y3lm8YggAVBKwDhVdpvSmdxfpi5L7Rz8hbNpvbhnj+VCpkxhy\nozdyExe8ObYnQ5AYmxFc25jz+DCA196CXs+kl9rxqwKBgQD/ZvPLmOEuCWRzXz1m\nlHu0lCyjNlcUBHjb8YrqY1A3NRSvVSoK7ghu5exZMU8/SL7NsW0IqWCxQeBa8ul0\n48BJC748U1VtuoiRAxyOMXWWEHIY8wruyw2c3of0IJSPUpYVolnUXS+8xdyfZ7ov\n9/oFHrtvls1yFWncsO34aRY7hwKBgQDpWDkTp7GBz2q1rEcgaO5+emGy4Y4gGHIB\niDZGWXvUSHQWu/RSdYC4KDoqBL/lYrEmzs879V+Ffsf1nSCztUYUdMEMuTDiNEko\nbH36n3AI6nMRNdKnDNl4QEFZcZREMrxdR/S6Sn1WbSa/QlYT5sNSxhocEbz+aa+8\ VLozThgfwwKBgBH2KpUZ9lQngvH+M7JAJQcJGK6Nxsf4nItTTGK5g02upPrDsYY9\ QUiTUPDg3+LiedC7dqCSUOOGb4HV7Ycz8TTx53oUnkBuSuZv4pU5czyPgYaxqQYs\ L5PlrogDto7xzu5Mkaa2uwG6pI5tXBG9jc7IX4Q0hdRNHznPE51RvqeHAoGAM8Qh\ nrW2XYI/uQW19vf/pYN+viuqlCBPEPvjD6alyYi7Mqjp6QkzVCIXMGYRCOhZB7LUW\ nnluaHFh67c808Qk3CdS4+ySeZqBo1nHzJMV4KlIwwtGo8OxV1mqS1M/wr4x940fS\ T/20fpbqcKW7yOB51oQiSLXasqoplWNKh5U8ntcCgYABFdU2IVGNRprepcHZYxMf\ nMQbqV303P338LhiXJ/4itNTSFJG90gAw96zf11rc2nZT5c6VQHrRLui0g3FsxBA\ nitfxka/oe7Q0hmqmAG3t1OTVSKk0815D/ITXjzW6Mzeo3zy7uwuRhhHozyKHm9rZ\nW8rAji8nzKtmgbdcHsHGLA==\n-----END PRIVATE KEY-----\n`.replace(/\\n/g, '\n');
+// 🔒 Firestore Credentials (Service Account)
+const PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDozLg5pFsuLwus\nPmedehvUVgKfUTcrdFE6LGHPLqb6WnT0aD57GWYLbdGFZ9BmjNWSeqbmdreEv/KK\nqRHM3Cr86F1VhFTc9iyxjx/f6n990dpB+XlcAC22sq4k6EtYz7myPkNQ+HgnxqTO\nHYPNw8KMTPBE4K/oTPE0/hP1afdJu/LjtApS3eR0Bv6OdlgWoYmun8idckgpypvv\n4iwqGMcDmuRib/qf1dsMvVJICdGodicfDUp0SEDHFMuZIoyQrnL9o5ipIIhqJEBG\na8yKN1wqY74OBvSHzDhPx32tMuYftvOq+MRmdj6kCpMxrduxvmLxAa7ewQx+l0ne\n6w9zzLDVAgMBAAECggEABLrQDV/A+H29M3krGsB120kKEZmRUOEym0d2j0KH4vM+\niA6sIk0gTSAkjxzOV58J4cl7JZiI3voVX+rScUKR3wSLjOa84KZhvxPE1oRJpdFD\nKW77n7pjM2CK+DX9/eZug+gO7xC1RD2dcJCZ8m7FP5t6kDOubz5M8kItPqGyA/3z\nIc3bOqprfbHTNS9bi7Mbn/HqzTrSCvbqxDSkVxKlhrJMimNpmeWHDKecumVI6XUc\nRyzA/Rcf+QRwNX2Y3lm8YggAVBKwDhVdpvSmdxfpi5L7Rz8hbNpvbhnj+VCpkxhy\nozdyExe8ObYnQ5AYmxFc25jz+DCA196CXs+kl9rxqwKBgQD/ZvPLmOEuCWRzXz1m\nlHu0lCyjNlcUBHjb8YrqY1A3NRSvVSoK7ghu5exZMU8/SL7NsW0IqWCxQeBa8ul0\n48BJC748U1VtuoiRAxyOMXWWEHIY8wruyw2c3of0IJSPUpYVolnUXS+8xdyfZ7ov\n9/oFHrtvls1yFWncsO34aRY7hwKBgQDpWDkTp7GBz2q1rEcgaO5+emGy4Y4gGHIB\niDZGWXvUSHQWu/RSdYC4KDoqBL/lYrEmzs879V+Ffsf1nSCztUYUdMEMuTDiNEko\nbH36n3AI6nMRNdKnDNl4QEFZcZREMrxdR/S6Sn1WbSa/QlYT5sNSxhocEbz+aa+8\nVLozThgfwwKBgBH2KpUZ9lQngvH+M7JAJQcJGK6Nxsf4nItTTGK5g02upPrDsYY9\nQUiTUPDg3+LiedC7dqCSUOOGb4HV7Ycz8TTx53oUnkBuSuZv4pU5czyPgYaxqQYs\nL5PlrogDto7xzu5Mkaa2uwG6pI5tXBG9jc7IX4Q0hdRNHznPE51RvqeHAoGAM8Qh\nrW2XYI/uQW19vf/pYN+viuqlCBPEPvjD6alyYi7Mqjp6QkzVCIXMGYRCOhZB7LUW\nnluaHFh67c808Qk3CdS4+ySeZqBo1nHzJMV4KlIwwtGo8OxV1mqS1M/wr4x940fS\nT/20fpbqcKW7yOB51oQiSLXasqoplWNKh5U8ntcCgYABFdU2IVGNRprepcHZYxMf\n9MQbqV303P338LhiXJ/4itNTSFJG90gAw96zf11rc2nZT5c6VQHrRLui0g3FsxBA\nitfxka/oe7Q0hmqmAG3t1OTVSKk0815D/ITXjzW6Mzeo3zy7uwuRhhHozyKHm9rZ\nW8rAji8nzKtmgbdcHsHGLA==\n-----END PRIVATE KEY-----\n";
+
 
 const CLIENT_EMAIL = "firebase-adminsdk-fbsvc@fir-7db1b.iam.gserviceaccount.com";
 const PROJECT_ID = "fir-7db1b";
@@ -34,10 +35,10 @@ const OFFICE_MAP = {
     "OPG": "ngwLPpffcn6r6Gmn0JXI",
     "BACSU": "IEybBdoUaWaLo1FWH43a", // Alias for BACSD
     "ICTU": "HrefQV1wXaLk5BCYpkhD",  // Alias for PICTO
-    "SSU": "SSU",                   // Missing in map, pending resolve
+    "SSU": "A3OvRcZuc2Qh1bdXdHJE",                   // Missing in map, pending resolve
     "OPA": "nxf5KRcFvee28YDjeGCj",
     "HRMU": "vU1R99QcQlg8uoTQ2Zy2",  // Alias for PHRMDO
-    "PIO": "PIO",                   // Missing in map
+    "PIO": "N1oV5MCzrbNlGH2e2WSx",                   // Missing in map
     "LIBRARY": "klZR5KN1BZ7McXrcsYUJ",
     "PGSO": "A9MtgFfNFGo0n1QLaOdd",
     "PLO": "eAFa3HqMFdYKuPFpoxyz",
@@ -87,14 +88,14 @@ function getAccessToken_() {
  */
 function resolveOfficeId(name) {
     if (!name) return "Unknown";
-    
+
     // 1. Basic cleaning
     const cleanName = name.trim().toUpperCase();
-    
+
     // 2. Exact match in map
     if (OFFICE_MAP[name]) return OFFICE_MAP[name];
     if (OFFICE_MAP[cleanName]) return OFFICE_MAP[cleanName];
-    
+
     // 3. Robust Match: Strip all symbols (Spaces/Hyphens)
     const normalized = cleanName.replace(/[-\s]/g, "");
     for (const key of Object.keys(OFFICE_MAP)) {
@@ -102,7 +103,7 @@ function resolveOfficeId(name) {
             return OFFICE_MAP[key];
         }
     }
-    
+
     return name; // Final fallback
 }
 
@@ -116,8 +117,8 @@ function convertEmojiToNumber(val) {
 }
 
 // 🔼 Upload one document to Firestore
-function uploadToFirestore(doc) {
-    const accessToken = getAccessToken_();
+function uploadToFirestore(doc, accessToken) {
+    if (!accessToken) accessToken = getAccessToken_();
     const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/Responses`;
 
     const payload = { fields: {} };
@@ -142,12 +143,13 @@ function uploadToFirestore(doc) {
 function processSheets() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheets = ss.getSheets();
+    const accessToken = getAccessToken_(); // 🚀 Fetch ONCE per run
     let uploadedCount = 0;
 
     sheets.forEach(sheet => {
         const sheetName = sheet.getName();
         const resolvedId = resolveOfficeId(sheetName);
-        
+
         // Filter: only process sheets that we can map to an office ID
         // Note: We use TARGET_SHEETS check or just if we can resolve the ID
         if (resolvedId === sheetName && !TARGET_SHEETS.includes(sheetName)) return;
@@ -189,7 +191,7 @@ function processSheets() {
             }
 
             try {
-                uploadToFirestore(doc);
+                uploadToFirestore(doc, accessToken);
                 sheet.getRange(i + 1, 22).setValue("uploaded");
                 uploadedCount++;
             } catch (e) {

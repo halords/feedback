@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db, storage } from '@/lib/firebase/admin';
 import { getDashboardMetrics } from '@/lib/services/metricsService';
-import { getEffectiveOfficesForPeriod } from '@/lib/services/officeService';
+import { getEffectiveOfficesForPeriod, getAllOfficeAssignees } from '@/lib/services/officeService';
 import { withAuth } from '@/lib/auth/withAuth';
 
 /**
@@ -19,14 +19,21 @@ export const POST = withAuth(async (req) => {
 
     console.log(`[Archive] Starting archival for ${month} ${year}...`);
 
-    // 2. Fetch Metadata and Metrics
+    // 2. Fetch Metadata and Metrics (SKIP ARCHIVE to ensure fresh fetch from Firestore)
     const offices = await getEffectiveOfficesForPeriod(month, year);
     const officeIds = offices.map(o => o.id);
     const officeIdToNameMap = Object.fromEntries(offices.map(o => [o.id, o.name]));
     
     console.log(`[Archive] Archiving ${officeIds.length} offices...`);
     
-    const metrics = await getDashboardMetrics(officeIds, month, year);
+    const metrics = await getDashboardMetrics(officeIds, month, year, true);
+    
+    // 2.5 Attach Personnel In-Charge to Metrics for historical preservation
+    const assigneeMap = await getAllOfficeAssignees();
+    const metricsWithPersonnel = metrics.map(m => ({
+      ...m,
+      fullname: (assigneeMap.get(m.department) || "__________________________").toUpperCase()
+    }));
 
     // 3. Fetch Raw Responses Data
     const monthMap: Record<string, string> = {
@@ -69,7 +76,7 @@ export const POST = withAuth(async (req) => {
     const metricsPath = `archives/${year}/${month}/metrics.json`;
     const responsesPath = `archives/${year}/${month}/responses.json`;
 
-    await bucket.file(metricsPath).save(JSON.stringify(metrics || [], null, 2), {
+    await bucket.file(metricsPath).save(JSON.stringify(metricsWithPersonnel || [], null, 2), {
       contentType: 'application/json',
       metadata: { cacheControl: 'public, max-age=31536000' }
     });
@@ -85,7 +92,7 @@ export const POST = withAuth(async (req) => {
       metricsPath,
       responsesPath,
       counts: {
-        officesArchived: metrics?.length || 0,
+        officesArchived: metricsWithPersonnel?.length || 0,
         rawResponses: responses?.length || 0
       }
     });

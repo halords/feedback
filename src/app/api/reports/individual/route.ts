@@ -1,5 +1,5 @@
 import { getDashboardMetrics } from "@/lib/services/metricsService";
-import { getOfficeAssignee } from "@/lib/services/officeService";
+import { getOfficeAssignee, getAllOffices } from "@/lib/services/officeService";
 import { generateIndividualReport, ReportData } from "@/lib/reports/pdfGenerator";
 import { withAuth } from "@/lib/auth/withAuth";
 
@@ -19,21 +19,28 @@ export const GET = withAuth(async (request, context, user, scopedOffices) => {
       return new Response("Missing parameters", { status: 400 });
     }
 
-    // Verify user has access to this specific office
-    if (!(scopedOffices || []).includes(office)) {
+    // 1. Fetch metadata to resolve acronyms to Doc IDs
+    const allOffices = await getAllOffices(true);
+    const resolvedOffice = allOffices.find(o => o.id === office || o.name === office);
+    const lookupId = resolvedOffice ? resolvedOffice.id : office;
+
+    // 2. Verify user has access (handle ["ALL"] for Superadmins)
+    const canAccess = (scopedOffices || []).includes("ALL") || (scopedOffices || []).includes(lookupId) || (scopedOffices || []).includes(office);
+    
+    if (!canAccess) {
       return new Response("Forbidden: You do not have access to this office", { status: 403 });
     }
 
-    // 1. Fetch metrics for this specific office
-    const metrics = await getDashboardMetrics([office], month, year);
+    // 3. Fetch metrics for this specific office
+    const metrics = await getDashboardMetrics([lookupId], month, year);
     if (!metrics || metrics.length === 0) {
       return new Response("No data found for this office", { status: 404 });
     }
 
-    // 2. Fetch assignee name from Firestore
-    const assigneeName = (await getOfficeAssignee(office)).toUpperCase();
-
     const data = metrics[0];
+
+    // 4. Resolve assignee name: Archive has priority, then live lookup
+    const assigneeName = (data.fullname || await getOfficeAssignee(lookupId)).toUpperCase();
 
     // 3. Map DashboardMetrics to ReportData
     const reportData: ReportData = {

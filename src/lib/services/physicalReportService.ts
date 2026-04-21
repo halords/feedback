@@ -37,21 +37,13 @@ export async function getAllPhysicalReports(month?: string | null, year?: string
   let query: any = db.collection("physical_report").orderBy("FOR_THE_MONTH_OF", "desc");
   
   if (month && year) {
-    const monthMap: Record<string, string> = {
-      'January': '01', 'February': '02', 'March': '03', 'April': '04',
-      'May': '05', 'June': '06', 'July': '07', 'August': '08',
-      'September': '09', 'October': '10', 'November': '11', 'December': '12'
-    };
-    const periodIso = `${year}-${monthMap[month]}`;
-    query = db.collection("physical_report")
-      .where("period_iso", "==", periodIso)
-      .orderBy("period_iso", "desc");
+    const monthYearLabel = `${month} ${year}`;
+    query = db.collection("physical_report").where("FOR_THE_MONTH_OF", "==", monthYearLabel);
   } else if (year) {
-    // Range query for the whole year
+    // Basic prefix matching for year
     query = db.collection("physical_report")
-      .where("period_iso", ">=", `${year}-01`)
-      .where("period_iso", "<=", `${year}-12`)
-      .orderBy("period_iso", "desc");
+      .where("FOR_THE_MONTH_OF", ">=", `${year}`)
+      .where("FOR_THE_MONTH_OF", "<=", `${year}\uf8ff`);
   }
 
   const snapshot = await query.get();

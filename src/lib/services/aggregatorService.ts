@@ -131,11 +131,18 @@ export function aggregateSatelliteResults(data: any[]): any[] {
       
       for (let i = 0; i <= 9; i++) {
         const qKey = `Q${i}`;
-        if (item[qKey]) {
-          if (!existing[qKey]) existing[qKey] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-          for (let s = 1; s <= 5; s++) {
-             existing[qKey][s] = (existing[qKey][s] || 0) + (item[qKey][s] || 0);
+        const sourceQ = item.qValues ? item.qValues[qKey] : item[qKey];
+        if (sourceQ) {
+          if (!existing.qValues) existing.qValues = {};
+          if (!existing.qValues[qKey]) {
+            existing.qValues[qKey] = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, NA: 0 };
           }
+          
+          // Sum all possible score points including NA
+          ['1', '2', '3', '4', '5', 'NA'].forEach(score => {
+            const val = sourceQ[score] || 0;
+            existing.qValues[qKey][score] = (existing.qValues[qKey][score] || 0) + val;
+          });
         }
       }
     }

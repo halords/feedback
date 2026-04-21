@@ -12,7 +12,9 @@ import {
 import { clsx } from "clsx";
 
 export function SummaryView() {
-  const { data, isLoading } = useAnalytics();
+  const { data, isLoading, isValidating } = useAnalytics();
+
+  const isActuallyLoading = isLoading || (isValidating && !data);
 
   const displayData = data || [];
 
@@ -46,7 +48,7 @@ export function SummaryView() {
     };
   }, [displayData]);
 
-  if (isLoading && !data) {
+  if (isActuallyLoading) {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -67,7 +69,7 @@ export function SummaryView() {
   }
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className={clsx("space-y-6 pb-20 transition-opacity duration-300", isValidating && "opacity-50 pointer-events-none")}>
       {/* Reduced Height Highlights */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <HighlightCard

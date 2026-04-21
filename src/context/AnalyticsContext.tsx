@@ -16,6 +16,8 @@ interface AnalyticsContextType {
   isGraphsReady: boolean;
   setIsGraphsReady: (ready: boolean) => void;
   selectedUserId: string | null;
+  targetOffices: string[];
+  availablePersonnel: string[];
 }
 
 const AnalyticsContext = createContext<AnalyticsContextType | undefined>(undefined);
@@ -92,23 +94,11 @@ export function AnalyticsProvider({ children, activeTab = "data" }: { children: 
     }
 
     const isSuper = user.user_type?.toLowerCase() === "superadmin";
-
-    // Superadmin Data View: Targeted / On-demand
-    if (isSuper) {
-      if (selectedUserId === "ALL_OFFICES") {
-        return ["ALL"];
-      }
-      if (selectedUserId && Array.isArray(users)) {
-        const selectedUser = users.find(u => u.idno === selectedUserId);
-        return selectedUser?.officeAssignments || [];
-      }
-      // Zero load by default for Superadmin in Data tab to save reads
-      return [];
-    }
+    if (isSuper) return ["ALL"];
 
     // Office Admin Data View: Their assigned scope
     return user.offices && user.offices.length > 0 ? user.offices : ["NONE_ASSIGNED"];
-  }, [user, activeTab, selectedUserId, users]);
+  }, [user, activeTab]);
 
   const swrKey = targetOffices.length > 0 ? ["/api/dashboard", targetOffices, month, year] : null;
 
@@ -119,11 +109,27 @@ export function AnalyticsProvider({ children, activeTab = "data" }: { children: 
     }
   }, [activeTab, targetOffices, month, year]);
 
-  const { data, error, isLoading, isValidating } = useSWR(
+  const { data: rawData, error, isLoading, isValidating } = useSWR(
     swrKey,
     ([url, off, m, y]: [string, string[], string, string]) => fetcher(url, { offices: off, month: m, year: y }),
     { revalidateOnFocus: false }
   );
+
+  const availablePersonnel = useMemo(() => {
+    if (!Array.isArray(rawData)) return [];
+    const names = rawData
+      .map((item: any) => item.fullname)
+      .filter((name): name is string => !!name && typeof name === 'string');
+    return Array.from(new Set(names)).sort();
+  }, [rawData]);
+
+  const data = useMemo(() => {
+    if (!Array.isArray(rawData)) return rawData;
+    if (isSuperadmin && selectedUserId && selectedUserId !== "ALL_OFFICES") {
+      return rawData.filter((item: any) => item.fullname === selectedUserId);
+    }
+    return rawData;
+  }, [rawData, isSuperadmin, selectedUserId]);
 
   const value = useMemo(() => ({
     month,
@@ -136,8 +142,10 @@ export function AnalyticsProvider({ children, activeTab = "data" }: { children: 
     error,
     isGraphsReady,
     setIsGraphsReady,
-    selectedUserId
-  }), [month, year, search, data, isLoading, isValidating, error, isGraphsReady, selectedUserId]);
+    selectedUserId,
+    targetOffices,
+    availablePersonnel
+  }), [month, year, search, data, isLoading, isValidating, error, isGraphsReady, selectedUserId, targetOffices, availablePersonnel]);
 
   return (
     <AnalyticsContext.Provider value={value}>

@@ -17,13 +17,13 @@ export async function getAllOffices(includeDisabled = false): Promise<Office[]> 
     const data = doc.data();
     const status = data.status || "active";
     
-    // Strictly return only active offices
-    if (status === "active") {
+    // Return based on inclusion flag
+    if (includeDisabled || status === "active") {
       offices.push({
         id: doc.id,
         name: data.name || data.Office || doc.id,
         fullName: data.fullName || data.name || "",
-        status: "active",
+        status: status as "active" | "disabled",
         updatedAt: data.updatedAt
       });
     }
@@ -99,18 +99,29 @@ async function cleanupDisabledOfficeAssignments(officeId: string) {
 
 export async function getOfficeAssignee(officeId: string): Promise<string> {
   try {
+    const allOffices = await getAllOffices(true);
+    const resolvedOffice = allOffices.find(o => o.id === officeId || o.name === officeId);
+    const lookupId = resolvedOffice ? resolvedOffice.id : officeId;
+
     // 1. Look up office_assignment
     const assignmentSnapshot = await db
       .collection("office_assignment")
-      .where("officeId", "==", officeId)
+      .where("officeId", "==", lookupId)
       .limit(1)
       .get();
 
     if (assignmentSnapshot.empty) {
+      // Satellite Fallback: If "PTO-Assessor", try "PTO"
+      if (officeId.includes("-")) {
+        const parentId = officeId.split("-")[0];
+        console.log(`[OfficeService] No assignment for ${officeId}, falling back to parent ${parentId}`);
+        return getOfficeAssignee(parentId);
+      }
       return "__________________________"; // Default placeholder if no assignment
     }
 
-    const idno = assignmentSnapshot.docs[0].data().idno;
+    const idno = String(assignmentSnapshot.docs[0].data().idno || "");
+    if (!idno) return "__________________________";
 
     // 2. Look up user profile by idno in 'user_data' collection
     const profileQuery = await db.collection("user_data")
@@ -119,52 +130,46 @@ export async function getOfficeAssignee(officeId: string): Promise<string> {
       .get();
     
     if (!profileQuery.empty) {
-      return profileQuery.docs[0].data().full_name?.toUpperCase() || "__________________________";
+      const data = profileQuery.docs[0].data();
+      return (data.full_name || data.fullName || "__________________________").toUpperCase();
     }
-
-    // Fallback: Check 'users' collection for legacy data
-    const userDoc = await db.collection("users").doc(String(idno)).get();
-    if (userDoc.exists && userDoc.data()?.fullName) {
-      return userDoc.data()?.fullName.toUpperCase();
-    }
-
-    return "__________________________";
   } catch (error) {
     console.error(`Error fetching assignee for ${officeId}:`, error);
     return "__________________________";
   }
 }
 
-
-let assigneeCache: Map<string, string> | null = null;
-let lastCacheFetch = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
+/**
+ * Optimized fetch for all office assignees.
+ * Explicitly maps personnel from 'user_data' via 'office_assignment'.
+ */
 export async function getAllOfficeAssignees(): Promise<Map<string, string>> {
-  const now = Date.now();
-  if (assigneeCache && (now - lastCacheFetch < CACHE_TTL)) {
-    console.log("[OfficeService] Returning cached assignee map");
-    return new Map(assigneeCache);
-  }
-
   const result = new Map<string, string>();
   try {
     const assignments = await db.collection("office_assignment").get();
     const userIds = new Set<string>();
-    const assignmentMap: Record<string, string> = {};
+    const assignmentMap: Record<string, string[]> = {};
 
     assignments.forEach(doc => {
       const data = doc.data();
-      if (data.officeId && data.idno) {
-        assignmentMap[data.officeId] = String(data.idno);
-        userIds.add(String(data.idno));
+      const targetId = data.officeId || data.office;
+      const idno = String(data.idno || "");
+      
+      if (targetId && idno) {
+        if (!assignmentMap[idno]) assignmentMap[idno] = [];
+        assignmentMap[idno].push(targetId);
+        userIds.add(idno);
       }
     });
 
     if (userIds.size === 0) return result;
 
-    // 2. Fetch profiles from 'user_data' in chunks of 30
-    const idList = Array.from(userIds);
+    // 2. Fetch profiles and all offices for mapping
+    const [idList, allOffices] = await Promise.all([
+        Array.from(userIds),
+        getAllOffices(true)
+    ]);
+
     const CHUNK_SIZE = 30;
     for (let i = 0; i < idList.length; i += CHUNK_SIZE) {
       const chunk = idList.slice(i, i + CHUNK_SIZE);
@@ -174,20 +179,35 @@ export async function getAllOfficeAssignees(): Promise<Map<string, string>> {
       
       profileSnapshot.forEach(doc => {
         const data = doc.data();
-        if (data.idnumber && data.full_name) {
-          // Find which offices are assigned to this idno
-          Object.entries(assignmentMap).forEach(([off, id]) => {
-            if (id === String(data.idnumber)) {
-              result.set(off, data.full_name.toUpperCase());
+        const id = String(data.idnumber || "");
+        const name = (data.full_name || data.fullName || "").toUpperCase();
+        
+        if (id && name) {
+          const matchedIds = assignmentMap[id] || [];
+          matchedIds.forEach(mId => {
+            // Map the Doc ID
+            result.set(mId, name);
+            
+            // Map the Acronym too for compatibility
+            const office = allOffices.find(o => o.id === mId || o.name === mId);
+            if (office) {
+              result.set(office.name, name);
+              
+              // Handle satellite fallbacks in the map
+              if (office.name === "PHO") {
+                result.set("PHO-Clinic", name);
+                result.set("PHO-Warehouse", name);
+              } else if (office.name === "PTO") {
+                result.set("PTO-Cash", name);
+                result.set("PTO-Assessor", name);
+              }
             }
           });
         }
       });
     }
 
-    assigneeCache = new Map(result);
-    lastCacheFetch = Date.now();
-
+    console.log(`[OfficeService] Resolved ${result.size} office/ID assignees`);
     return result;
   } catch (error) {
     console.error("Error fetching all assignees:", error);
@@ -219,6 +239,26 @@ export async function getEffectiveOfficesForPeriod(month: string, year: string):
 
     // 3. Keep only active offices
     const result = offices.filter(o => o.status === "active");
+
+    // 4. Inject Satellite Offices as Independent Entities if not already present
+    // This allows them to be archived and reported on individually even if not in the main 'offices' collection
+    const SATELLITE_NAMES: Record<string, string[]> = {
+      PHO: ["PHO-Clinic", "PHO-Warehouse"],
+      PTO: ["PTO-Cash", "PTO-Assessor"],
+    };
+
+    const existingIds = new Set(result.map(o => o.id.toUpperCase()));
+    
+    Object.values(SATELLITE_NAMES).flat().forEach(satelliteId => {
+      if (!existingIds.has(satelliteId.toUpperCase())) {
+        result.push({
+          id: satelliteId,
+          name: satelliteId,
+          fullName: satelliteId.replace(/-/g, ' '),
+          status: "active"
+        });
+      }
+    });
 
     return result.sort((a, b) => a.name.localeCompare(b.name));
   } catch (error) {

@@ -80,8 +80,8 @@ export async function POST(request: Request) {
       requiresPasswordChange: sessionUser.requiresPasswordChange
     });
 
-    // 6. Create Firebase Session Cookie (7 days)
-    const expiresIn = 60 * 60 * 24 * 7 * 1000;
+    // 6. Create Firebase Session Cookie (10 hours)
+    const expiresIn = 10 * 60 * 60 * 1000;
     const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
 
     // 7. Build response and set cookie

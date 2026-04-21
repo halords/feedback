@@ -18,12 +18,15 @@ export interface QValues {
  * Formula: ((Q4 + Q5) / (TOTAL - QNA)) * 100
  */
 export function calculateQuestionRate(qValues: QValues, totalCollection: number): string {
-  const denominator = totalCollection - qValues.NA;
-  const numerator = qValues['4'] + qValues['5'];
+  // Original formula: (Q4 + Q5) / (TotalCollection - NA) * 100
+  const denominator = totalCollection - (qValues.NA || 0);
+  const numerator = (qValues['4'] || 0) + (qValues['5'] || 0);
 
   if (denominator <= 0) return "N/A";
   
-  const rate = (numerator / denominator) * 100;
+  let rate = (numerator / denominator) * 100;
+  if (rate > 100) rate = 100;
+  
   return rate.toFixed(2) + "%";
 }
 

@@ -1,5 +1,6 @@
 import { db, admin } from "@/lib/firebase/admin";
 import { getAllOffices } from "./officeService";
+import { ensureArray } from "@/lib/utils/parsingUtils";
 
 export interface ManagedComment {
   id: string;
@@ -73,7 +74,8 @@ export async function syncComments(force = false) {
   const physicalTargetIds: string[] = [];
   physicalSnapshot.docs.forEach(doc => {
     const data = doc.data();
-    const count = (data.COMMENTS || []).length;
+    const commentsList = ensureArray(data.COMMENTS);
+    const count = commentsList.length;
     for (let i = 0; i < count; i++) physicalTargetIds.push(`physical_report_${doc.id}_${i}`);
   });
 
@@ -90,12 +92,18 @@ export async function syncComments(force = false) {
   // 3. Process Responses
   for (const doc of responsesSnapshot.docs) {
     const data = doc.data();
-    const office = data.Office || "Unknown";
-    
-    // Skip if office is disabled (NEW)
-    if (!activeOfficeNames.has(office)) continue;
+    // Match using ID, Name, or Full Name to ensure canonical ID is used
+    const rawOfficeSearch = (data.Office || data.officeId || "").trim().toLowerCase();
+    const canonical = activeOffices.find(o => 
+      o.id.toLowerCase() === rawOfficeSearch || 
+      o.name.toLowerCase() === rawOfficeSearch || 
+      (o.fullName && o.fullName.toLowerCase() === rawOfficeSearch)
+    );
 
-    const managedId = `Responses_${doc.id}`;
+    // Skip if office not found or disabled
+    if (!canonical) continue;
+    const office = canonical.id; 
+    const managedId = `response_${doc.id}`;
     const ref = db.collection("comment_management").doc(managedId);
     const exists = existingMap.get(managedId);
 
@@ -106,7 +114,7 @@ export async function syncComments(force = false) {
       sentiment: data.Class,
       office: office,
       month: getMonthLabel(data.Date),
-      date: data.Date ? new Date(data.Date) : new Date(),
+      date: data.Date ? (data.Date.toDate ? data.Date.toDate() : new Date(data.Date)) : new Date(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
@@ -134,18 +142,26 @@ export async function syncComments(force = false) {
   // 4. Process Physical Reports
   for (const doc of physicalSnapshot.docs) {
     const data = doc.data();
-    const office = data.DEPARTMENT || "Unknown";
+    // Match using ID, Name, or Full Name to ensure legacy data maps correctly
+    const rawOfficeSearch = (data.DEPARTMENT || data.officeId || "").trim().toLowerCase();
+    const canonical = activeOffices.find(o => 
+      o.id.toLowerCase() === rawOfficeSearch || 
+      o.name.toLowerCase() === rawOfficeSearch || 
+      (o.fullName && o.fullName.toLowerCase() === rawOfficeSearch)
+    );
 
-    // Skip if office is disabled (NEW)
-    if (!activeOfficeNames.has(office)) continue;
+    // Skip if office not found or disabled
+    if (!canonical) continue;
+    const office = canonical.id; 
 
-    const comments = data.COMMENTS || [];
-    const classes = data.CLASSIFY || [];
+    const comments = ensureArray(data.COMMENTS, true);
+    const classes = ensureArray(data.CLASSIFY);
     const reportMonth = getMonthLabel(data.DATE_COLLECTED, data);
 
     for (let index = 0; index < comments.length; index++) {
-      const sentiment = classes[index];
-      if (!["Positive", "Negative", "Suggestion"].includes(sentiment)) continue;
+      const sentiment = (classes[index] || "").trim();
+      const normalizedSentiment = sentiment.charAt(0).toUpperCase() + sentiment.slice(1).toLowerCase();
+      if (!["Positive", "Negative", "Suggestion"].includes(normalizedSentiment)) continue;
 
       const managedId = `physical_report_${doc.id}_${index}`;
       const ref = db.collection("comment_management").doc(managedId);
@@ -158,7 +174,7 @@ export async function syncComments(force = false) {
         sentiment: sentiment,
         office: office,
         month: reportMonth,
-        date: data.DATE_COLLECTED ? new Date(data.DATE_COLLECTED) : new Date(),
+        date: data.DATE_COLLECTED ? (data.DATE_COLLECTED.toDate ? data.DATE_COLLECTED.toDate() : new Date(data.DATE_COLLECTED)) : new Date(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
 
@@ -218,10 +234,16 @@ export async function upsertManagedComment(
     return;
   }
 
-  const commentText = sourceCollection === "Responses" ? data.Comment : data.COMMENTS?.[index!];
-  const sentiment = sourceCollection === "Responses" ? data.Class : data.CLASSIFY?.[index!];
+  const commentText = sourceCollection === "Responses" 
+    ? data.Comment 
+    : ensureArray(data.COMMENTS, true)[index!];
+  const sentiment = sourceCollection === "Responses" 
+    ? data.Class 
+    : ensureArray(data.CLASSIFY)[index!];
   
-  if (!["Positive", "Negative", "Suggestion"].includes(sentiment)) {
+  const normalizedSentiment = (sentiment || "").trim().charAt(0).toUpperCase() + (sentiment || "").trim().slice(1).toLowerCase();
+  
+  if (!["Positive", "Negative", "Suggestion"].includes(normalizedSentiment)) {
     if (existing.exists) await ref.delete();
     return;
   }
