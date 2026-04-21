@@ -1,12 +1,14 @@
 # STATE.md
 
 ## Current Position
-- **Phase**: 2 (completed)
-- **Task**: All tasks complete
-- **Status**: Verified
-
-## Last Session Summary
-Phase 2 executed successfully. Personnel filtering is now dynamic and based on archive content. Superadmin global view is optimized with client-side filtering.
+- **Phase**: 3
+- **Task**: Planning complete
+- **Status**: Ready for execution
 
 ## Next Steps
-1. /plan 3 — Create execution plan for Phase 3: Individual PDF Generation & Metadata
+1. /execute 3 — Run Plan 3.1 to fix PDF metadata and individual report generation.
+
+## Key Constraints
+- Superadmin must have access to all office data.
+- "Personnel in-charge" must be accurately resolved from office document IDs, including archived ones.
+- Signature rendering must be consistent across all generated reports.
