@@ -1,48 +1,44 @@
-import admin from 'firebase-admin';
+import * as admin from 'firebase-admin';
+import { getApps, initializeApp, cert, getApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
+import { getStorage } from 'firebase-admin/storage';
 
-// Use a singleton pattern to prevent multiple initializations
-const initializeAdmin = () => {
-  if (admin.apps.length > 0) return admin.app();
+const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'fir-7db1b';
 
-  try {
-    const isEmulator = process.env.FIRESTORE_EMULATOR_HOST || process.env.FIREBASE_AUTH_EMULATOR_HOST;
+if (!getApps().length) {
     const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'fir-7db1b';
+    const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${projectId}.firebasestorage.app`;
 
-    if (isEmulator) {
-      return admin.initializeApp({ 
-        projectId,
-        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-      });
-    } else if (serviceAccountJson) {
-      const serviceAccount = JSON.parse(serviceAccountJson);
-      if (serviceAccount.private_key) {
-        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-      }
-      return admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        projectId: serviceAccount.project_id || projectId,
-        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-      });
-
+    if (serviceAccountJson && serviceAccountJson.length > 20) {
+        try {
+            const serviceAccount = JSON.parse(serviceAccountJson);
+            if (serviceAccount.private_key) {
+                serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+            }
+            initializeApp({
+                credential: cert(serviceAccount),
+                projectId: serviceAccount.project_id || projectId,
+                storageBucket,
+            });
+        } catch (e) {
+            console.error("❌ Firebase Admin init error (Service Account):", e);
+            initializeApp({ projectId, storageBucket });
+        }
     } else {
-      // In Production, Firebase Admin initializes automatically via environment auth
-      return admin.initializeApp({
-        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-      });
+        // Use Application Default Credentials (Standard for Cloud Functions)
+        initializeApp({
+            projectId,
+            storageBucket,
+        });
     }
-  } catch (err: any) {
-    if (!/already exists/.test(err.message)) {
-      console.error('❌ Firebase Admin init error:', err.message);
-    }
-    return admin.app();
-  }
-};
+}
 
-const app = initializeAdmin();
-export const db = app.firestore();
-export const auth = app.auth();
-export const storage = app.storage();
+// These are exported as singletons
+const app = getApp();
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+export const storage = getStorage(app);
 export { admin };
 
 
