@@ -78,7 +78,7 @@ export function ArchiveOverrideModal({ isOpen, onClose, onSuccess }: ArchiveOver
         <div className="flex gap-3 pt-2">
           <Button 
             type="button" 
-            variant="ghost" 
+            variant="secondary" 
             onClick={onClose} 
             className="flex-1 rounded-xl font-bold h-12"
           >

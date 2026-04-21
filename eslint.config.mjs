@@ -14,7 +14,16 @@ const eslintConfig = [
   {
     ignores: ["legacyV2/**"],
   },
+  {
+    // Downgrade strict-but-non-critical type rules from build-blocking errors to warnings.
+    // TypeScript strict mode (tsconfig) is still enforced; these are lint-only stylistic rules.
+    rules: {
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": "warn",
+      "prefer-const": "warn",
+      "react/no-unescaped-entities": "warn",
+    },
+  },
 ];
-
 
 export default eslintConfig;

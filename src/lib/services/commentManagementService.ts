@@ -57,10 +57,10 @@ export async function syncComments(force = false) {
   for (const period of syncPeriods) {
     const monthYearLabel = `${period.month} ${period.year}`;
     const archivePath = `archives/${period.year}/${period.month}/metrics.json`;
-    const archiveData = await getJsonArchive<DashboardMetrics[]>(archivePath);
+    const archiveData = await getJsonArchive(archivePath) as DashboardMetrics[];
     
     const existingSnap = await db.collection("comment_management").where("month", "==", monthYearLabel).get();
-    const existingDocs = existingSnap.docs.map(d => ({ id: d.id, ...d.data() as ManagedComment }));
+    const existingDocs = existingSnap.docs.map(d => ({ ...(d.data() as ManagedComment), id: d.id }));
     const claimedDocIds = new Set<string>();
 
     if (archiveData) {
@@ -238,7 +238,7 @@ export async function getCommentAnalytics(year: string) {
     .where("date", "<=", endOfYear)
     .get();
 
-  const allDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() as ManagedComment }));
+  const allDocs = snapshot.docs.map(d => ({ ...(d.data() as ManagedComment), id: d.id }));
 
   const monthlyData = months.map(m => ({
     month: m,
@@ -249,7 +249,7 @@ export async function getCommentAnalytics(year: string) {
     positive: 0
   }));
 
-  const officeStats: Record<string, { negative: number; resolved: number; total: number }> = {};
+  const officeStats: Record<string, { negative: number; resolved: number; suggestion: number; resolvedSuggestion: number; total: number }> = {};
   const commentPatterns: Record<string, { text: string; count: number; offices: Set<string> }> = {};
 
   allDocs.forEach(doc => {
@@ -258,6 +258,7 @@ export async function getCommentAnalytics(year: string) {
     if (monthIdx === -1) return;
 
     const data = monthlyData[monthIdx];
+    if (!data) return;
     const sentiment = doc.sentiment;
     const isResolved = doc.status === "Resolved";
     const officeId = (doc.office || "").toLowerCase();
@@ -275,11 +276,14 @@ export async function getCommentAnalytics(year: string) {
     }
 
     // Track office stats
-    if (!officeStats[officeName]) officeStats[officeName] = { negative: 0, resolved: 0, total: 0 };
+    if (!officeStats[officeName]) officeStats[officeName] = { negative: 0, resolved: 0, suggestion: 0, resolvedSuggestion: 0, total: 0 };
     officeStats[officeName].total++;
     if (sentiment === "Negative") {
       officeStats[officeName].negative++;
       if (isResolved) officeStats[officeName].resolved++;
+    } else if (sentiment === "Suggestion") {
+      officeStats[officeName].suggestion++;
+      if (isResolved) officeStats[officeName].resolvedSuggestion++;
     }
 
     // Track comment patterns (Repetitive comments) - Only for Negative
@@ -328,7 +332,14 @@ export async function getCommentAnalytics(year: string) {
       totalResolved: yearlyStats.resolvedNegative + yearlyStats.resolvedSuggestions
     },
     topOffices,
-    allOffices: Object.keys(officeStats).sort(),
+    allOffices: Object.entries(officeStats)
+      .sort((a, b) => {
+        const combinedA = a[1].negative + a[1].suggestion;
+        const combinedB = b[1].negative + b[1].suggestion;
+        if (combinedB !== combinedA) return combinedB - combinedA;
+        return a[0].localeCompare(b[0]);
+      })
+      .map(entry => entry[0]),
     repetitiveComments
   };
 }
@@ -349,7 +360,7 @@ export async function getOfficeAnalytics(year: string, officeName: string) {
     .where("date", "<=", endOfYear)
     .get();
 
-  const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() as ManagedComment }));
+  const docs = snapshot.docs.map(d => ({ ...(d.data() as ManagedComment), id: d.id }));
 
   const monthlyData = months.map(m => ({
     month: m,
@@ -368,6 +379,7 @@ export async function getOfficeAnalytics(year: string, officeName: string) {
     if (monthIdx === -1) return;
 
     const data = monthlyData[monthIdx];
+    if (!data) return;
     const sentiment = doc.sentiment;
     const isResolved = doc.status === "Resolved";
 

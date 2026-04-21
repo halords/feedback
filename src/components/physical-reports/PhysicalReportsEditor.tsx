@@ -685,7 +685,7 @@ function ReportForm({ report, onClose, onSaveSuccess, isArchived }: { report: an
              <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h4 className="text-[10px] font-black uppercase tracking-widest text-on-surface/40">Raw Comments List ({formData.COMMENTS.length})</h4>
-                  <Button variant="ghost" size="sm" onClick={() => {
+                  <Button variant="secondary" onClick={() => {
                     const newComments = [...formData.COMMENTS, ""];
                     const newClassify = [...formData.CLASSIFY, "Positive"];
                     setFormData({ ...formData, COMMENTS: newComments, CLASSIFY: newClassify });
@@ -756,7 +756,7 @@ function ReportForm({ report, onClose, onSaveSuccess, isArchived }: { report: an
             </div>
          </div>
          <div className="flex gap-3">
-           <Button variant="ghost" onClick={onClose} disabled={isSaving} className="rounded-xl px-6 font-bold">Cancel</Button>
+           <Button variant="secondary" onClick={onClose} disabled={isSaving} className="rounded-xl px-6 font-bold">Cancel</Button>
            <Button onClick={handleSave} disabled={isSaving || isArchived} className="rounded-xl px-8 flex items-center gap-2 shadow-lg shadow-primary/20">
              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
              {isArchived ? "Archived (Read Only)" : "Save Changes"}

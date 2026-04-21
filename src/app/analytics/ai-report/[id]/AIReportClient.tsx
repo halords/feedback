@@ -64,20 +64,11 @@ export function AIReportClient({ report }: AIReportClientProps) {
     }
   }, [user, authLoading, router]);
 
-  if (authLoading || !user || user.user_type?.toLowerCase() !== "superadmin") {
-    return (
-      <Shell>
-        <div className="h-[60vh] flex items-center justify-center">
-           <p className="text-on-surface/40 font-black uppercase tracking-widest animate-pulse">Checking Permissions...</p>
-        </div>
-      </Shell>
-    );
-  }
-
-  const formatMetric = (val: any) => {
+  // All hooks MUST be declared before any conditional returns (Rules of Hooks)
+  const formatMetric = (val: unknown) => {
     if (val === null || val === undefined || val === 0 || val === "NA" || val === "N/A") return "N/A";
     if (typeof val === 'number') return val.toFixed(1) + "%";
-    return val;
+    return String(val);
   };
 
   const satisfactionData = useMemo(() => ({
@@ -113,6 +104,16 @@ export function AIReportClient({ report }: AIReportClientProps) {
       }
     ]
   }), [content]);
+
+  if (authLoading || !user || user.user_type?.toLowerCase() !== "superadmin") {
+    return (
+      <Shell>
+        <div className="h-[60vh] flex items-center justify-center">
+           <p className="text-on-surface/40 font-black uppercase tracking-widest animate-pulse">Checking Permissions...</p>
+        </div>
+      </Shell>
+    );
+  }
 
   const chartOptions = {
     responsive: true,

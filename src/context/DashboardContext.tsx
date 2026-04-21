@@ -109,7 +109,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     const targetM = newMonth || month;
 
     // Boundary check for current month/year
-    if (parseInt(targetY) === currentY) {
+    if (parseInt(targetY) === parseInt(currentY)) {
       const monthsArr = [
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
@@ -140,7 +140,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   // Ensure baseline and future dates are corrected
   useEffect(() => {
-    if (parseInt(year) > currentY) {
+    if (parseInt(year) > parseInt(currentY)) {
       setFilters({ year: currentY.toString() });
     }
     if (parseInt(year) < 2025) {

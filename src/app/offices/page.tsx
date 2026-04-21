@@ -176,7 +176,6 @@ export default function OfficesPage() {
                 </select>
                 <Button 
                     onClick={handleOpenAdd} 
-                    size="sm"
                     className="bg-primary text-white shadow-lg shadow-primary/10 h-9 px-6 min-w-[140px] flex-shrink-0 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
@@ -323,8 +322,8 @@ export default function OfficesPage() {
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-6 mt-4 border-t border-on-surface/5">
-            <Button variant="ghost" size="sm" onClick={() => setIsModalOpen(false)} disabled={isSubmitting}>Cancel</Button>
-            <Button size="sm" type="submit" className="bg-primary text-white" disabled={isSubmitting}>
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)} disabled={isSubmitting}>Cancel</Button>
+            <Button type="submit" className="bg-primary text-white" disabled={isSubmitting}>
               {isSubmitting ? "Processing..." : editingOffice ? "Save Changes" : "Finalize Registration"}
             </Button>
           </div>

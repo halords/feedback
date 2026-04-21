@@ -60,7 +60,7 @@ next-env.d.ts
 .agent/
 .agents/
 .continue/
-!.gsd/
+
 .gsdV2/
 .gsd-previous/
 .firebase/
@@ -72,26 +72,33 @@ artifacts/
 
 # Reference Folders (Not needed in production)
 /legacy/
+/legacyV2/
 /UI_reference/
+/color-pallete/
+
+# Internal Docs & Runbooks (not production code)
+/docs/
+
+# AI Adapter Context Files (not production code)
+/adapters/
+
+# Admin & Migration Scripts (internal ops, not production)
+/scripts/
 
 # Generic root file dumps & sensitive data
 /*.txt
 /*.csv
 /negative_comments.json
 /inspect-pr.js
-/legacyV2/
 /*.log
 /*.swp
 
-# Specific Audit/Debug Scripts
-/inspect-pr.js
+# Root-level Debug Scripts
 /debug-*.js
+
 # Documentation & Markdown
-# Ignore all markdown files by default
+# Ignore all markdown files
 *.md
-# ... but whitelist only the core readme and .gsd files
-!README.md
-!.gsd/**/*.md
 
 
 # Infrastructure

@@ -48,6 +48,14 @@ export const GET = withAuth(async (request, context, user, scopedOffices) => {
     // Filter and Sort
     let activeMetrics = allMetrics.filter(m => m.collection > 0);
     
+    const userId = searchParams.get("userId");
+    if (userId) {
+      activeMetrics = activeMetrics.filter(m => {
+        const assignee = m.fullname || assigneeMap.get(m.department) || "";
+        return assignee === userId;
+      });
+    }
+    
     if (search) {
       const s = search.toLowerCase();
       activeMetrics = activeMetrics.filter(m => 

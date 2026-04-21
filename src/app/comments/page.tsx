@@ -498,7 +498,7 @@ function StatusBadge({ status }: { status: Status }) {
   );
 }
 
-function EditModal({ comment, isOpen, onClose, onSave }: { comment: Comment, isOpen: boolean, onClose: () => void, onSave: (id: string, updates: Partial<ManagedComment>) => void }) {
+function EditModal({ comment, isOpen, onClose, onSave }: { comment: Comment, isOpen: boolean, onClose: () => void, onSave: (id: string, updates: Partial<Comment>) => void }) {
   const [localValues, setLocalValues] = useState<Partial<Comment>>(comment);
   const isActionNeeded = comment.sentiment !== "Positive";
   return (

@@ -11,13 +11,33 @@ const PUBLIC_ROUTES = [
 ];
 
 export async function middleware(request: NextRequest) {
+  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+  const cspHeader = `
+    default-src 'self';
+    script-src 'self' 'nonce-${nonce}' 'unsafe-eval' https://apis.google.com https://*.firebaseapp.com;
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: https://firebasestorage.googleapis.com;
+    connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com;
+    frame-src https://*.firebaseapp.com;
+    child-src https://*.firebaseapp.com;
+  `.replace(/\s{2,}/g, ' ').trim();
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('Content-Security-Policy', cspHeader);
+
+  const applyCsp = (res: NextResponse) => {
+    res.headers.set('Content-Security-Policy', cspHeader);
+    return res;
+  };
+
   const { pathname } = request.nextUrl;
 
   // Allow public assets, Next.js internals, and whitelisted APIs to bypass
   const isPublicRoute = PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(route));
   
   if (isPublicRoute) {
-    return NextResponse.next();
+    return applyCsp(NextResponse.next({ request: { headers: requestHeaders } }));
   }
 
 const SUPERADMIN_ONLY_ROUTES = [
@@ -32,12 +52,12 @@ const SUPERADMIN_ONLY_ROUTES = [
 
   if (!token) {
     if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return applyCsp(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
     // Return unauthorized / redirect to login
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('from', pathname);
-    return NextResponse.redirect(loginUrl);
+    return applyCsp(NextResponse.redirect(loginUrl));
   }
 
   try {
@@ -51,24 +71,24 @@ const SUPERADMIN_ONLY_ROUTES = [
     const isSuperadminRoute = SUPERADMIN_ONLY_ROUTES.some(route => pathname.startsWith(route));
     if (isSuperadminRoute && userRole !== 'superadmin') {
       console.warn(`[Middleware] Access denied: User role '${userRole}' attempted to access superadmin route: ${pathname}`);
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+      return applyCsp(NextResponse.redirect(new URL('/dashboard', request.url)));
     }
 
     // 4. Enforce Access for Comments Management (Superadmin or Analytics-enabled)
     if (pathname.startsWith('/comments') && userRole !== 'superadmin' && !isAnalyticsEnabled) {
       console.warn(`[Middleware] Access denied: User '${userRole}' (Analytics: ${isAnalyticsEnabled}) attempted to access /comments`);
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+      return applyCsp(NextResponse.redirect(new URL('/dashboard', request.url)));
     }
 
     // 5. Continue if authorized
-    return NextResponse.next();
+    return applyCsp(NextResponse.next({ request: { headers: requestHeaders } }));
 
   } catch (error) {
     console.error('[Middleware] Token processing failed:', error);
     // Invalid token, force re-login
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('from', pathname);
-    return NextResponse.redirect(loginUrl);
+    return applyCsp(NextResponse.redirect(loginUrl));
   }
 }
 

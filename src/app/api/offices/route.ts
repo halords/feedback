@@ -76,7 +76,7 @@ export const PUT = withAuth(async (request) => {
       return NextResponse.json({ error: "Office ID is required" }, { status: 400 });
     }
 
-    const updateResult = await updateOffice(id, { name, fullName, status });
+    const updateResult = await updateOffice(id, { name, fullName, status: status as "active" | "disabled" | undefined });
     return NextResponse.json(updateResult);
   } catch (error: any) {
     console.error("API error updating office:", error);

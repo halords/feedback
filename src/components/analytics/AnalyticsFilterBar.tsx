@@ -104,7 +104,7 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
                 <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface/30 group-focus-within:text-primary transition-colors" />
                 <select
                   value={selectedUserId || ""}
-                  onChange={(e) => setFilters({ selectedUserId: e.target.value || null })}
+                  onChange={(e) => setFilters({ selectedUserId: e.target.value || null } as any)}
                   className="w-full h-11 bg-background/50 pl-11 pr-10 rounded-xl border border-border-strong/50 outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all text-xs font-bold appearance-none cursor-pointer"
                 >
                   <option value="">All Offices (Global)</option>
@@ -136,7 +136,7 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
         {/* AI Analysis Button - Superadmin Only */}
         {isSuperadmin && (
           <Button 
-            variant="outline" 
+            variant="secondary" 
             className={clsx(
               "h-11 px-6 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-3 whitespace-nowrap border-primary/20 text-primary bg-primary/5 hover:bg-primary/10 transition-all",
               (isAIAnalyzing || isLoading || isValidating) ? "opacity-50 cursor-not-allowed" : ""
@@ -170,6 +170,7 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
             } else {
               const params = new URLSearchParams({ month, year });
               if (search) params.set("search", search);
+              if (activeTab === "data" && selectedUserId) params.set("userId", selectedUserId);
               
               // ALWAYS pass the targetOffices from context to the bulk generator
               // This ensures the server uses the EXACT same scoping as the frontend UI

@@ -238,7 +238,7 @@ export function SavingMeasuresClient() {
                     <Button 
                       onClick={() => setIsConfirmModalOpen(true)}
                       disabled={isArchiving || isChecking}
-                      variant={status?.archived ? "outline" : "primary"}
+                      variant={status?.archived ? "secondary" : "primary"}
                       className="w-full md:w-auto px-8 h-12 rounded-xl flex items-center justify-center gap-2.5 font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-primary/10"
                     >
                       {isArchiving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileJson className="w-4 h-4" />}
@@ -360,7 +360,7 @@ export function SavingMeasuresClient() {
               Confirm and Generate
             </Button>
             <Button 
-              variant="outline" 
+              variant="secondary" 
               onClick={() => setIsConfirmModalOpen(false)}
               className="w-full h-14 rounded-xl font-black uppercase tracking-widest text-xs"
             >

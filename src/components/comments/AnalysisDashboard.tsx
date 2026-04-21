@@ -201,10 +201,10 @@ export function AnalysisDashboard({ year }: { year: string }) {
           <SkeletonCard />
           <SkeletonCard />
         </div>
-        <Card className="h-[400px] animate-pulse bg-on-surface/5" />
+        <Card className="h-[400px] animate-pulse bg-on-surface/5">{null}</Card>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card className="h-[300px] animate-pulse bg-on-surface/5" />
-          <Card className="h-[300px] animate-pulse bg-on-surface/5" />
+          <Card className="h-[300px] animate-pulse bg-on-surface/5">{null}</Card>
+          <Card className="h-[300px] animate-pulse bg-on-surface/5">{null}</Card>
         </div>
       </div>
     );
@@ -221,10 +221,10 @@ export function AnalysisDashboard({ year }: { year: string }) {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full min-w-0 max-w-full overflow-hidden">
       
       {/* Top row: Core Resolution Rates */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0">
         <MetricCard 
           title="Negative Resolution Rate" 
           subtitle="Yearly performance for critical complaints"
@@ -246,7 +246,7 @@ export function AnalysisDashboard({ year }: { year: string }) {
       </div>
 
       {/* Quick Insights Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 min-w-0">
         <QuickStat 
           label="Total Feedback" 
           value={data.overall.totalNegative + data.overall.totalSuggestions + data.monthlyData.reduce((acc, m) => acc + m.positive, 0)} 
@@ -348,7 +348,7 @@ export function AnalysisDashboard({ year }: { year: string }) {
             </table>
           </div>
         ) : (
-          <div className="h-[300px]">
+          <div className="relative w-full h-[300px]">
             {lineChartData && (
               <Line 
                 data={lineChartData} 
@@ -394,11 +394,11 @@ export function AnalysisDashboard({ year }: { year: string }) {
 
       {/* Bottom Row - Office Breakdown & Repetitive Analysis */}
       <div className={clsx(
-        "grid gap-6",
+        "grid gap-6 min-w-0",
         data.repetitiveComments.length > 0 ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"
       )}>
         {/* Top Offices */}
-        <Card className="p-8 border border-border-strong/50 shadow-xl bg-surface-low relative">
+        <Card className="p-8 border border-border-strong/50 shadow-xl bg-surface-low relative min-w-0 overflow-hidden">
           <div className="flex items-center gap-3 mb-8">
             <div className="w-10 h-10 rounded-2xl bg-red-500/5 flex items-center justify-center border border-red-500/10">
               <Building2 className="w-5 h-5 text-red-500" />
@@ -409,7 +409,7 @@ export function AnalysisDashboard({ year }: { year: string }) {
             </div>
           </div>
           
-          <div className="h-[300px]">
+          <div className="relative w-full h-[300px]">
             {officeChartData && (
               <Bar 
                 data={officeChartData}
@@ -444,7 +444,7 @@ export function AnalysisDashboard({ year }: { year: string }) {
 
         {/* Repetitive Comments */}
         {data.repetitiveComments.length > 0 && (
-          <Card className="p-8 border border-border-strong/50 shadow-xl bg-surface-low overflow-hidden relative transition-all animate-in fade-in zoom-in-95">
+          <Card className="p-8 border border-border-strong/50 shadow-xl bg-surface-low relative min-w-0 overflow-hidden custom-scrollbar">
             <div className="flex items-center gap-3 mb-8">
               <div className="w-10 h-10 rounded-2xl bg-amber-500/5 flex items-center justify-center border border-amber-500/10">
                 <MessageSquare className="w-5 h-5 text-amber-500" />
@@ -532,11 +532,11 @@ export function AnalysisDashboard({ year }: { year: string }) {
 }
 
 function OfficeSpotlight({ data, isLoading, onClose }: { data: any; isLoading: boolean; onClose: () => void }) {
-  if (isLoading) return <Card className="h-[500px] animate-pulse bg-on-surface/5" />;
+  if (isLoading) return <Card className="h-[500px] animate-pulse bg-on-surface/5">{null}</Card>;
   if (!data) return null;
 
   return (
-    <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-500">
+    <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-500 w-full min-w-0 max-w-full overflow-hidden">
       <div className="flex items-center justify-between px-2">
         <div className="flex items-center gap-4">
            <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20">
@@ -552,11 +552,11 @@ function OfficeSpotlight({ data, isLoading, onClose }: { data: any; isLoading: b
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
-           <Card className="p-8 border border-border-strong/50 shadow-xl bg-surface-low">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 min-w-0">
+        <div className="md:col-span-2 space-y-6 min-w-0">
+           <Card className="p-8 border border-border-strong/50 shadow-xl bg-surface-low min-w-0 overflow-hidden">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-on-surface/40 mb-6">Resolution Trend Per Month</h3>
-              <div className="h-[250px]">
+              <div className="relative w-full h-[250px]">
                 <Line 
                   data={{
                     labels: data.monthlyData.map((m: any) => m.month.substring(0, 3)),
@@ -586,9 +586,9 @@ function OfficeSpotlight({ data, isLoading, onClose }: { data: any; isLoading: b
               </div>
            </Card>
 
-           <Card className="p-8 border border-border-strong/50 shadow-xl bg-surface-low">
+           <Card className="p-8 border border-border-strong/50 shadow-xl bg-surface-low min-w-0 overflow-hidden">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-on-surface/40 mb-6">Volume Trend</h3>
-              <div className="h-[250px]">
+              <div className="relative w-full h-[250px]">
                 <Bar 
                   data={{
                     labels: data.monthlyData.map((m: any) => m.month.substring(0, 3)),
@@ -650,7 +650,7 @@ function OfficeSpotlight({ data, isLoading, onClose }: { data: any; isLoading: b
            </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0">
            <Card className="p-8 border border-border-strong/50 shadow-xl bg-surface-low">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-on-surface/40 mb-4">Overall Office Health</h3>
               <div className="text-center py-6">
@@ -670,7 +670,7 @@ function OfficeSpotlight({ data, isLoading, onClose }: { data: any; isLoading: b
            </Card>
 
            {data.repetitiveComplaints.length > 0 && (
-             <Card className="p-8 border border-border-strong/50 shadow-xl bg-surface-low animate-in fade-in slide-in-from-right-4">
+             <Card className="p-8 border border-border-strong/50 shadow-xl bg-surface-low">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-on-surface/40 mb-6">Top Recurring Complaints</h3>
                 <div className="space-y-4">
                    {data.repetitiveComplaints.map((pattern: any, idx: number) => (
@@ -774,11 +774,11 @@ function MetricCard({
                 ],
                 borderWidth: 0,
                 circumference: 360,
-                rotation: 0,
-                cutout: '80%'
+                rotation: 0
               }]
             }} 
             options={{ 
+              cutout: '80%',
               plugins: { 
                 tooltip: { enabled: false }, 
                 legend: { display: false },

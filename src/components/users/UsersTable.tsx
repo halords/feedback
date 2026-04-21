@@ -83,7 +83,6 @@ export default function UsersTable() {
             </select>
             <Button 
                 onClick={() => setIsAddModalOpen(true)} 
-                size="sm"
                 className="bg-primary text-white shadow-lg shadow-primary/10 h-10 px-8 min-w-[170px] flex-shrink-0 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
             >
               <UserPlus className="w-3.5 h-3.5" />
