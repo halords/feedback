@@ -1,12 +1,14 @@
 # STATE.md
 
 ## Current Position
+- **Milestone**: Reports
 - **Phase**: 1 (completed)
-- **Task**: All tasks complete
-- **Status**: Verified
-
-## Last Session Summary
-Phase 1 executed successfully. 1 plan, 2 tasks completed. Superadmin filtering on the Reports page is now correctly defaulted to "All Offices".
+- **Status**: Ready for Phase 2 planning
 
 ## Next Steps
-1. /plan 2 — Create execution plan for Phase 2: Individual PDF Generation & Metadata
+1. /plan 2 — Create execution plan for Phase 2: Personnel-Centric Filtering (Archive-based)
+
+## Key Constraints
+- Superadmin must have access to all office data.
+- Personnel list must be derived from archive data (`fullname` field).
+- "Personnel in-charge" must be accurately resolved from office document IDs.
