@@ -1,41 +1,28 @@
 # ROADMAP.md
 
-> **Current Milestone**: v3.3.0-SECURITY-UNIFICATION
-> **Goal**: 100% Verified Secure-by-Default Architecture
+> **Current Milestone**: Reports
+> **Goal**: Fix Reports page, Data View tab filtering especially on superadmin and individual pdf generation.
 
-## Must-Haves (from SPEC)
-- [ ] Global "Deny-by-Default" Middleware
-- [ ] Unified `withAuth` API Handler Wrapper
-- [ ] Integration Test Suite for all `/api` routes
-- [ ] Hardened `/api/users/assignment` & `/api/comments`
+## Must-Haves
+- [ ] Fix Superadmin Data View filtering (ensure all offices are visible/filterable)
+- [ ] Fix "Personnel in-charge" metadata retrieval for individual PDFs
+- [ ] Implement robust office scoping for report generation
+- [ ] Standardized loading and error states for the Reports page
 
 ## Phases
 
-### Phase 1: Perimeter Defense (Global)
-**Status**: ✅ Complete
-**Objective**: Lock the front door. Reconfigure Middleware to protect everything by default and create the `withAuth` higher-order function.
-**Deliverables**:
-- Secure-by-default `middleware.ts`
-- `src/lib/auth/withAuth.ts` utility
+### Phase 1: Superadmin Data View Filtering
+**Status**: ⬜ Not Started
+**Objective**: Audit and fix filtering logic in the Data View tab to ensure Superadmins can correctly view and filter data across all offices.
 
-### Phase 2: Endpoint Migration & Hardening
-**Status**: ✅ Complete
-**Objective**: Apply the shield to all handlers. Migrate vulnerable endpoints to the `withAuth` wrapper and fix missing RBAC scoping.
-**Deliverables**:
-- Hardened Comments API
-- Hardened Users/Assignment API
-- Hardened Dashboard Metrics APIs
+### Phase 2: Individual PDF Generation & Metadata
+**Status**: ⬜ Not Started
+**Objective**: Fix individual report generation logic, ensuring "Personnel in-charge" names are correctly retrieved and rendered in PDF signatures.
 
-### Phase 3: Integration Testing Framework
-**Status**: ✅ Complete
-**Objective**: Build the "Immune System". Set up Vitest mock environments for Next.js Request/Response and implement negative security tests.
-**Deliverables**:
-- `src/integration-tests/security.test.ts`
-- Automated test runs for all API endpoints
+### Phase 3: Integration & Cross-Role Verification
+**Status**: ⬜ Not Started
+**Objective**: Verify reporting features work across all roles (Superadmin vs. Office Admin) for both live and archived data.
 
-### Phase 4: Final Audit & Polish
-**Status**: ✅ Complete
-**Objective**: Verification and cleanup. Re-run the full system audit and remove any legacy "masking" logic in favor of true scoping.
-**Deliverables**:
-- Passed `AUDIT_REPORT.md`
-- Removed technical debt from `responseService.ts`
+### Phase 4: Final UI/UX Polish & Audit
+**Status**: ⬜ Not Started
+**Objective**: Standardize Reports page UI and perform a final data integrity audit on generated outputs.
