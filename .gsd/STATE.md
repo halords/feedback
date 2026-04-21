@@ -1,14 +1,14 @@
 # STATE.md
 
 ## Current Position
-- **Milestone**: Reports
-- **Phase**: 1 (completed)
-- **Status**: Ready for Phase 2 planning
+- **Phase**: 2
+- **Task**: Planning complete
+- **Status**: Ready for execution
 
 ## Next Steps
-1. /plan 2 — Create execution plan for Phase 2: Personnel-Centric Filtering (Archive-based)
+1. /execute 2 — Run Plan 2.1 to implement dynamic personnel filtering.
 
 ## Key Constraints
 - Superadmin must have access to all office data.
 - Personnel list must be derived from archive data (`fullname` field).
-- "Personnel in-charge" must be accurately resolved from office document IDs.
+- Filter list must refresh automatically when period changes.
