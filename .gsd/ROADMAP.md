@@ -6,7 +6,7 @@
 ## Must-Haves
 - [ ] **ZERO REGRESSIONS (NON-NEGOTIABLE)**: Absolutely no existing function should break. All current functionality must continue to work flawlessly throughout these changes.
 - [x] **Performance Optimization**: Implement 60s TTL cache for `getAllOffices()`, optimize `getJsonArchive()` API calls, and fix `AuthContext` polling.
-- [ ] **Auth Hardening**: Add app-level rate limiting to `/api/login` and implement immediate token revocation when roles change.
+- [x] **Auth Hardening**: Add app-level rate limiting to `/api/login` and implement immediate token revocation when roles change.
 - [ ] **Codebase Strictness**: Fix pre-existing TypeScript errors in `AnalysisDashboard.tsx` and UI components and remove `ignoreBuildErrors: true`.
 - [ ] **CSP Hardening**: Implement script nonce strategy in Next.js middleware and remove `'unsafe-inline'` from CSP headers.
 - [ ] **Dependency Clean-up**: Update `firebase-admin` to v10.3.0+ to clear 3 low-severity transitive CVEs and execute full system regression tests.
@@ -18,7 +18,7 @@
 **Objective**: Implement in-memory caching for `officeService`, remove redundant `file.exists()` in `storageService`, and adjust SWR revalidation rules in `AuthContext`.
 
 ### Phase 2: Auth Hardening
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Secure `/api/login` with `checkRateLimitAsync` (10 req/5min) and trigger `admin.auth().revokeRefreshTokens()` when user assignments change.
 
 ### Phase 3: Codebase Strictness

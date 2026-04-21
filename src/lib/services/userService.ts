@@ -204,6 +204,14 @@ export async function updateAssignments(idno: string, offices: string[]) {
     });
 
     await batch.commit();
+
+    try {
+      await auth.revokeRefreshTokens(idno);
+      console.log(`[UserService] Successfully revoked tokens for ${idno}`);
+    } catch (authErr) {
+      console.warn(`[UserService] Could not revoke tokens for ${idno} (might not exist in Auth yet)`);
+    }
+
     return { success: true };
   } catch (error) {
     console.error("Error in updateAssignments:", error);
@@ -227,6 +235,13 @@ export async function updateUserAnalyticsFlag(idno: string, isEnabled: boolean) 
 
     const docRef = snapshot.docs[0].ref;
     await docRef.update({ is_analytics_enabled: isEnabled });
+
+    try {
+      await auth.revokeRefreshTokens(idno);
+      console.log(`[UserService] Successfully revoked tokens for ${idno}`);
+    } catch (authErr) {
+      console.warn(`[UserService] Could not revoke tokens for ${idno} (might not exist in Auth yet)`);
+    }
 
     return { success: true };
   } catch (error) {

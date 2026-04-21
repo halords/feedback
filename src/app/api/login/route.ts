@@ -3,9 +3,17 @@ import { db, auth as adminAuth } from "@/lib/firebase/admin";
 import { setSessionCookie } from "@/lib/auth/verifySession";
 import { logAction } from "@/lib/services/auditService";
 import { validateLoginInput } from "@/lib/validation/apiSchemas";
+import { checkRateLimitAsync } from "@/lib/security/rateLimit";
 
 export async function POST(request: Request) {
   try {
+    const ip = request.headers.get("x-forwarded-for") || "unknown-ip";
+    try {
+      await checkRateLimitAsync("login_attempts", ip, 10, 5 * 60 * 1000);
+    } catch (e: any) {
+      return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+    }
+
     const body = await request.json();
     const result = validateLoginInput(body);
 
