@@ -1,38 +1,33 @@
 # ROADMAP.md
 
-> **Current Milestone**: Comments Analysis Dashboard
-> **Goal**: Transform the Comments Management module into an analytical powerhouse by adding a detailed "Analysis" tab that provides high-level insights, resolution metrics, and trend visualizations for feedback.
+> **Current Milestone**: System Security & Performance Optimization
+> **Goal**: Address outstanding security debt, eliminate technical vulnerabilities, optimize application bottlenecks (Firestore reads), and enforce TypeScript strictness across the codebase.
 
 ## Must-Haves
-- [ ] **Tabbed Navigation**: Add an "Analysis" tab to the existing Comments Management UI.
-- [ ] **Resolution Rate Analytics**:
-    - [ ] Resolved Negative vs. Total Negative (Yearly/Monthly).
-    - [ ] Resolved (Negative + Suggestions) vs. Total (Negative + Suggestions).
-- [ ] **Data Trend Monthly**: Visual representation of comment types (Complaints vs. Suggestions) over the year.
-- [ ] **Deep Insights**:
-    - [ ] Repetitive comments analysis (pattern matching).
-    - [ ] Heatmap/Ranking of offices with the most complaints.
-    - [ ] Monthly breakdown view toggle.
-- [ ] **Premium Visuals**: High-end charts and smooth transitions.
+- [ ] **Performance Optimization**: Implement 60s TTL cache for `getAllOffices()`, optimize `getJsonArchive()` API calls, and fix `AuthContext` polling.
+- [ ] **Auth Hardening**: Add app-level rate limiting to `/api/login` and implement immediate token revocation when roles change.
+- [ ] **Codebase Strictness**: Fix pre-existing TypeScript errors in `AnalysisDashboard.tsx` and UI components and remove `ignoreBuildErrors: true`.
+- [ ] **CSP Hardening**: Implement script nonce strategy in Next.js middleware and remove `'unsafe-inline'` from CSP headers.
+- [ ] **Dependency Clean-up**: Update `firebase-admin` to v10.3.0+ to clear 3 low-severity transitive CVEs and execute full system regression tests.
 
 ## Phases
 
-### Phase 1: Analytical Data Engine
-**Status**: ? Not Started
-**Objective**: Update commentManagementService.ts to include efficient aggregation logic for the new metrics and create a dedicated API endpoint for analytics.
+### Phase 1: Performance & Low-Hanging Fruit
+**Status**: ⬜ Not Started
+**Objective**: Implement in-memory caching for `officeService`, remove redundant `file.exists()` in `storageService`, and adjust SWR revalidation rules in `AuthContext`.
 
-### Phase 2: UI Tab & Layout
-**Status**: ? Not Started
-**Objective**: Refactor src/app/comments/page.tsx to support the new tab and create the Analysis dashboard shell.
+### Phase 2: Auth Hardening
+**Status**: ⬜ Not Started
+**Objective**: Secure `/api/login` with `checkRateLimitAsync` (10 req/5min) and trigger `admin.auth().revokeRefreshTokens()` when user assignments change.
 
-### Phase 3: Core Metric Visualizations
-**Status**: ? Not Started
-**Objective**: Implement the resolution gauges and monthly trend line/bar charts.
+### Phase 3: Codebase Strictness
+**Status**: ⬜ Not Started
+**Objective**: Resolve all dangling `tsc` errors (e.g., ChartDataset properties, missing `children` in Cards) and update `next.config.ts` to enforce strict builds.
 
-### Phase 4: Office & Pattern Analysis
-**Status**: ? Not Started
-**Objective**: Build the "Top Complaints by Office" and "Repetitive Issues" analysis components.
+### Phase 4: CSP Nonce Implementation
+**Status**: ⬜ Not Started
+**Objective**: Generate cryptographic nonces in `middleware.ts`, pass to Next.js components, and eliminate `'unsafe-inline'` without breaking Firebase authentication.
 
-### Phase 5: Polish & Verification
-**Status**: ? Not Started
-**Objective**: Final visual polish, responsiveness checks, and data verification.
+### Phase 5: Dependency Upgrade & Regression
+**Status**: ⬜ Not Started
+**Objective**: Safely execute a major semver bump for `firebase-admin`, verify Firestore/Storage SDK usages, and perform manual end-to-end regression tests across the app.
