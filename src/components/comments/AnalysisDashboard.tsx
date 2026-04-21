@@ -472,7 +472,7 @@ export function AnalysisDashboard({ year }: { year: string }) {
                     <div className="p-3 bg-white/50 rounded-xl border border-on-surface/5">
                       <p className="text-[10px] font-bold text-on-surface/20 uppercase tracking-widest mb-1">Example Feedback</p>
                       <p className="text-[11px] font-medium text-on-surface/60 italic leading-relaxed">
-                        "{pattern.representativeExample}"
+                        &ldquo;{pattern.representativeExample}&rdquo;
                       </p>
                     </div>
                   </div>
@@ -681,7 +681,7 @@ function OfficeSpotlight({ data, isLoading, onClose }: { data: any; isLoading: b
                         </div>
                         <p className="text-[10px] text-on-surface/40 leading-tight mb-2 line-clamp-2">{pattern.description}</p>
                         <p className="text-[10px] font-medium text-on-surface/50 italic border-l-2 border-primary/20 pl-2">
-                           "{pattern.representativeExample}"
+                           &ldquo;{pattern.representativeExample}&rdquo;
                         </p>
                      </div>
                    ))}

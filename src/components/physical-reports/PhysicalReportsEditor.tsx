@@ -587,7 +587,7 @@ function ReportForm({ report, onClose, onSaveSuccess, isArchived }: { report: an
 
             <div className="space-y-4">
               <h4 className="text-[10px] font-black uppercase tracking-widest text-on-surface/40 flex items-center gap-2">
-                <BookOpen className="w-3 h-3" /> Citizen's Charter Awareness
+                <BookOpen className="w-3 h-3" /> Citizen&apos;s Charter Awareness
               </h4>
               <div className="bg-surface-lowest p-5 rounded-2xl border border-on-surface/5 space-y-6">
                  <div className="grid grid-cols-3 gap-4">

@@ -21,13 +21,13 @@ import {
   ArcElement
 } from "chart.js";
 import { Line, Bar } from "react-chartjs-2";
-import { 
-  Brain, 
-  TrendingUp, 
-  Users, 
-  Eye, 
-  Target, 
-  CheckCircle2, 
+import {
+  Brain,
+  TrendingUp,
+  Users,
+  Eye,
+  Target,
+  CheckCircle2,
   AlertCircle,
   FileText,
   Download,
@@ -52,6 +52,7 @@ interface AIReportClientProps {
   report: AIReport;
 }
 
+
 export function AIReportClient({ report }: AIReportClientProps) {
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
@@ -71,45 +72,51 @@ export function AIReportClient({ report }: AIReportClientProps) {
     return String(val);
   };
 
-  const satisfactionData = useMemo(() => ({
-    labels: content.trends.months,
-    datasets: [
-      {
-        label: "Satisfaction Rate (%)",
-        data: content.trends.satisfaction,
-        borderColor: "#4F46E5",
-        backgroundColor: "rgba(79, 70, 229, 0.1)",
-        fill: true,
-        tension: 0.4,
-        borderWidth: 3,
-        pointRadius: 4,
-        pointBackgroundColor: "#4F46E5"
-      }
-    ]
-  }), [content]);
+  const satisfactionData = useMemo(() => {
+    const trends = content?.trends;
+    return {
+      labels: trends?.months ?? [],
+      datasets: [
+        {
+          label: "Satisfaction Rate (%)",
+          data: trends?.satisfaction ?? [],
+          borderColor: "#4F46E5",
+          backgroundColor: "rgba(79, 70, 229, 0.1)",
+          fill: true,
+          tension: 0.4,
+          borderWidth: 3,
+          pointRadius: 4,
+          pointBackgroundColor: "#4F46E5"
+        }
+      ]
+    };
+  }, [content]);
 
-  const collectionData = useMemo(() => ({
-    labels: content.trends.months,
-    datasets: [
-      {
-        label: "Collection Rate (%)",
-        data: content.trends.collection,
-        borderColor: "#10B981",
-        backgroundColor: "rgba(16, 185, 129, 0.1)",
-        fill: true,
-        tension: 0.4,
-        borderWidth: 3,
-        pointRadius: 4,
-        pointBackgroundColor: "#10B981"
-      }
-    ]
-  }), [content]);
+  const collectionData = useMemo(() => {
+    const trends = content?.trends;
+    return {
+      labels: trends?.months ?? [],
+      datasets: [
+        {
+          label: "Collection Rate (%)",
+          data: trends?.collection ?? [],
+          borderColor: "#10B981",
+          backgroundColor: "rgba(16, 185, 129, 0.1)",
+          fill: true,
+          tension: 0.4,
+          borderWidth: 3,
+          pointRadius: 4,
+          pointBackgroundColor: "#10B981"
+        }
+      ]
+    };
+  }, [content]);
 
   if (authLoading || !user || user.user_type?.toLowerCase() !== "superadmin") {
     return (
       <Shell>
         <div className="h-[60vh] flex items-center justify-center">
-           <p className="text-on-surface/40 font-black uppercase tracking-widest animate-pulse">Checking Permissions...</p>
+          <p className="text-on-surface/40 font-black uppercase tracking-widest animate-pulse">Checking Permissions...</p>
         </div>
       </Shell>
     );
@@ -163,7 +170,7 @@ export function AIReportClient({ report }: AIReportClientProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <button 
+            <button
               onClick={handlePrint}
               className="px-6 py-2.5 rounded-xl bg-surface-low border border-on-surface/10 text-on-surface/60 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-surface-lowest transition-all"
             >
@@ -177,8 +184,8 @@ export function AIReportClient({ report }: AIReportClientProps) {
 
         {/* Print Header */}
         <div className="hidden print:block text-center space-y-2 border-b-2 border-primary/20 pb-6 mb-8">
-            <h1 className="text-3xl font-black text-primary uppercase">Provincial Government of La Union</h1>
-            <p className="text-sm font-bold text-on-surface/60 uppercase tracking-widest">AI-Generated Customer Feedback Analysis - {report.year}</p>
+          <h1 className="text-3xl font-black text-primary uppercase">Provincial Government of La Union</h1>
+          <p className="text-sm font-bold text-on-surface/60 uppercase tracking-widest">AI-Generated Customer Feedback Analysis - {report.year}</p>
         </div>
 
         {/* Executive Summary */}
@@ -197,28 +204,28 @@ export function AIReportClient({ report }: AIReportClientProps) {
 
         {/* Key Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <MetricCard 
+          <MetricCard
             icon={<TrendingUp className="w-5 h-5 text-indigo-500" />}
             label="Annual Satisfaction"
             value={formatMetric(content.metrics.avgSatisfaction)}
             description="Overall citizen delight index"
             color="indigo"
           />
-          <MetricCard 
+          <MetricCard
             icon={<Users className="w-5 h-5 text-emerald-500" />}
             label="Collection Rate"
             value={formatMetric(content.metrics.avgCollection)}
             description="Feedback forms vs unique visitors"
             color="emerald"
           />
-          <MetricCard 
+          <MetricCard
             icon={<Eye className="w-5 h-5 text-amber-500" />}
             label="CC Implementation"
             value={formatMetric(content.metrics.ccComplianceScore)}
             description="Familiarity, Visibility & Helpfulness"
             color="amber"
           />
-          <MetricCard 
+          <MetricCard
             icon={<Brain className="w-5 h-5 text-violet-500" />}
             label="Digital Adoption"
             value={formatMetric(content.metrics.digitalAdoptionRate)}
@@ -229,8 +236,8 @@ export function AIReportClient({ report }: AIReportClientProps) {
 
         {/* Trends Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ChartCard 
-            title="Satisfaction Trend" 
+          <ChartCard
+            title="Satisfaction Trend"
             icon={<TrendingUp className="w-4 h-4" />}
           >
             <div className="h-[250px]">
@@ -238,8 +245,8 @@ export function AIReportClient({ report }: AIReportClientProps) {
             </div>
           </ChartCard>
 
-          <ChartCard 
-            title="Collection Trend" 
+          <ChartCard
+            title="Collection Trend"
             icon={<Users className="w-4 h-4" />}
           >
             <div className="h-[250px]">
@@ -285,7 +292,7 @@ export function AIReportClient({ report }: AIReportClientProps) {
         {content.departmentBreakdown && content.departmentBreakdown.length > 0 && (
           <Card className="p-0 border-on-surface/5 overflow-hidden">
             <div className="p-6 bg-surface-low border-b border-on-surface/5">
-                <h3 className="text-xs font-black uppercase tracking-widest text-on-surface/40">Departmental Comparative Analysis</h3>
+              <h3 className="text-xs font-black uppercase tracking-widest text-on-surface/40">Departmental Comparative Analysis</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -335,10 +342,10 @@ function MetricCard({ icon, label, value, description, color }: any) {
           {icon}
         </div>
         <div className={clsx(
-            "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest",
-            color === "indigo" ? "bg-indigo-500/10 text-indigo-600" : color === "emerald" ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"
+          "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest",
+          color === "indigo" ? "bg-indigo-500/10 text-indigo-600" : color === "emerald" ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"
         )}>
-            Live 2026
+          Live 2026
         </div>
       </div>
       <div className="relative z-10">
@@ -353,20 +360,20 @@ function MetricCard({ icon, label, value, description, color }: any) {
 function ChartCard({ title, icon, children }: any) {
   return (
     <Card className="p-6 border-on-surface/5">
-       <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-on-surface/5 flex items-center justify-center text-primary">
-              {icon}
-            </div>
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-on-surface/40">{title}</h3>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-on-surface/5 flex items-center justify-center text-primary">
+            {icon}
           </div>
-          <div className="flex gap-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-            <div className="w-1.5 h-1.5 rounded-full bg-on-surface/10" />
-            <div className="w-1.5 h-1.5 rounded-full bg-on-surface/10" />
-          </div>
-       </div>
-       {children}
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-on-surface/40">{title}</h3>
+        </div>
+        <div className="flex gap-1">
+          <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+          <div className="w-1.5 h-1.5 rounded-full bg-on-surface/10" />
+          <div className="w-1.5 h-1.5 rounded-full bg-on-surface/10" />
+        </div>
+      </div>
+      {children}
     </Card>
   );
 }

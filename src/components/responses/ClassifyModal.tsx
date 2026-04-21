@@ -142,7 +142,7 @@ export function ClassifyModal({
                     <td className="px-5 py-5">
                        <div className="space-y-1">
                           <span className="text-[9px] font-black text-primary uppercase tracking-tighter block">{item.office}</span>
-                          <p className="text-[11px] font-medium leading-relaxed italic text-on-surface/70 line-clamp-3 group-hover:line-clamp-none transition-all pr-4 italic">"{item.comment}"</p>
+                          <p className="text-[11px] font-medium leading-relaxed italic text-on-surface/70 line-clamp-3 group-hover:line-clamp-none transition-all pr-4 italic">&ldquo;{item.comment}&rdquo;</p>
                        </div>
                     </td>
                     <td className="px-5 py-4 text-right align-top">

@@ -5,12 +5,12 @@ import useSWR from "swr";
 import { useAnalytics } from "@/context/AnalyticsContext";
 import { useAuth } from "@/context/AuthContext";
 import { Card } from "@/components/ui/Card";
-import { 
-  User, 
-  BookOpen, 
-  FileText, 
-  ExternalLink, 
-  Printer, 
+import {
+  User,
+  BookOpen,
+  FileText,
+  ExternalLink,
+  Printer,
   ChevronLeft,
   ChevronRight
 } from "lucide-react";
@@ -35,9 +35,9 @@ const ITEMS_PER_PAGE = 10;
 export function DataView() {
   const { user } = useAuth();
   const { data, isLoading, isValidating, month, year, search } = useAnalytics();
-  
+
   const isActuallyLoading = isLoading || (isValidating && !data);
-  
+
   // Fetch context-aware office list to respect archival inclusion rules
   const { data: rawOfficeList } = useSWR(`/api/offices?month=${month}&year=${year}`, (url) => fetch(url).then(r => r.json()));
   const [selectedOffice, setSelectedOffice] = useState<any>(null);
@@ -45,13 +45,13 @@ export function DataView() {
 
   const displayData = useMemo(() => {
     if (!data) return [];
-    
+
     // Filter by User's assigned offices if not Superadmin
     const isSuperadmin = user?.user_type?.toLowerCase() === "superadmin";
     const userOffices = user?.offices || [];
-    
+
     let filtered: any[] = data;
-    
+
     // Server now handles 'disabled' office filtering based on period context
     // We only need to apply local search and user assignment filters
     if (!isSuperadmin) {
@@ -60,8 +60,8 @@ export function DataView() {
 
     if (!search) return filtered;
     const s = search.toLowerCase();
-    return filtered.filter((o: any) => 
-      o.department.toLowerCase().includes(s) || 
+    return filtered.filter((o: any) =>
+      o.department.toLowerCase().includes(s) ||
       (o.officeName && o.officeName.toLowerCase().includes(s))
     );
   }, [data, search, user]);
@@ -85,12 +85,12 @@ export function DataView() {
           {Array(8).fill(0).map((_, i) => (
             <div key={i} className="px-6 py-5 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                 <div className="w-8 h-4 bg-on-surface/5 rounded" />
-                 <div className="w-64 h-5 bg-on-surface/5 rounded" />
+                <div className="w-8 h-4 bg-on-surface/5 rounded" />
+                <div className="w-64 h-5 bg-on-surface/5 rounded" />
               </div>
               <div className="flex gap-4">
-                 <div className="w-20 h-5 bg-on-surface/5 rounded" />
-                 <div className="w-32 h-8 bg-on-surface/5 rounded-lg" />
+                <div className="w-20 h-5 bg-on-surface/5 rounded" />
+                <div className="w-32 h-8 bg-on-surface/5 rounded-lg" />
               </div>
             </div>
           ))}
@@ -147,14 +147,14 @@ export function DataView() {
                   </td>
                   <td className="px-6 py-3.5 text-right">
                     <div className="flex items-center justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                      <button 
+                      <button
                         onClick={() => setSelectedOffice(office)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all text-[10px] font-black uppercase tracking-tighter"
                       >
                         <ExternalLink className="w-3 h-3" />
                         View
                       </button>
-                      <button 
+                      <button
                         onClick={() => {
                           const url = `/api/reports/individual?office=${encodeURIComponent(office.department)}&month=${encodeURIComponent(month)}&year=${year}`;
                           window.open(url, '_blank');
@@ -178,14 +178,14 @@ export function DataView() {
               Showing Page <span className="text-primary">{currentPage}</span> of {totalPages}
             </p>
             <div className="flex items-center gap-2">
-              <button 
+              <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
                 className="p-1.5 rounded-lg hover:bg-surface-lowest disabled:opacity-20 transition-all text-primary border border-transparent hover:border-border-strong/50"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <button 
+              <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
                 className="p-1.5 rounded-lg hover:bg-surface-lowest disabled:opacity-20 transition-all text-primary border border-transparent hover:border-border-strong/50"
@@ -198,9 +198,9 @@ export function DataView() {
       </Card>
 
       {/* Detail Modal */}
-      <Modal 
-        isOpen={!!selectedOffice} 
-        onClose={() => setSelectedOffice(null)} 
+      <Modal
+        isOpen={!!selectedOffice}
+        onClose={() => setSelectedOffice(null)}
         title={`${selectedOffice?.department} Detailed Report`}
       >
         {selectedOffice && <OfficeReportDetail office={selectedOffice} />}
@@ -254,56 +254,56 @@ function OfficeReportDetail({ office }: { office: any }) {
         </div>
 
         <div className="lg:col-span-2">
-           <div className="bg-surface-low rounded-3xl border border-border-strong/50 overflow-hidden shadow-sm">
-             <div className="p-6 md:p-8 border-b border-border-strong/50">
-                <h3 className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2 font-display">
-                  <FileText className="w-4 h-4" /> Multi-Point Satisfaction Analysis
-                </h3>
-             </div>
-             <div className="overflow-x-auto">
-                <table className="w-full text-left font-sans border-collapse">
-                  <thead>
-                    <tr className="bg-background/80 border-b-2 border-border-strong">
-                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-tighter text-on-surface/50 w-1/3">Criteria</th>
-                      <th className="px-4 py-4 text-[10px] font-black uppercase text-center text-on-surface/40">0</th>
-                      <th className="px-4 py-4 text-[10px] font-black uppercase text-center text-on-surface/40">1</th>
-                      <th className="px-4 py-4 text-[10px] font-black uppercase text-center text-on-surface/40">2</th>
-                      <th className="px-4 py-4 text-[10px] font-black uppercase text-center text-on-surface/40">3</th>
-                      <th className="px-4 py-4 text-[10px] font-black uppercase text-center text-on-surface/40">4</th>
-                      <th className="px-4 py-4 text-[10px] font-black uppercase text-center text-on-surface/40">5</th>
-                      <th className="px-6 py-4 text-[10px] font-black uppercase text-right text-primary">Rating</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border-strong/20">
-                    {FEEDBACK_STATEMENTS.map((stmt, i) => {
-                      const qKey = `Q${i}`;
-                      const qv = office.qValues[qKey] || { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, NA: 0, RATE: 'N/A' };
-                      return (
-                        <tr key={i} className="hover:bg-on-surface/[0.02] transition-colors group">
-                          <td className="px-6 py-4">
-                            <p className="text-xs font-bold text-on-surface/70 leading-relaxed group-hover:text-primary transition-colors">{stmt}</p>
-                          </td>
-                          <td className="px-4 py-4 text-xs font-medium text-on-surface/40 text-center">{qv.NA}</td>
-                          <td className="px-4 py-4 text-xs font-medium text-on-surface/40 text-center">{qv['1']}</td>
-                          <td className="px-4 py-4 text-xs font-medium text-on-surface/40 text-center">{qv['2']}</td>
-                          <td className="px-4 py-4 text-xs font-medium text-on-surface/40 text-center">{qv['3']}</td>
-                          <td className="px-4 py-4 text-xs font-medium text-on-surface/40 text-center">{qv['4']}</td>
-                          <td className="px-4 py-4 text-xs font-medium text-on-surface/40 text-center">{qv['5']}</td>
-                          <td className="px-6 py-4 text-sm font-black text-primary text-right italic">{qv.RATE}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-             </div>
-           </div>
+          <div className="bg-surface-low rounded-3xl border border-border-strong/50 overflow-hidden shadow-sm">
+            <div className="p-6 md:p-8 border-b border-border-strong/50">
+              <h3 className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2 font-display">
+                <FileText className="w-4 h-4" /> Multi-Point Satisfaction Analysis
+              </h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left font-sans border-collapse">
+                <thead>
+                  <tr className="bg-background/80 border-b-2 border-border-strong">
+                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-tighter text-on-surface/50 w-1/3">Criteria</th>
+                    <th className="px-4 py-4 text-[10px] font-black uppercase text-center text-on-surface/40">0</th>
+                    <th className="px-4 py-4 text-[10px] font-black uppercase text-center text-on-surface/40">1</th>
+                    <th className="px-4 py-4 text-[10px] font-black uppercase text-center text-on-surface/40">2</th>
+                    <th className="px-4 py-4 text-[10px] font-black uppercase text-center text-on-surface/40">3</th>
+                    <th className="px-4 py-4 text-[10px] font-black uppercase text-center text-on-surface/40">4</th>
+                    <th className="px-4 py-4 text-[10px] font-black uppercase text-center text-on-surface/40">5</th>
+                    <th className="px-6 py-4 text-[10px] font-black uppercase text-right text-primary">Rating</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-strong/20">
+                  {FEEDBACK_STATEMENTS.map((stmt, i) => {
+                    const qKey = `Q${i}`;
+                    const qv = office.qValues[qKey] || { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, NA: 0, RATE: 'N/A' };
+                    return (
+                      <tr key={i} className="hover:bg-on-surface/[0.02] transition-colors group">
+                        <td className="px-6 py-4">
+                          <p className="text-xs font-bold text-on-surface/70 leading-relaxed group-hover:text-primary transition-colors">{stmt}</p>
+                        </td>
+                        <td className="px-4 py-4 text-xs font-medium text-on-surface/40 text-center">{qv.NA}</td>
+                        <td className="px-4 py-4 text-xs font-medium text-on-surface/40 text-center">{qv['1']}</td>
+                        <td className="px-4 py-4 text-xs font-medium text-on-surface/40 text-center">{qv['2']}</td>
+                        <td className="px-4 py-4 text-xs font-medium text-on-surface/40 text-center">{qv['3']}</td>
+                        <td className="px-4 py-4 text-xs font-medium text-on-surface/40 text-center">{qv['4']}</td>
+                        <td className="px-4 py-4 text-xs font-medium text-on-surface/40 text-center">{qv['5']}</td>
+                        <td className="px-6 py-4 text-sm font-black text-primary text-right italic">{qv.RATE}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-6">
-          <FeedbackList title="Commendations" data={office.comments.positive} color="text-tertiary" bg="bg-tertiary/5" dot="bg-tertiary" />
-          <FeedbackList title="Complaints" data={office.comments.negative} color="text-red-500" bg="bg-red-50/50" dot="bg-red-500" />
-          <FeedbackList title="Suggestions" data={office.comments.suggestions} color="text-primary" bg="bg-primary/5" dot="bg-primary" />
+        <FeedbackList title="Commendations" data={office.comments.positive} color="text-tertiary" bg="bg-tertiary/5" dot="bg-tertiary" />
+        <FeedbackList title="Complaints" data={office.comments.negative} color="text-red-500" bg="bg-red-50/50" dot="bg-red-500" />
+        <FeedbackList title="Suggestions" data={office.comments.suggestions} color="text-primary" bg="bg-primary/5" dot="bg-primary" />
       </div>
     </div>
   );
@@ -354,7 +354,7 @@ function FeedbackList({ title, data, color, bg, dot }: { title: string, data: st
           data.map((c, i) => (
             <div key={i} className="flex gap-3 group">
               <div className={clsx("w-1 h-1 rounded-full mt-1.5 flex-shrink-0", dot)} />
-              <p className="font-semibold text-on-surface/60 leading-relaxed italic">"{c}"</p>
+              <p className="font-semibold text-on-surface/60 leading-relaxed italic">&ldquo;{c}&rdquo;</p>
             </div>
           ))
         ) : (

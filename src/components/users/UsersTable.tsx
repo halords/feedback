@@ -450,7 +450,7 @@ function AssignModal({ isOpen, onClose, user, allOffices, allAssignedOffices, on
              placeholder="Add office access..."
            />
            <p className="text-[10px] text-on-surface/30 px-1 font-bold italic">
-             * To remove access, click the 'x' on the pill. Only unassigned active offices can be added.
+             * To remove access, click the &apos;x&apos; on the pill. Only unassigned active offices can be added.
            </p>
         </div>
 
