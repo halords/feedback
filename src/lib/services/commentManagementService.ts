@@ -36,22 +36,17 @@ function getMonthLabel(dateInput: any, sourceData?: any): string {
   return date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 }
 
-export async function syncComments(force = false, targetPeriod?: { month: string; year: string }) {
+export async function syncComments(force = false) {
   const activeOffices = await getAllOffices(false);
   const activeIdsSet = new Set(activeOffices.map(o => o.id.toLowerCase()));
 
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const now = new Date();
   const syncPeriods: { month: string; year: string }[] = [];
-
-  if (targetPeriod) {
-    syncPeriods.push(targetPeriod);
-  } else {
-    for (let y = 2025; y <= now.getFullYear(); y++) {
-      for (const m of months) {
-        syncPeriods.push({ month: m, year: String(y) });
-        if (y === now.getFullYear() && months.indexOf(m) === now.getMonth()) break;
-      }
+  for (let y = 2025; y <= now.getFullYear(); y++) {
+    for (const m of months) {
+      syncPeriods.push({ month: m, year: String(y) });
+      if (y === now.getFullYear() && months.indexOf(m) === now.getMonth()) break;
     }
   }
 
@@ -63,7 +58,7 @@ export async function syncComments(force = false, targetPeriod?: { month: string
     const monthYearLabel = `${period.month} ${period.year}`;
     const archivePath = `archives/${period.year}/${period.month}/metrics.json`;
     const archiveData = await getJsonArchive(archivePath) as DashboardMetrics[];
-    
+
     const existingSnap = await db.collection("comment_management").where("month", "==", monthYearLabel).get();
     const existingDocs = existingSnap.docs.map(d => ({ ...(d.data() as ManagedComment), id: d.id }));
     const claimedDocIds = new Set<string>();
@@ -71,11 +66,11 @@ export async function syncComments(force = false, targetPeriod?: { month: string
     if (archiveData) {
       for (const officeMetrics of archiveData) {
         const officeIdRaw = officeMetrics.department;
-        const canonical = activeOffices.find(o => 
-          o.id.toLowerCase() === officeIdRaw.toLowerCase() || 
+        const canonical = activeOffices.find(o =>
+          o.id.toLowerCase() === officeIdRaw.toLowerCase() ||
           o.name.toLowerCase() === officeIdRaw.toLowerCase()
         );
-        
+
         // STORE ID (canonical) in DB
         const officeKey = canonical ? canonical.id : officeIdRaw;
         if (!activeIdsSet.has(officeKey.toLowerCase())) continue;
@@ -91,16 +86,16 @@ export async function syncComments(force = false, targetPeriod?: { month: string
             const commentText = comments[i];
             if (!commentText || commentText.trim().length < 2) continue;
 
-            const matchingDoc = existingDocs.find(d => 
-              !claimedDocIds.has(d.id) && 
-              d.commentText === commentText && 
+            const matchingDoc = existingDocs.find(d =>
+              !claimedDocIds.has(d.id) &&
+              d.commentText === commentText &&
               (d.office.toLowerCase() === officeKey.toLowerCase() || (canonical && d.office.toLowerCase() === canonical.name.toLowerCase())) &&
               d.sentiment === sentiment
             );
 
             const docId = matchingDoc ? matchingDoc.id : `archive_${period.year}_${period.month}_${officeKey}_${sentiment.toLowerCase()}_${i}`;
             const ref = db.collection("comment_management").doc(docId);
-            
+
             if (matchingDoc) {
               claimedDocIds.add(matchingDoc.id);
               batch.update(ref, { office: officeKey, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
@@ -145,17 +140,11 @@ export async function syncComments(force = false, targetPeriod?: { month: string
         else if (rawClass === "suggestion" || rawClass === "suggestions") sentiment = "Suggestion";
         else continue;
 
-        const parseDate = (d: any) => {
-          if (!d) return new Date();
-          if (typeof d.toDate === 'function') return d.toDate();
-          const parsed = new Date(d);
-          return isNaN(parsed.getTime()) ? new Date() : parsed;
-        };
-
         batch.set(db.collection("comment_management").doc(`response_${doc.id}`), {
           sourceId: doc.id, sourceCollection: "Responses",
           commentText: data.Comment, sentiment, office: canonical.id, month: monthYearLabel,
-          date: parseDate(data.Date),
+          date: data.Date ? (typeof data.Date === 'string' ? new Date(data.Date) : (data.Date.toDate ? data.Date.toDate() : new Date())) : new Date(),
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
         totalSynced++;
@@ -190,14 +179,7 @@ export async function upsertManagedComment(sourceCollection: "Responses" | "phys
     sourceId, sourceCollection, commentText: (sourceCollection === "Responses" ? data.Comment : ensureArray(data.COMMENTS, true)[index!]) || "",
     sentiment: normalizedSentiment, office: canonical.id,
     month: getMonthLabel(sourceCollection === "Responses" ? data.Date : data.DATE_COLLECTED, data),
-    date: (sourceCollection === "Responses" ? data.Date : data.DATE_COLLECTED) 
-      ? (() => {
-          const d = sourceCollection === "Responses" ? data.Date : data.DATE_COLLECTED;
-          if (d && typeof d.toDate === 'function') return d.toDate();
-          const parsed = new Date(d);
-          return isNaN(parsed.getTime()) ? new Date() : parsed;
-        })() 
-      : new Date(),
+    date: (sourceCollection === "Responses" ? data.Date : data.DATE_COLLECTED) ? new Date(sourceCollection === "Responses" ? data.Date : data.DATE_COLLECTED) : new Date(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 
@@ -222,24 +204,24 @@ export async function getManagedComments(filters: any = {}) {
   return snapshot.docs.map((doc: any) => {
     const data = doc.data();
     const acronym = officeMap.get((data.office || "").toLowerCase()) || data.office;
-    const safeToISO = (val: any) => {
-      if (!val) return null;
-      if (typeof val.toDate === 'function') return val.toDate().toISOString();
-      const d = new Date(val);
-      return isNaN(d.getTime()) ? null : d.toISOString();
+    const parseDate = (d: any) => {
+      if (!d) return null;
+      if (typeof d.toDate === 'function') return d.toDate().toISOString();
+      const date = new Date(d);
+      return isNaN(date.getTime()) ? null : date.toISOString();
     };
 
     return {
       id: doc.id, ...data,
-      office: acronym, // Virtual: Return Acronym to UI for display/filter
-      officeId: data.office, // Virtual: Also provide ID just in case
-      date: safeToISO(data.date),
-      createdAt: safeToISO(data.createdAt),
-      updatedAt: safeToISO(data.updatedAt),
+      office: acronym,
+      officeId: data.office,
+      date: parseDate(data.date),
+      createdAt: parseDate(data.createdAt),
+      updatedAt: parseDate(data.updatedAt),
     };
   }).filter((c: any) => {
-     const off = (c.officeId || "").toLowerCase();
-     return activeOffices.some(o => o.id.toLowerCase() === off || o.name.toLowerCase() === off);
+    const off = (c.officeId || "").toLowerCase();
+    return activeOffices.some(o => o.id.toLowerCase() === off || o.name.toLowerCase() === off);
   }).sort((a: any, b: any) => (new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()));
 }
 
@@ -255,16 +237,14 @@ export async function getCommentAnalytics(year: string) {
   activeOffices.forEach(o => officeMap.set(o.name.toLowerCase(), o.name));
 
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  
+
   const startOfYear = new Date(parseInt(year), 0, 1);
   const endOfYear = new Date(parseInt(year), 11, 31, 23, 59, 59);
 
-  const snapshot = await db.collection("comment_management")
-    .where("date", ">=", startOfYear)
-    .where("date", "<=", endOfYear)
-    .get();
+  const snapshot = await db.collection("comment_management").get();
 
-  const allDocs = snapshot.docs.map(d => ({ ...(d.data() as ManagedComment), id: d.id }));
+  const allDocs = snapshot.docs.map(d => ({ ...(d.data() as ManagedComment), id: d.id }))
+    .filter(d => d.month && d.month.includes(year));
 
   const monthlyData = months.map(m => ({
     month: m,
@@ -345,11 +325,11 @@ export async function getCommentAnalytics(year: string) {
     year,
     monthlyData,
     overall: {
-      negativeResolutionRate: yearlyStats.totalNegative > 0 
-        ? (yearlyStats.resolvedNegative / yearlyStats.totalNegative) * 100 
+      negativeResolutionRate: yearlyStats.totalNegative > 0
+        ? (yearlyStats.resolvedNegative / yearlyStats.totalNegative) * 100
         : 0,
       combinedResolutionRate: (yearlyStats.totalNegative + yearlyStats.totalSuggestions) > 0
-        ? ((yearlyStats.resolvedNegative + yearlyStats.resolvedSuggestions) / (yearlyStats.totalNegative + yearlyStats.totalSuggestions)) * 100 
+        ? ((yearlyStats.resolvedNegative + yearlyStats.resolvedSuggestions) / (yearlyStats.totalNegative + yearlyStats.totalSuggestions)) * 100
         : 0,
       totalNegative: yearlyStats.totalNegative,
       resolvedNegative: yearlyStats.resolvedNegative,
@@ -372,7 +352,7 @@ export async function getCommentAnalytics(year: string) {
 export async function getOfficeAnalytics(year: string, officeName: string) {
   const activeOffices = await getAllOffices(false);
   const office = activeOffices.find(o => o.name.toLowerCase() === officeName.toLowerCase() || o.id.toLowerCase() === officeName.toLowerCase());
-  
+
   if (!office) throw new Error("Office not found");
   const canonicalId = office.id;
 
@@ -382,11 +362,10 @@ export async function getOfficeAnalytics(year: string, officeName: string) {
 
   const snapshot = await db.collection("comment_management")
     .where("office", "==", canonicalId)
-    .where("date", ">=", startOfYear)
-    .where("date", "<=", endOfYear)
     .get();
 
-  const docs = snapshot.docs.map(d => ({ ...(d.data() as ManagedComment), id: d.id }));
+  const docs = snapshot.docs.map(d => ({ ...(d.data() as ManagedComment), id: d.id }))
+    .filter(d => d.month && d.month.includes(year));
 
   const monthlyData = months.map(m => ({
     month: m,
@@ -412,7 +391,7 @@ export async function getOfficeAnalytics(year: string, officeName: string) {
     if (sentiment === "Negative") {
       data.negative++;
       if (isResolved) data.resolvedNegative++;
-      
+
       const normalizedText = doc.commentText.toLowerCase().trim().replace(/[.,!?;:]/g, "");
       if (normalizedText.length > 5) {
         if (!officePatterns[normalizedText]) officePatterns[normalizedText] = { text: doc.commentText, count: 0 };

@@ -19,7 +19,7 @@ export interface FeedbackResponse {
  * Fetches detailed feedback responses.
  */
 export async function getOfficeResponses(
-  month?: string, 
+  month?: string,
   year?: string
 ): Promise<FeedbackResponse[]> {
   try {
@@ -29,7 +29,7 @@ export async function getOfficeResponses(
     // 1. Dynamically determine "Assigned Offices"
     const assignmentSnapshot = await db.collection('office_assignment').get();
     const assignedOfficesSet = new Set<string>();
-    
+
     assignmentSnapshot.docs.forEach(doc => {
       const office = doc.data().office;
       if (office) {
@@ -40,7 +40,7 @@ export async function getOfficeResponses(
         }
       }
     });
-    
+
     const targetOffices = Array.from(assignedOfficesSet);
     if (targetOffices.length === 0) return [];
 
@@ -54,7 +54,7 @@ export async function getOfficeResponses(
       snapshot.docs.forEach((doc) => {
         const docData = doc.data();
         const docDate = new Date(docData.Date);
-        
+
         // Temporal filter (In-memory for legacy string format robustness)
         if (month && year) {
           if (isNaN(docDate.getTime())) return;
@@ -108,7 +108,7 @@ export async function updateCommentClassifications(updates: { documentID: string
 
 function normalizeResponse(id: string, data: any, index: number): FeedbackResponse {
   const d = new Date(data.Date);
-  const formattedDate = !isNaN(d.getTime()) 
+  const formattedDate = !isNaN(d.getTime())
     ? d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : "Invalid Date";
 

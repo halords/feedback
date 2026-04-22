@@ -47,7 +47,7 @@ export async function getDashboardMetrics(offices: string[], month: string | str
   // Resolve office IDs into all variants (Acronym, Name, ID) to ensure archive lookup resilience
   const resolvedOffices = await resolveTargetOffices(offices, year);
   const monthArray = Array.isArray(month) ? month : [month];
-  
+
   const results: DashboardMetrics[] = [];
   const monthsToFetchLive: string[] = [];
 
@@ -56,12 +56,12 @@ export async function getDashboardMetrics(offices: string[], month: string | str
     for (const m of monthArray) {
       const archivePath = `archives/${year}/${m}/metrics.json`;
       const archivedData = await getJsonArchive<DashboardMetrics[]>(archivePath);
-      
+
       if (archivedData) {
         console.log(`[MetricsService] Archive HIT: Using optimized JSON for ${m} ${year} (Zero Firestore Reads)`);
         const filtered = archivedData.filter(item => {
           const dept = (item.department || "").trim().toLowerCase().replace(/-/g, ' ');
-          return resolvedOffices.some(ro => 
+          return resolvedOffices.some(ro =>
             ro.trim().toLowerCase().replace(/-/g, ' ') === dept
           );
         });
@@ -82,11 +82,11 @@ export async function getDashboardMetrics(offices: string[], month: string | str
       "January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December"
     ];
-    
+
     const sortedMonths = [...monthsToFetchLive].sort((a, b) => months.indexOf(a) - months.indexOf(b));
     const minMonth = sortedMonths[0];
     const maxMonth = sortedMonths[sortedMonths.length - 1];
-    
+
     // ISO Range preparation
     const monthMap: Record<string, string> = {
       'January': '01', 'February': '02', 'March': '03', 'April': '04',
@@ -113,29 +113,29 @@ export async function getDashboardMetrics(offices: string[], month: string | str
   const finalMap = new Map<string, DashboardMetrics>();
   results.forEach(m => {
     // Determine the authority record for this entry
-    const canonical = activeOffices.find(o => 
-      o.id.toLowerCase() === m.department.toLowerCase() || 
-      o.name.toLowerCase() === m.department.toLowerCase() || 
+    const canonical = activeOffices.find(o =>
+      o.id.toLowerCase() === m.department.toLowerCase() ||
+      o.name.toLowerCase() === m.department.toLowerCase() ||
       (o.fullName && o.fullName.toLowerCase() === m.department.toLowerCase())
     );
     const key = `${canonical?.id || m.department}_${m.month}`;
-    
+
     // Always use the short acronym (name) or ID for the UI 'department' field
     const displayDepartment = canonical?.name || m.department;
-    
+
     if (!finalMap.has(key)) {
-      finalMap.set(key, { 
-        ...m, 
-        department: displayDepartment, 
-        officeName: canonical?.fullName || displayDepartment 
+      finalMap.set(key, {
+        ...m,
+        department: displayDepartment,
+        officeName: canonical?.fullName || displayDepartment
       });
     } else {
       // Merge values if we somehow got multiple
       const existing = finalMap.get(key)!;
       const merged = mergeReports(existing, m, m.month);
-      finalMap.set(key, { 
-        ...merged, 
-        department: displayDepartment, 
+      finalMap.set(key, {
+        ...merged,
+        department: displayDepartment,
         fullname: m.fullname || merged.fullname,
         officeName: canonical?.fullName || displayDepartment
       });
@@ -148,7 +148,7 @@ export async function getDashboardMetrics(offices: string[], month: string | str
 
 async function getOnlineReportInRange(offices: string[], startDate: string, endDate: string, targetMonths: string[], year: string, activeOffices: any[]) {
   const results: any = {};
-  
+
   // Scoped to date range for massive performance gain vs legacy full-scan
   const CHUNK_SIZE = 30;
   const officeChunks = [];
@@ -156,46 +156,46 @@ async function getOnlineReportInRange(offices: string[], startDate: string, endD
     officeChunks.push(offices.slice(i, i + CHUNK_SIZE));
   }
 
-    const queryPromises = officeChunks.map(chunk =>
-      db.collection('Responses')
-        .where('officeId', 'in', chunk)
-        .where('date_iso', '>=', startDate)
-        .where('date_iso', '<=', endDate)
-        .get()
-    );
+  const queryPromises = officeChunks.map(chunk =>
+    db.collection('Responses')
+      .where('officeId', 'in', chunk)
+      .where('date_iso', '>=', startDate)
+      .where('date_iso', '<=', endDate)
+      .get()
+  );
 
-    const snapshots = await Promise.all(queryPromises);
+  const snapshots = await Promise.all(queryPromises);
 
-    snapshots.forEach(snapshot => {
-      snapshot.forEach((doc: any) => {
-        const data = doc.data();
-        const dateIso = data.date_iso || "";
-        if (!dateIso) return;
+  snapshots.forEach(snapshot => {
+    snapshot.forEach((doc: any) => {
+      const data = doc.data();
+      const dateIso = data.date_iso || "";
+      if (!dateIso) return;
 
-        const dateParts = dateIso.split('-');
-        const yearStr = dateParts[0];
-        const monthNum = dateParts[1];
+      const dateParts = dateIso.split('-');
+      const yearStr = dateParts[0];
+      const monthNum = dateParts[1];
 
-        const months = [
-          "January", "February", "March", "April", "May", "June",
-          "July", "August", "September", "October", "November", "December"
-        ];
-        const docMonth = months[parseInt(monthNum) - 1];
-        const docYear = yearStr;
+      const months = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+      const docMonth = months[parseInt(monthNum) - 1];
+      const docYear = yearStr;
 
-        if (targetMonths.includes(docMonth) && docYear === year) {
-          const rawOffice = (data.officeId || data.Office || "").trim().replace(/-/g, ' ').toLowerCase();
-          const canonical = activeOffices.find(o => 
-            o.id.toLowerCase().replace(/-/g, ' ') === rawOffice || 
-            o.name.toLowerCase().replace(/-/g, ' ') === rawOffice || 
-            (o.fullName && o.fullName.toLowerCase().replace(/-/g, ' ') === rawOffice)
-          );
+      if (targetMonths.includes(docMonth) && docYear === year) {
+        const rawOffice = (data.officeId || data.Office || "").trim().replace(/-/g, ' ').toLowerCase();
+        const canonical = activeOffices.find(o =>
+          o.id.toLowerCase().replace(/-/g, ' ') === rawOffice ||
+          o.name.toLowerCase().replace(/-/g, ' ') === rawOffice ||
+          (o.fullName && o.fullName.toLowerCase().replace(/-/g, ' ') === rawOffice)
+        );
 
-          const officeId = canonical?.id || rawOffice;
-          const key = `${officeId}_${docMonth}`;
-          if (!results[key]) results[key] = createEmptyResult(officeId, docMonth);
+        const officeId = canonical?.id || rawOffice;
+        const key = `${officeId}_${docMonth}`;
+        if (!results[key]) results[key] = createEmptyResult(officeId, docMonth);
 
-          const res = results[key];
+        const res = results[key];
         res.collection++;
         res.visitor++;
 
@@ -221,11 +221,11 @@ async function getOnlineReportInRange(offices: string[], startDate: string, endD
           // Comm.: Count only comments with type "positive"
           if (rawClass === "positive") {
             res.comments.positive.push(data.Comment);
-          } 
+          }
           // Compl.: Count only comments with type "negative"
           else if (rawClass === "negative") {
             res.comments.negative.push(data.Comment);
-          } 
+          }
           // Sugg.: Count only comments with type "suggestion" or "suggestions"
           else if (rawClass === "suggestion" || rawClass === "suggestions") {
             res.comments.suggestions.push(data.Comment);
@@ -265,7 +265,7 @@ async function getOfflineReportInRange(offices: string[], monthArray: string[], 
   monthArray.forEach(m => {
     const periodIso = `${year}-${monthMap[m]}`;
     const monthYearLabel = `${m} ${year}`;
-    
+
     // Performance: Querying all physical reports for the month is efficient as there is usually only 1 per office.
     // This allows us to handle legacy records that may not have 'officeId' or 'period_iso' properly.
     queryPromises.push(db.collection('physical_report').where('period_iso', '==', periodIso).get());
@@ -286,7 +286,7 @@ async function getOfflineReportInRange(offices: string[], monthArray: string[], 
 
       // Filter by office in-memory using both IDs, Names, and Full Names
       const deptNormalized = (data.DEPARTMENT || "").trim().replace(/-/g, ' ').toLowerCase();
-      const officeMatch = activeOffices.find(o => 
+      const officeMatch = activeOffices.find(o =>
         o.id.toLowerCase().replace(/-/g, ' ') === deptNormalized ||
         o.name.toLowerCase().replace(/-/g, ' ') === deptNormalized ||
         (o.fullName && o.fullName.toLowerCase().replace(/-/g, ' ') === deptNormalized)
@@ -296,21 +296,21 @@ async function getOfflineReportInRange(offices: string[], monthArray: string[], 
 
       const officeId = officeMatch.id; // Always use ID (Acronym) as the internal key
       const docPeriod = data.FOR_THE_MONTH_OF || "";
-      
+
       // Resolve month correctly from various legacy schemas
       let docMonth = docPeriod.split(' ')[0];
       if (!docMonth && data.period_iso) {
         const monthNum = data.period_iso.split('-')[1];
         docMonth = Object.keys(monthMap).find(k => monthMap[k] === monthNum) || "";
       }
-      
+
       if (!docMonth) return; // Skip if we can't determine the month
-      
+
       // DIAGNOSTIC LOG: Show which Firestore doc is contributing to which office
       console.log(`[Offline-Agg] Doc ID: ${doc.id} | DEPT: "${data.DEPARTMENT}" -> matched office: "${officeId}" | Q5_5: ${data['55']} | Q6_5: ${data['65']} | Forms: ${data.COLLECTED_FORMS}`);
-      
+
       const key = `${officeId}_${docMonth}`;
-      
+
       // Strict Deduplication: Always overwrite with the latest valid document for this month/office
       // This prevents rogue duplicates from secretly adding their numbers (like 8 + 9 = 17)
       results[key] = createEmptyResult(officeId, docMonth);
@@ -365,7 +365,7 @@ async function getOfflineReportInRange(offices: string[], monthArray: string[], 
 
         comments.forEach((comment: string, index: number) => {
           if (!comment || typeof comment !== 'string' || comment.trim().length < 2) return;
-          
+
           const rawSentiment = (classifications[index] || "").trim().toLowerCase();
           if (rawSentiment === "not applicable") return;
 

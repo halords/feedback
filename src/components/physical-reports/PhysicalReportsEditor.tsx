@@ -6,11 +6,11 @@ import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { 
-  User, 
-  BookOpen, 
-  FileText, 
-  ExternalLink, 
+import {
+  User,
+  BookOpen,
+  FileText,
+  ExternalLink,
   Plus,
   Trash2,
   Save,
@@ -62,7 +62,7 @@ export function PhysicalReportsEditor() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isArchived, setIsArchived] = useState(false);
   const { isOverrideActive } = useSystem();
-  
+
   const effectiveArchived = isArchived && !isOverrideActive;
 
   const baselineYear = 2025;
@@ -84,7 +84,7 @@ export function PhysicalReportsEditor() {
 
 
   const availableYears = Array.from(
-    { length: currentYear - baselineYear + 1 }, 
+    { length: currentYear - baselineYear + 1 },
     (_, i) => (baselineYear + i).toString()
   );
 
@@ -106,8 +106,8 @@ export function PhysicalReportsEditor() {
     if (!reports) return [];
     if (!search) return reports;
     const s = search.toLowerCase();
-    return reports.filter(r => 
-      r.DEPARTMENT?.toLowerCase().includes(s) || 
+    return reports.filter(r =>
+      r.DEPARTMENT?.toLowerCase().includes(s) ||
       r.FOR_THE_MONTH_OF?.toLowerCase().includes(s)
     );
   }, [reports, search]);
@@ -136,7 +136,7 @@ export function PhysicalReportsEditor() {
           {Array(8).fill(0).map((_, i) => (
             <div key={i} className="px-6 py-5 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                 <div className="w-64 h-5 bg-on-surface/5 rounded" />
+                <div className="w-64 h-5 bg-on-surface/5 rounded" />
               </div>
               <div className="w-20 h-8 bg-on-surface/5 rounded-lg" />
             </div>
@@ -177,7 +177,7 @@ export function PhysicalReportsEditor() {
 
           <div className="relative flex-1 w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface/30" />
-            <input 
+            <input
               type="text"
               placeholder="Search office name..."
               value={search}
@@ -187,8 +187,8 @@ export function PhysicalReportsEditor() {
           </div>
         </div>
 
-        <Button 
-          onClick={handleCreate} 
+        <Button
+          onClick={handleCreate}
           disabled={effectiveArchived}
           className={clsx(
             "rounded-2xl flex items-center gap-2 h-11 px-6 transition-all",
@@ -217,7 +217,7 @@ export function PhysicalReportsEditor() {
                 {isOverrideActive ? "Override Mode Active" : "Archived Period detected"}
               </p>
               <p className={clsx("text-xs font-bold leading-tight", isOverrideActive ? "text-amber-800/80" : "text-amber-700/60")}>
-                {isOverrideActive 
+                {isOverrideActive
                   ? "You are editing an archived record. Remember to RE-ARCHIVE this month in 'Saving Measures' after saving changes."
                   : "This month has been archived in 'Saving Measures'. Editing is disabled to ensure data consistency."
                 }
@@ -267,11 +267,11 @@ export function PhysicalReportsEditor() {
                     <span className="text-xs font-black text-on-surface">{report.VISITORS}</span>
                   </td>
                   <td className="px-6 py-3.5 text-right">
-                    <button 
+                    <button
                       onClick={() => handleEdit(report)}
                       className={clsx(
                         "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-[10px] font-black uppercase tracking-tighter ml-auto",
-                        effectiveArchived 
+                        effectiveArchived
                           ? "bg-on-surface/5 text-on-surface/40 hover:bg-on-surface/10"
                           : "bg-primary/5 text-primary hover:bg-primary hover:text-white"
                       )}
@@ -299,14 +299,14 @@ export function PhysicalReportsEditor() {
               Showing Page <span className="text-primary">{currentPage}</span> of {totalPages}
             </p>
             <div className="flex items-center gap-2">
-              <button 
+              <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
                 className="p-1.5 rounded-lg hover:bg-surface-lowest disabled:opacity-20 transition-all text-primary border border-transparent hover:border-border-strong/50"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <button 
+              <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
                 className="p-1.5 rounded-lg hover:bg-surface-lowest disabled:opacity-20 transition-all text-primary border border-transparent hover:border-border-strong/50"
@@ -318,15 +318,15 @@ export function PhysicalReportsEditor() {
         )}
       </Card>
 
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
         title={selectedReport ? `${effectiveArchived ? 'Viewing' : 'Editing'} ${selectedReport.DEPARTMENT}` : "New Physical Report"}
       >
-        <ReportForm 
-          report={selectedReport} 
-          onClose={() => setIsModalOpen(false)} 
-          onSaveSuccess={refreshReports} 
+        <ReportForm
+          report={selectedReport}
+          onClose={() => setIsModalOpen(false)}
+          onSaveSuccess={refreshReports}
           isArchived={effectiveArchived}
         />
       </Modal>
@@ -425,22 +425,22 @@ function ReportForm({ report, onClose, onSaveSuccess, isArchived }: { report: an
   // Logic to auto-calculate '5' ratings as a remainder
   useEffect(() => {
     if (!formData) return;
-    
+
     setFormData((prev: any) => {
       const next = { ...prev };
       let changed = false;
 
       for (let i = 0; i <= 9; i++) {
         const total = prev.COLLECTED_FORMS || 0;
-        const sumOthers = 
-          (prev[`${i}1`] || 0) + 
-          (prev[`${i}2`] || 0) + 
-          (prev[`${i}3`] || 0) + 
-          (prev[`${i}4`] || 0) + 
+        const sumOthers =
+          (prev[`${i}1`] || 0) +
+          (prev[`${i}2`] || 0) +
+          (prev[`${i}3`] || 0) +
+          (prev[`${i}4`] || 0) +
           (prev[`${i}NA`] || 0);
-        
+
         const calculatedFive = Math.max(0, total - sumOthers);
-        
+
         if (prev[`${i}5`] !== calculatedFive) {
           next[`${i}5`] = calculatedFive;
           changed = true;
@@ -449,17 +449,17 @@ function ReportForm({ report, onClose, onSaveSuccess, isArchived }: { report: an
 
       return changed ? next : prev;
     });
-  }, [formData?.COLLECTED_FORMS, 
-      formData?.['01'], formData?.['02'], formData?.['03'], formData?.['04'], formData?.['0NA'],
-      formData?.['11'], formData?.['12'], formData?.['13'], formData?.['14'], formData?.['1NA'],
-      formData?.['21'], formData?.['22'], formData?.['23'], formData?.['24'], formData?.['2NA'],
-      formData?.['31'], formData?.['32'], formData?.['33'], formData?.['34'], formData?.['3NA'],
-      formData?.['41'], formData?.['42'], formData?.['43'], formData?.['44'], formData?.['4NA'],
-      formData?.['51'], formData?.['52'], formData?.['53'], formData?.['54'], formData?.['5NA'],
-      formData?.['61'], formData?.['62'], formData?.['63'], formData?.['64'], formData?.['6NA'],
-      formData?.['71'], formData?.['72'], formData?.['73'], formData?.['74'], formData?.['7NA'],
-      formData?.['81'], formData?.['82'], formData?.['83'], formData?.['84'], formData?.['8NA'],
-      formData?.['91'], formData?.['92'], formData?.['93'], formData?.['94'], formData?.['9NA']
+  }, [formData?.COLLECTED_FORMS,
+  formData?.['01'], formData?.['02'], formData?.['03'], formData?.['04'], formData?.['0NA'],
+  formData?.['11'], formData?.['12'], formData?.['13'], formData?.['14'], formData?.['1NA'],
+  formData?.['21'], formData?.['22'], formData?.['23'], formData?.['24'], formData?.['2NA'],
+  formData?.['31'], formData?.['32'], formData?.['33'], formData?.['34'], formData?.['3NA'],
+  formData?.['41'], formData?.['42'], formData?.['43'], formData?.['44'], formData?.['4NA'],
+  formData?.['51'], formData?.['52'], formData?.['53'], formData?.['54'], formData?.['5NA'],
+  formData?.['61'], formData?.['62'], formData?.['63'], formData?.['64'], formData?.['6NA'],
+  formData?.['71'], formData?.['72'], formData?.['73'], formData?.['74'], formData?.['7NA'],
+  formData?.['81'], formData?.['82'], formData?.['83'], formData?.['84'], formData?.['8NA'],
+  formData?.['91'], formData?.['92'], formData?.['93'], formData?.['94'], formData?.['9NA']
   ]);
 
   const handleSave = async () => {
@@ -467,7 +467,7 @@ function ReportForm({ report, onClose, onSaveSuccess, isArchived }: { report: an
     try {
       const url = report ? `/api/physical-reports/${report.id}` : "/api/physical-reports";
       const method = report ? "PUT" : "POST";
-      
+
       // Convert date back to MM/DD/YYYY for database storage
       const dataToSave = { ...formData };
       if (dataToSave.DATE_COLLECTED && dataToSave.DATE_COLLECTED.includes('-')) {
@@ -480,7 +480,7 @@ function ReportForm({ report, onClose, onSaveSuccess, isArchived }: { report: an
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dataToSave)
       });
-      
+
       if (res.ok) {
         onSaveSuccess();
         onClose();
@@ -590,26 +590,26 @@ function ReportForm({ report, onClose, onSaveSuccess, isArchived }: { report: an
                 <BookOpen className="w-3 h-3" /> Citizen&apos;s Charter Awareness
               </h4>
               <div className="bg-surface-lowest p-5 rounded-2xl border border-on-surface/5 space-y-6">
-                 <div className="grid grid-cols-3 gap-4">
-                    <InputGroup label="CC1: Yes" value={formData.YES} onChange={(v) => handleNumericChange("YES", v)} />
-                    <InputGroup label="CC1: Just Now" value={formData.JUST_NOW} onChange={(v) => handleNumericChange("JUST_NOW", v)} />
-                    <InputGroup label="CC1: No" value={formData.NO} onChange={(v) => handleNumericChange("NO", v)} />
-                 </div>
-                 <hr className="border-on-surface/5" />
-                 <div className="grid grid-cols-5 gap-3">
-                    <InputGroup label="CC2: Visible" value={formData.VISIBLE} onChange={(v) => handleNumericChange("VISIBLE", v)} size="xs" />
-                    <InputGroup label="CC2: Somewhat" value={formData.SOMEWHAT_VISIBLE} onChange={(v) => handleNumericChange("SOMEWHAT_VISIBLE", v)} size="xs" />
-                    <InputGroup label="CC2: Difficult" value={formData.DIFFICULT_TO_SEE} onChange={(v) => handleNumericChange("DIFFICULT_TO_SEE", v)} size="xs" />
-                    <InputGroup label="CC2: Not Visible" value={formData.NOT_VISIBLE} onChange={(v) => handleNumericChange("NOT_VISIBLE", v)} size="xs" />
-                    <InputGroup label="CC2: N/A" value={formData.NA} onChange={(v) => handleNumericChange("NA", v)} size="xs" />
-                 </div>
-                 <hr className="border-on-surface/5" />
-                 <div className="grid grid-cols-4 gap-4">
-                    <InputGroup label="CC3: Very Much" value={formData.VERY_MUCH} onChange={(v) => handleNumericChange("VERY_MUCH", v)} />
-                    <InputGroup label="CC3: Somewhat" value={formData.SOMEWHAT} onChange={(v) => handleNumericChange("SOMEWHAT", v)} />
-                    <InputGroup label="CC3: Did Not Help" value={formData.DID_NOT_HELP} onChange={(v) => handleNumericChange("DID_NOT_HELP", v)} />
-                    <InputGroup label="CC3: N/A" value={formData.NA2} onChange={(v) => handleNumericChange("NA2", v)} />
-                 </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <InputGroup label="CC1: Yes" value={formData.YES} onChange={(v) => handleNumericChange("YES", v)} />
+                  <InputGroup label="CC1: Just Now" value={formData.JUST_NOW} onChange={(v) => handleNumericChange("JUST_NOW", v)} />
+                  <InputGroup label="CC1: No" value={formData.NO} onChange={(v) => handleNumericChange("NO", v)} />
+                </div>
+                <hr className="border-on-surface/5" />
+                <div className="grid grid-cols-5 gap-3">
+                  <InputGroup label="CC2: Visible" value={formData.VISIBLE} onChange={(v) => handleNumericChange("VISIBLE", v)} size="xs" />
+                  <InputGroup label="CC2: Somewhat" value={formData.SOMEWHAT_VISIBLE} onChange={(v) => handleNumericChange("SOMEWHAT_VISIBLE", v)} size="xs" />
+                  <InputGroup label="CC2: Difficult" value={formData.DIFFICULT_TO_SEE} onChange={(v) => handleNumericChange("DIFFICULT_TO_SEE", v)} size="xs" />
+                  <InputGroup label="CC2: Not Visible" value={formData.NOT_VISIBLE} onChange={(v) => handleNumericChange("NOT_VISIBLE", v)} size="xs" />
+                  <InputGroup label="CC2: N/A" value={formData.NA} onChange={(v) => handleNumericChange("NA", v)} size="xs" />
+                </div>
+                <hr className="border-on-surface/5" />
+                <div className="grid grid-cols-4 gap-4">
+                  <InputGroup label="CC3: Very Much" value={formData.VERY_MUCH} onChange={(v) => handleNumericChange("VERY_MUCH", v)} />
+                  <InputGroup label="CC3: Somewhat" value={formData.SOMEWHAT} onChange={(v) => handleNumericChange("SOMEWHAT", v)} />
+                  <InputGroup label="CC3: Did Not Help" value={formData.DID_NOT_HELP} onChange={(v) => handleNumericChange("DID_NOT_HELP", v)} />
+                  <InputGroup label="CC3: N/A" value={formData.NA2} onChange={(v) => handleNumericChange("NA2", v)} />
+                </div>
               </div>
             </div>
           </div>
@@ -617,151 +617,151 @@ function ReportForm({ report, onClose, onSaveSuccess, isArchived }: { report: an
 
         {activeTab === "ratings" && (
           <div className="space-y-6 animate-in fade-in duration-300">
-             <div className="overflow-x-auto rounded-2xl border border-on-surface/5">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="bg-background/50 border-b-2 border-border-strong">
-                      <th className="px-4 py-3 font-black uppercase text-on-surface/40 w-1/2">Question</th>
-                      <th className="px-2 py-3 font-black uppercase text-on-surface/40 text-center">NA</th>
-                      <th className="px-2 py-3 font-black uppercase text-on-surface/40 text-center">1</th>
-                      <th className="px-2 py-3 font-black uppercase text-on-surface/40 text-center">2</th>
-                      <th className="px-2 py-3 font-black uppercase text-on-surface/40 text-center">3</th>
-                      <th className="px-2 py-3 font-black uppercase text-on-surface/40 text-center">4</th>
-                      <th className="px-2 py-3 font-black uppercase text-on-surface/40 text-center">5</th>
-                      <th className="px-4 py-3 font-black uppercase text-primary text-right">Rate</th>
+            <div className="overflow-x-auto rounded-2xl border border-on-surface/5">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-background/50 border-b-2 border-border-strong">
+                    <th className="px-4 py-3 font-black uppercase text-on-surface/40 w-1/2">Question</th>
+                    <th className="px-2 py-3 font-black uppercase text-on-surface/40 text-center">NA</th>
+                    <th className="px-2 py-3 font-black uppercase text-on-surface/40 text-center">1</th>
+                    <th className="px-2 py-3 font-black uppercase text-on-surface/40 text-center">2</th>
+                    <th className="px-2 py-3 font-black uppercase text-on-surface/40 text-center">3</th>
+                    <th className="px-2 py-3 font-black uppercase text-on-surface/40 text-center">4</th>
+                    <th className="px-2 py-3 font-black uppercase text-on-surface/40 text-center">5</th>
+                    <th className="px-4 py-3 font-black uppercase text-primary text-right">Rate</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-strong/20">
+                  {FEEDBACK_STATEMENTS.map((stmt, i) => (
+                    <tr key={i} className="hover:bg-on-surface/[0.01]">
+                      <td className="px-4 py-3 font-bold text-on-surface/60">{stmt}</td>
+                      <td className="px-1 py-1"><RatingInput value={formData[`${i}NA`]} onChange={(v) => handleNumericChange(`${i}NA`, v)} /></td>
+                      <td className="px-1 py-1"><RatingInput value={formData[`${i}1`]} onChange={(v) => handleNumericChange(`${i}1`, v)} /></td>
+                      <td className="px-1 py-1"><RatingInput value={formData[`${i}2`]} onChange={(v) => handleNumericChange(`${i}2`, v)} /></td>
+                      <td className="px-1 py-1"><RatingInput value={formData[`${i}3`]} onChange={(v) => handleNumericChange(`${i}3`, v)} /></td>
+                      <td className="px-1 py-1"><RatingInput value={formData[`${i}4`]} onChange={(v) => handleNumericChange(`${i}4`, v)} /></td>
+                      <td className="px-1 py-1"><RatingInput value={formData[`${i}5`]} onChange={(v) => handleNumericChange(`${i}5`, v)} readOnly /></td>
+                      <td className="px-4 py-3 text-right font-black text-primary italic">{qRates[`Q${i}`]}</td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border-strong/20">
-                    {FEEDBACK_STATEMENTS.map((stmt, i) => (
-                      <tr key={i} className="hover:bg-on-surface/[0.01]">
-                        <td className="px-4 py-3 font-bold text-on-surface/60">{stmt}</td>
-                        <td className="px-1 py-1"><RatingInput value={formData[`${i}NA`]} onChange={(v) => handleNumericChange(`${i}NA`, v)} /></td>
-                        <td className="px-1 py-1"><RatingInput value={formData[`${i}1`]} onChange={(v) => handleNumericChange(`${i}1`, v)} /></td>
-                        <td className="px-1 py-1"><RatingInput value={formData[`${i}2`]} onChange={(v) => handleNumericChange(`${i}2`, v)} /></td>
-                        <td className="px-1 py-1"><RatingInput value={formData[`${i}3`]} onChange={(v) => handleNumericChange(`${i}3`, v)} /></td>
-                        <td className="px-1 py-1"><RatingInput value={formData[`${i}4`]} onChange={(v) => handleNumericChange(`${i}4`, v)} /></td>
-                        <td className="px-1 py-1"><RatingInput value={formData[`${i}5`]} onChange={(v) => handleNumericChange(`${i}5`, v)} readOnly /></td>
-                        <td className="px-4 py-3 text-right font-black text-primary italic">{qRates[`Q${i}`]}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-             </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {activeTab === "comments" && (
           <div className="space-y-8 animate-in fade-in duration-300">
-             <div className="bg-tertiary/5 border border-tertiary/10 p-4 rounded-2xl">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-tertiary">Bulk CSV Import (Comments)</h4>
-                  <p className="text-[9px] text-tertiary/60 font-bold uppercase italic tracking-widest">Format: comment | classification (e.g. Good staff | Positive)</p>
-                </div>
-                <textarea 
-                  className="w-full h-32 p-3 rounded-xl bg-white border border-tertiary/20 text-xs focus:outline-none focus:ring-1 focus:ring-tertiary/30 font-medium"
-                  placeholder="Insert comment | positive&#10;Insert complaint | negative..."
-                  onBlur={(e) => {
-                    if (!e.target.value.trim()) return;
-                    const lines = e.target.value.split('\n');
-                    const newComments = [...formData.COMMENTS];
-                    const newClassify = [...formData.CLASSIFY];
-                    lines.forEach(line => {
-                      if (!line.trim()) return;
-                      const parts = line.split('|').map(s => s?.trim());
-                      const comment = parts[0];
-                      const classification = parts.length > 1 ? parts[1] : "Positive";
-                      
-                      if (comment) {
-                        newComments.push(comment);
-                        newClassify.push(classification);
-                      }
-                    });
-                    setFormData({ ...formData, COMMENTS: newComments, CLASSIFY: newClassify });
-                    e.target.value = "";
-                  }}
-                />
-             </div>
+            <div className="bg-tertiary/5 border border-tertiary/10 p-4 rounded-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-tertiary">Bulk CSV Import (Comments)</h4>
+                <p className="text-[9px] text-tertiary/60 font-bold uppercase italic tracking-widest">Format: comment | classification (e.g. Good staff | Positive)</p>
+              </div>
+              <textarea
+                className="w-full h-32 p-3 rounded-xl bg-white border border-tertiary/20 text-xs focus:outline-none focus:ring-1 focus:ring-tertiary/30 font-medium"
+                placeholder="Insert comment | positive&#10;Insert complaint | negative..."
+                onBlur={(e) => {
+                  if (!e.target.value.trim()) return;
+                  const lines = e.target.value.split('\n');
+                  const newComments = [...formData.COMMENTS];
+                  const newClassify = [...formData.CLASSIFY];
+                  lines.forEach(line => {
+                    if (!line.trim()) return;
+                    const parts = line.split('|').map(s => s?.trim());
+                    const comment = parts[0];
+                    const classification = parts.length > 1 ? parts[1] : "Positive";
 
-             <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-on-surface/40">Raw Comments List ({formData.COMMENTS.length})</h4>
-                  <Button variant="secondary" onClick={() => {
-                    const newComments = [...formData.COMMENTS, ""];
-                    const newClassify = [...formData.CLASSIFY, "Positive"];
-                    setFormData({ ...formData, COMMENTS: newComments, CLASSIFY: newClassify });
-                  }} className="text-primary h-7 px-2 text-[10px] font-black uppercase tracking-widest border border-primary/10">
-                    <Plus className="w-3 h-3 mr-1" /> Add Entry
-                  </Button>
-                </div>
+                    if (comment) {
+                      newComments.push(comment);
+                      newClassify.push(classification);
+                    }
+                  });
+                  setFormData({ ...formData, COMMENTS: newComments, CLASSIFY: newClassify });
+                  e.target.value = "";
+                }}
+              />
+            </div>
 
-                <div className="space-y-3">
-                  {formData.COMMENTS.map((c: string, i: number) => (
-                    <div key={i} className="flex gap-3 items-start animate-in slide-in-from-right-2 duration-300">
-                      <div className="flex-1">
-                        <textarea 
-                          className="w-full text-xs p-2.5 rounded-xl border border-on-surface/5 bg-surface-low focus:outline-none focus:ring-1 focus:ring-primary/20 italic font-medium"
-                          value={c}
-                          onChange={(e) => {
-                            const nc = [...formData.COMMENTS];
-                            nc[i] = e.target.value;
-                            handleChange("COMMENTS", nc);
-                          }}
-                          placeholder="Feedback comment content..."
-                        />
-                      </div>
-                      <div className="w-32">
-                        <select 
-                          className="w-full text-[10px] p-2.5 rounded-xl border border-on-surface/5 bg-surface-low font-black uppercase tracking-tight focus:outline-none h-[42px]"
-                          value={formData.CLASSIFY[i]}
-                          onChange={(e) => {
-                            const nc = [...formData.CLASSIFY];
-                            nc[i] = e.target.value;
-                            handleChange("CLASSIFY", nc);
-                          }}
-                        >
-                          <option value="Positive">Commendation</option>
-                          <option value="Negative">Complaint</option>
-                          <option value="Suggestion">Suggestion</option>
-                          <option value="Not Applicable">N/A</option>
-                        </select>
-                      </div>
-                      <button 
-                        onClick={() => {
-                          const nc = formData.COMMENTS.filter((_: any, idx: number) => idx !== i);
-                          const ncl = formData.CLASSIFY.filter((_: any, idx: number) => idx !== i);
-                          setFormData({ ...formData, COMMENTS: nc, CLASSIFY: ncl });
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-on-surface/40">Raw Comments List ({formData.COMMENTS.length})</h4>
+                <Button variant="secondary" onClick={() => {
+                  const newComments = [...formData.COMMENTS, ""];
+                  const newClassify = [...formData.CLASSIFY, "Positive"];
+                  setFormData({ ...formData, COMMENTS: newComments, CLASSIFY: newClassify });
+                }} className="text-primary h-7 px-2 text-[10px] font-black uppercase tracking-widest border border-primary/10">
+                  <Plus className="w-3 h-3 mr-1" /> Add Entry
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {formData.COMMENTS.map((c: string, i: number) => (
+                  <div key={i} className="flex gap-3 items-start animate-in slide-in-from-right-2 duration-300">
+                    <div className="flex-1">
+                      <textarea
+                        className="w-full text-xs p-2.5 rounded-xl border border-on-surface/5 bg-surface-low focus:outline-none focus:ring-1 focus:ring-primary/20 italic font-medium"
+                        value={c}
+                        onChange={(e) => {
+                          const nc = [...formData.COMMENTS];
+                          nc[i] = e.target.value;
+                          handleChange("COMMENTS", nc);
                         }}
-                        className="p-3 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                        placeholder="Feedback comment content..."
+                      />
+                    </div>
+                    <div className="w-32">
+                      <select
+                        className="w-full text-[10px] p-2.5 rounded-xl border border-on-surface/5 bg-surface-low font-black uppercase tracking-tight focus:outline-none h-[42px]"
+                        value={formData.CLASSIFY[i]}
+                        onChange={(e) => {
+                          const nc = [...formData.CLASSIFY];
+                          nc[i] = e.target.value;
+                          handleChange("CLASSIFY", nc);
+                        }}
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        <option value="Positive">Commendation</option>
+                        <option value="Negative">Complaint</option>
+                        <option value="Suggestion">Suggestion</option>
+                        <option value="Not Applicable">N/A</option>
+                      </select>
                     </div>
-                  ))}
-                  {formData.COMMENTS.length === 0 && (
-                    <div className="py-10 text-center border-2 border-dashed border-on-surface/5 rounded-3xl">
-                      <p className="text-xs font-bold text-on-surface/20 italic">No comments added yet.</p>
-                    </div>
-                  )}
-                </div>
-             </div>
+                    <button
+                      onClick={() => {
+                        const nc = formData.COMMENTS.filter((_: any, idx: number) => idx !== i);
+                        const ncl = formData.CLASSIFY.filter((_: any, idx: number) => idx !== i);
+                        setFormData({ ...formData, COMMENTS: nc, CLASSIFY: ncl });
+                      }}
+                      className="p-3 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                {formData.COMMENTS.length === 0 && (
+                  <div className="py-10 text-center border-2 border-dashed border-on-surface/5 rounded-3xl">
+                    <p className="text-xs font-bold text-on-surface/20 italic">No comments added yet.</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
 
       <div className="mt-8 pt-6 border-t border-on-surface/5 flex items-center justify-between">
-         <div className="flex items-center gap-4">
-            <div className="px-4 py-2 bg-primary/5 rounded-xl border border-primary/10">
-              <span className="text-[10px] font-black tracking-widest uppercase text-primary/50 mr-2">OVERALL:</span>
-              <span className="text-sm font-black text-primary">{overrate}</span>
-            </div>
-         </div>
-         <div className="flex gap-3">
-           <Button variant="secondary" onClick={onClose} disabled={isSaving} className="rounded-xl px-6 font-bold">Cancel</Button>
-           <Button onClick={handleSave} disabled={isSaving || isArchived} className="rounded-xl px-8 flex items-center gap-2 shadow-lg shadow-primary/20">
-             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-             {isArchived ? "Archived (Read Only)" : "Save Changes"}
-           </Button>
-         </div>
+        <div className="flex items-center gap-4">
+          <div className="px-4 py-2 bg-primary/5 rounded-xl border border-primary/10">
+            <span className="text-[10px] font-black tracking-widest uppercase text-primary/50 mr-2">OVERALL:</span>
+            <span className="text-sm font-black text-primary">{overrate}</span>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <Button variant="secondary" onClick={onClose} disabled={isSaving} className="rounded-xl px-6 font-bold">Cancel</Button>
+          <Button onClick={handleSave} disabled={isSaving || isArchived} className="rounded-xl px-8 flex items-center gap-2 shadow-lg shadow-primary/20">
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {isArchived ? "Archived (Read Only)" : "Save Changes"}
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -773,8 +773,8 @@ function FormTab({ active, onClick, icon, label }: { active: boolean, onClick: (
       onClick={onClick}
       className={clsx(
         "flex items-center gap-2 px-4 py-2 rounded-xl font-sans text-[10px] font-black uppercase tracking-widest transition-all duration-300",
-        active 
-          ? "bg-surface-lowest text-primary shadow-sm" 
+        active
+          ? "bg-surface-lowest text-primary shadow-sm"
           : "text-on-surface/30 hover:text-on-surface/50 hover:bg-surface-lowest/50"
       )}
     >
@@ -797,9 +797,9 @@ function InputGroup({ label, value, onChange, size = "md" }: { label: string, va
   return (
     <div className="space-y-1">
       <label className={clsx("font-bold uppercase tracking-tight text-on-surface/30 block ml-0.5", size === "xs" ? "text-[8px]" : "text-[9px]")}>{label}</label>
-      <input 
-        type="number" 
-        value={value} 
+      <input
+        type="number"
+        value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-full bg-surface-low border border-on-surface/5 rounded-xl px-3 py-2 text-sm font-black focus:outline-none focus:ring-1 focus:ring-primary/20 text-on-surface"
       />
@@ -809,9 +809,9 @@ function InputGroup({ label, value, onChange, size = "md" }: { label: string, va
 
 function RatingInput({ value, onChange, readOnly = false }: { value: number, onChange: (v: string) => void, readOnly?: boolean }) {
   return (
-    <input 
-      type="number" 
-      value={value} 
+    <input
+      type="number"
+      value={value}
       onChange={(e) => !readOnly && onChange(e.target.value)}
       readOnly={readOnly}
       className={clsx(

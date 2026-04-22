@@ -39,7 +39,7 @@ export async function getResponses(
 
     if (archivedData) {
       console.log(`[ResponseService] Archive HIT: Using optimized JSON for ${month} ${year}`);
-      
+
       const responses = archivedData
         .filter(data => {
           const id = (data.officeId || data.Office || "").trim().toLowerCase();
@@ -59,7 +59,7 @@ export async function getResponses(
             date: data.date_iso || data.Date || data.date
           };
         });
-        
+
       const sorted = responses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       console.log(`[ResponseService] Archive HIT: Returning ${sorted.length} mapped records.`);
       return sorted;
@@ -74,7 +74,7 @@ export async function getResponses(
   ];
   const monthIndex = months.indexOf(month);
   const monthNum = String(monthIndex + 1).padStart(2, '0');
-  
+
   const startDateIso = `${year}-${monthNum}-01`;
   const endDateIso = `${year}-${monthNum}-31`; // Firestore range filters handle this safely
 
@@ -97,7 +97,7 @@ export async function getResponses(
     }
 
     // With normalization, we search by officeId
-    const queryPromises = officeChunks.map(chunk => 
+    const queryPromises = officeChunks.map(chunk =>
       db.collection('Responses')
         .where('officeId', 'in', chunk)
         .where('date_iso', '>=', startDateIso)
@@ -140,11 +140,11 @@ export async function classifyComments(
 ) {
   const batch = db.batch();
   console.log(`[Classification] Committing batch of ${assignments.length} updates...`);
-  
+
   assignments.forEach(({ docId, classification }) => {
     const docRef = db.collection('Responses').doc(docId);
     console.log(`[Classification] ID: ${docId} -> ${classification}`);
-    batch.update(docRef, { 
+    batch.update(docRef, {
       Class: classification,
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });

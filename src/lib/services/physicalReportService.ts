@@ -55,16 +55,30 @@ export async function getAllPhysicalReports(month?: string | null, year?: string
 
 export async function updatePhysicalReport(id: string, data: Partial<PhysicalReport>) {
   const docRef = db.collection("physical_report").doc(id);
+  const formattedData = { ...data };
+  if (formattedData.DATE_COLLECTED && typeof formattedData.DATE_COLLECTED === 'string') {
+    const d = new Date(formattedData.DATE_COLLECTED);
+    if (!isNaN(d.getTime())) {
+      formattedData.DATE_COLLECTED = admin.firestore.Timestamp.fromDate(d);
+    }
+  }
   await docRef.update({
-    ...data,
+    ...formattedData,
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   });
   return { id, success: true };
 }
 
 export async function createPhysicalReport(data: Omit<PhysicalReport, "id">) {
+  const formattedData = { ...data };
+  if (formattedData.DATE_COLLECTED && typeof formattedData.DATE_COLLECTED === 'string') {
+    const d = new Date(formattedData.DATE_COLLECTED);
+    if (!isNaN(d.getTime())) {
+      formattedData.DATE_COLLECTED = admin.firestore.Timestamp.fromDate(d);
+    }
+  }
   const docRef = await db.collection("physical_report").add({
-    ...data,
+    ...formattedData,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   });
