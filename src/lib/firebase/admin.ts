@@ -1,84 +1,53 @@
 import admin from 'firebase-admin';
 
 /**
- * Optimized Firebase Admin Singleton for Next.js 15
- * 
- * Uses a Proxy for lazy initialization (prevents startup crashes)
- * and globalThis for persistence (prevents duplicate app errors during hot-reloads).
+ * Simplified Firebase Admin Initialization
  */
 
-const globalForFirebase = globalThis as unknown as {
-  __firebaseApp?: admin.app.App;
-};
+const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'fir-7db1b';
+const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${projectId}.firebasestorage.app`;
 
-const ensureInitialized = () => {
-  if (globalForFirebase.__firebaseApp) return globalForFirebase.__firebaseApp;
-  
+function getInitializedApp() {
+  // 1. Return existing app if already there
   if (admin.apps.length > 0) {
-    globalForFirebase.__firebaseApp = admin.app();
-    return globalForFirebase.__firebaseApp;
+    return admin.apps[0]!;
   }
 
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'fir-7db1b';
-  const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${projectId}.firebasestorage.app`;
+  // 2. Initialize new app
+  const isProduction = process.env.NODE_ENV === 'production';
   const serviceAccountJson = process.env.SERVICE_ACCOUNT_JSON || process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
   try {
-    let app: admin.app.App;
-    
-    if (serviceAccountJson && serviceAccountJson.length > 20) {
+    if (!isProduction && serviceAccountJson && serviceAccountJson.trim().startsWith('{')) {
       const sa = JSON.parse(serviceAccountJson);
       if (sa.private_key) sa.private_key = sa.private_key.replace(/\\n/g, '\n');
-      
-      app = admin.initializeApp({
+
+      return admin.initializeApp({
         credential: admin.credential.cert(sa),
         projectId: sa.project_id || projectId,
         storageBucket
       });
     } else {
-      // Standard Application Default Credentials
-      app = admin.initializeApp({
+      // Production: use ADC
+      return admin.initializeApp({
         storageBucket,
         projectId
       });
     }
-    
-    globalForFirebase.__firebaseApp = app;
-    return app;
-  } catch (err: any) {
-    if (!/already exists/.test(err.message)) {
-      console.error('❌ Firebase Admin init error:', err);
+  } catch (error: any) {
+    if (error.code === 'app/duplicate-app' || /already exists/.test(error.message)) {
+      return admin.app();
     }
-    globalForFirebase.__firebaseApp = admin.app();
-    return globalForFirebase.__firebaseApp;
+    console.error("Critical Firebase Admin Init Error:", error);
+    throw error;
   }
-};
+}
 
-// Lazy Getters
-export const db = new Proxy({} as admin.firestore.Firestore, {
-  get: (_, prop) => {
-    const instance = ensureInitialized().firestore();
-    const value = (instance as any)[prop];
-    return typeof value === 'function' ? value.bind(instance) : value;
-  }
-});
+// Initialize immediately so services are ready
+const app = getInitializedApp();
 
-export const auth = new Proxy({} as admin.auth.Auth, {
-  get: (_, prop) => {
-    const instance = ensureInitialized().auth();
-    const value = (instance as any)[prop];
-    return typeof value === 'function' ? value.bind(instance) : value;
-  }
-});
-
-export const storage = new Proxy({} as admin.storage.Storage, {
-  get: (_, prop) => {
-    const instance = ensureInitialized().storage();
-    const value = (instance as any)[prop];
-    return typeof value === 'function' ? value.bind(instance) : value;
-  }
-});
+export const db = app.firestore();
+export const auth = app.auth();
+export const storage = app.storage();
 
 export { admin };
-
-

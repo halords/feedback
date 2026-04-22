@@ -36,17 +36,22 @@ function getMonthLabel(dateInput: any, sourceData?: any): string {
   return date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 }
 
-export async function syncComments(force = false) {
+export async function syncComments(force = false, targetPeriod?: { month: string; year: string }) {
   const activeOffices = await getAllOffices(false);
   const activeIdsSet = new Set(activeOffices.map(o => o.id.toLowerCase()));
 
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const now = new Date();
   const syncPeriods: { month: string; year: string }[] = [];
-  for (let y = 2025; y <= now.getFullYear(); y++) {
-    for (const m of months) {
-      syncPeriods.push({ month: m, year: String(y) });
-      if (y === now.getFullYear() && months.indexOf(m) === now.getMonth()) break;
+
+  if (targetPeriod) {
+    syncPeriods.push(targetPeriod);
+  } else {
+    for (let y = 2025; y <= now.getFullYear(); y++) {
+      for (const m of months) {
+        syncPeriods.push({ month: m, year: String(y) });
+        if (y === now.getFullYear() && months.indexOf(m) === now.getMonth()) break;
+      }
     }
   }
 
@@ -140,10 +145,17 @@ export async function syncComments(force = false) {
         else if (rawClass === "suggestion" || rawClass === "suggestions") sentiment = "Suggestion";
         else continue;
 
+        const parseDate = (d: any) => {
+          if (!d) return new Date();
+          if (typeof d.toDate === 'function') return d.toDate();
+          const parsed = new Date(d);
+          return isNaN(parsed.getTime()) ? new Date() : parsed;
+        };
+
         batch.set(db.collection("comment_management").doc(`response_${doc.id}`), {
           sourceId: doc.id, sourceCollection: "Responses",
           commentText: data.Comment, sentiment, office: canonical.id, month: monthYearLabel,
-          date: data.Date ? (typeof data.Date === 'string' ? new Date(data.Date) : (data.Date.toDate ? data.Date.toDate() : new Date())) : new Date(),
+          date: parseDate(data.Date),
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
         totalSynced++;
@@ -178,7 +190,14 @@ export async function upsertManagedComment(sourceCollection: "Responses" | "phys
     sourceId, sourceCollection, commentText: (sourceCollection === "Responses" ? data.Comment : ensureArray(data.COMMENTS, true)[index!]) || "",
     sentiment: normalizedSentiment, office: canonical.id,
     month: getMonthLabel(sourceCollection === "Responses" ? data.Date : data.DATE_COLLECTED, data),
-    date: (sourceCollection === "Responses" ? data.Date : data.DATE_COLLECTED) ? new Date(sourceCollection === "Responses" ? data.Date : data.DATE_COLLECTED) : new Date(),
+    date: (sourceCollection === "Responses" ? data.Date : data.DATE_COLLECTED) 
+      ? (() => {
+          const d = sourceCollection === "Responses" ? data.Date : data.DATE_COLLECTED;
+          if (d && typeof d.toDate === 'function') return d.toDate();
+          const parsed = new Date(d);
+          return isNaN(parsed.getTime()) ? new Date() : parsed;
+        })() 
+      : new Date(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 
@@ -203,13 +222,20 @@ export async function getManagedComments(filters: any = {}) {
   return snapshot.docs.map((doc: any) => {
     const data = doc.data();
     const acronym = officeMap.get((data.office || "").toLowerCase()) || data.office;
+    const safeToISO = (val: any) => {
+      if (!val) return null;
+      if (typeof val.toDate === 'function') return val.toDate().toISOString();
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? null : d.toISOString();
+    };
+
     return {
       id: doc.id, ...data,
       office: acronym, // Virtual: Return Acronym to UI for display/filter
       officeId: data.office, // Virtual: Also provide ID just in case
-      date: data.date?.toDate()?.toISOString() || null,
-      createdAt: data.createdAt?.toDate()?.toISOString() || null,
-      updatedAt: data.updatedAt?.toDate()?.toISOString() || null,
+      date: safeToISO(data.date),
+      createdAt: safeToISO(data.createdAt),
+      updatedAt: safeToISO(data.updatedAt),
     };
   }).filter((c: any) => {
      const off = (c.officeId || "").toLowerCase();
