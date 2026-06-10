@@ -41,6 +41,7 @@ export const POST = withAuth(async (request, context, user, scopedOffices) => {
     // 2. Enforce RBAC for non-superadmins
     const type = user.user_type?.toLowerCase().replace(/\s/g, '');
     if (type !== 'superadmin') {
+      const userOffices = user.offices || [];
       const docRefs = assignments.map(a => db.collection('Responses').doc(a.docId));
       const snapshots = await db.getAll(...docRefs);
 
@@ -48,7 +49,8 @@ export const POST = withAuth(async (request, context, user, scopedOffices) => {
         if (!snap.exists) return true;
         const data = snap.data();
         const officeId = data?.officeId || data?.Office;
-        return !(scopedOffices || []).includes(officeId);
+        // Non-superadmins can ONLY classify comments for their assigned offices
+        return !userOffices.includes(officeId);
       });
 
       if (isUnauthorized) {

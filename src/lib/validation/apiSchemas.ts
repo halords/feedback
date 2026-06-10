@@ -110,7 +110,8 @@ const userBaseSchema = z.object({
     errorMap: () => ({ message: "user_type must be 'Superadmin' or 'User'" })
   }),
   office_assignment: z.array(z.string()).default([]),
-  is_analytics_enabled: z.boolean().optional()
+  is_analytics_enabled: z.boolean().optional(),
+  can_access_all_reports: z.boolean().optional()
 });
 
 export function validateUserInput(body: any): ValidationResult<z.infer<typeof userBaseSchema>> {
@@ -127,9 +128,11 @@ const userAnalyticsPatchSchema = z.object({
     required_error: "Missing 'analyticsEnabled'",
     invalid_type_error: "analyticsEnabled must be a boolean",
   }),
+  commentsAnalyticsEnabled: z.boolean().optional(),
+  canAccessAllReports: z.boolean().optional(),
 });
 
-export function validateUserPatchInput(body: any): ValidationResult<{ analyticsEnabled: boolean }> {
+export function validateUserPatchInput(body: any): ValidationResult<{ analyticsEnabled: boolean, commentsAnalyticsEnabled?: boolean, canAccessAllReports?: boolean }> {
   const result = userAnalyticsPatchSchema.safeParse(body);
   if (!result.success) return { success: false, error: result.error.errors[0].message };
   return { success: true, data: result.data };

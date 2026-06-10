@@ -58,7 +58,10 @@ export default function CommentsPage() {
   const router = useRouter();
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<"action" | "positive" | "analysis">("action");
+  const isSuperadmin = user?.user_type?.toLowerCase() === 'superadmin';
+  const isAnalyticsEnabled = !!user?.is_analytics_enabled;
+
+  const [activeTab, setActiveTab] = useState<"action" | "positive" | "analysis" | "resolved">("action");
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedComment, setSelectedComment] = useState<Comment | null>(null);
 
@@ -106,7 +109,8 @@ export default function CommentsPage() {
     } else if (!isLoading && user) {
       const isSuperadmin = user.user_type?.toLowerCase() === "superadmin";
       const isAnalytics = !!user.is_analytics_enabled;
-      if (!isSuperadmin && !isAnalytics) {
+      const isCommentsAnalytics = !!user.is_comments_analytics_enabled;
+      if (!isSuperadmin && !isAnalytics && !isCommentsAnalytics) {
         router.push("/dashboard");
       }
     }
@@ -175,10 +179,13 @@ export default function CommentsPage() {
   // 1. First, distinguish comments based on the ACTIVE tab
   const tabFilteredComments = useMemo(() => {
     if (activeTab === "analysis") return [];
-    return comments.filter(c =>
-      activeTab === "positive"
-        ? (c.sentiment === "Positive")
-        : (c.sentiment === "Negative" || c.sentiment === "Suggestion")
+    if (activeTab === "resolved") return comments.filter(c => c.status === "Resolved");
+    if (activeTab === "positive") return comments.filter(c => c.sentiment === "Positive");
+    
+    // Action Required: Negative/Suggestion AND not Resolved
+    return comments.filter(c => 
+      (c.sentiment === "Negative" || c.sentiment === "Suggestion") && 
+      c.status !== "Resolved"
     );
   }, [comments, activeTab]);
 
@@ -248,13 +255,20 @@ export default function CommentsPage() {
                 color="red"
               />
               <TabButtonCompact
+                active={activeTab === "resolved"}
+                onClick={() => { setActiveTab("resolved"); setOfficeFilter("All Offices"); }}
+                label="Resolved"
+                count={comments.filter(c => c.status === "Resolved").length}
+                color="green"
+              />
+              <TabButtonCompact
                 active={activeTab === "positive"}
                 onClick={() => { setActiveTab("positive"); setOfficeFilter("All Offices"); }}
                 label="Positive"
                 count={comments.filter(c => c.sentiment === "Positive").length}
                 color="green"
               />
-              {user?.user_type?.toLowerCase() === "superadmin" && (
+              {(user?.user_type?.toLowerCase() === "superadmin" || user?.is_comments_analytics_enabled) && (
                 <TabButtonCompact
                   active={activeTab === "analysis"}
                   onClick={() => setActiveTab("analysis")}
@@ -321,7 +335,7 @@ export default function CommentsPage() {
           </div>
         </div>
 
-        {activeTab === "analysis" && user?.user_type?.toLowerCase() === "superadmin" ? (
+        {activeTab === "analysis" && (user?.user_type?.toLowerCase() === "superadmin" || user?.is_comments_analytics_enabled) ? (
           <AnalysisDashboard year={selectedYear} />
         ) : (
           <Card className="p-0 overflow-hidden border border-border-strong/50 shadow-xl bg-surface-low">
@@ -334,7 +348,7 @@ export default function CommentsPage() {
                     <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40 text-center">Sentiment</th>
                     <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40 text-center">Period</th>
                     <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40 text-center">Office</th>
-                    {activeTab === "action" && (
+                    {(activeTab === "action" || activeTab === "resolved") && (
                       <>
                         <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40 text-center">Status</th>
                         <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-on-surface/40 text-center">Action Taken</th>
@@ -353,7 +367,7 @@ export default function CommentsPage() {
                         <td className="px-5 py-5"><div className="h-4 bg-on-surface/5 rounded w-16 mx-auto" /></td>
                         <td className="px-5 py-5"><div className="h-4 bg-on-surface/5 rounded w-20 mx-auto" /></td>
                         <td className="px-5 py-5"><div className="h-4 bg-on-surface/5 rounded w-24 mx-auto" /></td>
-                        {activeTab === "action" && (
+                        {(activeTab === "action" || activeTab === "resolved") && (
                           <>
                             <td className="px-5 py-5"><div className="h-4 bg-on-surface/5 rounded w-16 mx-auto" /></td>
                             <td className="px-5 py-5"><div className="h-4 bg-on-surface/5 rounded w-24 mx-auto" /></td>
@@ -389,7 +403,7 @@ export default function CommentsPage() {
                             {comment.office}
                           </span>
                         </td>
-                        {activeTab === "action" && (
+                        {(activeTab === "action" || activeTab === "resolved") && (
                           <>
                             <td className="px-5 py-3.5 text-center">
                               <StatusBadge status={comment.status} />
@@ -418,8 +432,17 @@ export default function CommentsPage() {
                                   onClick={() => setSelectedComment(comment)}
                                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all text-[10px] font-black uppercase tracking-tighter"
                                 >
-                                  <Edit2 className="w-3 h-3" />
-                                  Manage
+                                  {activeTab === "resolved" ? (
+                                    <>
+                                      <Search className="w-3 h-3" />
+                                      View
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Edit2 className="w-3 h-3" />
+                                      Manage
+                                    </>
+                                  )}
                                 </button>
                               </div>
                             </td>

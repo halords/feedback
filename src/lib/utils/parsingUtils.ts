@@ -13,3 +13,25 @@ export function ensureArray(input: any, isComment = false): string[] {
   }
   return [];
 }
+
+/**
+ * Groups repeated comments and appends the count in parentheses.
+ * Example: ["Good", "Good"] -> ["Good (2)"]
+ */
+export function groupRepeatedComments(comments: string[]): string[] {
+  if (!comments || comments.length === 0) return [];
+
+  const counts = new Map<string, number>();
+  comments.forEach(c => {
+    const trimmed = c.trim();
+    const upper = trimmed.toUpperCase();
+    if (trimmed && upper !== "NA" && upper !== "N/A" && upper !== "NONE") {
+      counts.set(trimmed, (counts.get(trimmed) || 0) + 1);
+    }
+  });
+
+  return Array.from(counts.entries()).map(([comment, count]) => {
+    const formatted = `${comment}`;
+    return count > 1 ? `${formatted} (${count})` : formatted;
+  });
+}

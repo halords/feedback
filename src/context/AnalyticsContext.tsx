@@ -48,9 +48,7 @@ export function AnalyticsProvider({ children, activeTab = "data" }: { children: 
   const [selectedUserId, setSelectedUserId] = useState<string | null>(searchParams.get("userId"));
   const [isGraphsReady, setIsGraphsReady] = useState(false);
 
-  // Fetch all users for superadmin filter
   const isSuperadmin = user?.user_type?.toLowerCase() === "superadmin";
-  const { data: users } = useSWR(isSuperadmin ? "/api/users" : null, (url) => fetch(url).then(res => res.json()));
 
   const setFilters = ({ month: newMonth, year: newYear, search: newSearch, selectedUserId: newUserId }: any) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -86,18 +84,10 @@ export function AnalyticsProvider({ children, activeTab = "data" }: { children: 
   };
 
   const targetOffices = useMemo(() => {
-    if (!user) return [];
-
-    // Summary and Graphs are independent global views
-    if (activeTab === "summary" || activeTab === "graphs") {
-      return ["ALL"];
-    }
-
-    const isSuper = user.user_type?.toLowerCase() === "superadmin";
-    if (isSuper) return ["ALL"];
-
-    // Office Admin Data View: Their assigned scope
-    return user.offices && user.offices.length > 0 ? user.offices : ["NONE_ASSIGNED"];
+    // Always return ALL to ensure we fetch organizational scope.
+    // Filtering for restricted users is handled in the 'data' useMemo to allow 
+    // access to historical assignments even if current assignments are empty.
+    return ["ALL"];
   }, [user, activeTab]);
 
   const swrKey = targetOffices.length > 0 ? ["/api/dashboard", targetOffices, month, year] : null;
@@ -125,11 +115,34 @@ export function AnalyticsProvider({ children, activeTab = "data" }: { children: 
 
   const data = useMemo(() => {
     if (!Array.isArray(rawData)) return rawData;
-    if (isSuperadmin && selectedUserId && selectedUserId !== "ALL_OFFICES") {
+    
+    const canAccessAll = !!user?.can_access_all_reports;
+
+    // 1. Superadmin or Global Access View: Filter by selected personnel if applicable
+    if (activeTab === "data" && (isSuperadmin || canAccessAll) && selectedUserId && selectedUserId !== "ALL_OFFICES") {
       return rawData.filter((item: any) => item.fullname === selectedUserId);
     }
+    
+    // 2. Restricted User View (Data Tab Only): 
+    // Limit to currently assigned offices OR historical assignments (snapshot personnel)
+    // BYPASS if can_access_all_reports is enabled
+    if (activeTab === "data" && !isSuperadmin && !canAccessAll && user) {
+      const userOffices = (user.offices || []).map(o => o.toLowerCase());
+      const userFullName = user.full_name?.toUpperCase();
+
+      return rawData.filter((item: any) => {
+        const itemOffice = (item.department || "").toLowerCase();
+        const itemFullname = (item.fullname || "").toUpperCase();
+        
+        const isCurrentlyAssigned = userOffices.includes(itemOffice);
+        const isHistoricalAssignee = itemFullname && itemFullname === userFullName;
+        
+        return isCurrentlyAssigned || isHistoricalAssignee;
+      });
+    }
+    
     return rawData;
-  }, [rawData, isSuperadmin, selectedUserId]);
+  }, [rawData, isSuperadmin, selectedUserId, activeTab, user]);
 
   const value = useMemo(() => ({
     month,

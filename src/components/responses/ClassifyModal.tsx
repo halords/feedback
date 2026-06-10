@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { AlertCircle, CheckCircle2, RefreshCw, ChevronRight, Tag } from "lucide-react";
 import { clsx } from "clsx";
+import { useAuth } from "@/context/AuthContext";
 
 interface ClassifyModalProps {
   isOpen: boolean;
@@ -26,15 +27,21 @@ export function ClassifyModal({
   const [error, setError] = useState<string | null>(null);
   const [selections, setSelections] = useState<Record<string, string>>({});
 
+  const { user } = useAuth();
+  const isSuperadmin = user?.user_type?.toLowerCase() === "superadmin";
+
   const unclassifiedItems = useMemo(() => {
     if (!responses || !Array.isArray(responses)) return [];
+    const userOffices = user?.offices || [];
     return responses.filter((res: any) => {
       const cls = (res.classification || "").toLowerCase().trim();
       const isUnclassified = !cls || cls === "unclassified";
       const hasComment = res.comment && res.comment.trim().length > 2;
-      return isUnclassified && hasComment;
+      
+      const belongsToUser = isSuperadmin || userOffices.includes(res.officeId || res.office);
+      return isUnclassified && hasComment && belongsToUser;
     });
-  }, [responses]);
+  }, [responses, user, isSuperadmin]);
 
   // Clear selections when modal opens or items change
   React.useEffect(() => {

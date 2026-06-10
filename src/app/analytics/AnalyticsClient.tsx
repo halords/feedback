@@ -18,10 +18,11 @@ type Tab = "data" | "summary" | "graphs";
 
 function AnalyticsHeader({ activeTab, setActiveTab }: { activeTab: Tab, setActiveTab: (t: Tab) => void }) {
   const { user } = useAuth();
-  
   const isSuperadmin = user?.user_type?.toLowerCase() === 'superadmin';
-  const isAnalyticsEnabled = !!user?.is_analytics_enabled;
-  const canSeeAnalytics = isSuperadmin || isAnalyticsEnabled;
+  // Everyone who can access the page can see the header/tabs
+  // But non-superadmins only see Summary and Graphs (hideDataView)
+  const canSeeAnalytics = true;
+  const hideDataView = false; // Enable Data View for everyone (filtered by context)
 
   if (!canSeeAnalytics) return null;
 
@@ -29,12 +30,14 @@ function AnalyticsHeader({ activeTab, setActiveTab }: { activeTab: Tab, setActiv
     <div className="flex items-center justify-end mb-8">
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 bg-surface-low p-1.5 rounded-2xl border border-on-surface/5">
-          <TabButton 
-            active={activeTab === "data"} 
-            onClick={() => setActiveTab("data")} 
-            icon={<Table className="w-4 h-4" />}
-            label="Data View"
-          />
+          {!hideDataView && (
+            <TabButton 
+              active={activeTab === "data"} 
+              onClick={() => setActiveTab("data")} 
+              icon={<Table className="w-4 h-4" />}
+              label="Data View"
+            />
+          )}
           <TabButton 
             active={activeTab === "summary"} 
             onClick={() => setActiveTab("summary")} 
@@ -56,7 +59,17 @@ function AnalyticsHeader({ activeTab, setActiveTab }: { activeTab: Tab, setActiv
 export default function AnalyticsClient() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const isSuperadmin = user?.user_type?.toLowerCase() === 'superadmin';
+  const isAnalyticsEnabled = !!user?.is_analytics_enabled;
+  const hideDataView = false; // Enable Data View for everyone (filtered by context)
+
   const [activeTab, setActiveTab] = useState<Tab>("data");
+
+  useEffect(() => {
+    if (hideDataView && activeTab === "data") {
+      setActiveTab("summary");
+    }
+  }, [hideDataView, activeTab]);
 
   useEffect(() => {
     if (!isLoading && !user) {

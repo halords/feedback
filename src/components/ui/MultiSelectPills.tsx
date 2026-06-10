@@ -24,6 +24,7 @@ interface MultiSelectPillsProps {
   placeholder?: string;
   label?: string;
   disabled?: boolean;
+  valueLabelMap?: Record<string, string>;
 }
 
 export function MultiSelectPills({
@@ -33,6 +34,7 @@ export function MultiSelectPills({
   placeholder = "Select options...",
   label,
   disabled = false,
+  valueLabelMap = {},
 }: MultiSelectPillsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -53,17 +55,18 @@ export function MultiSelectPills({
     return options.filter((option) => {
       const isMatch = option.name.toLowerCase().includes(search.toLowerCase()) || 
                      (option.fullName && option.fullName.toLowerCase().includes(search.toLowerCase()));
-      const isAlreadySelected = (selectedValues || []).includes(option.name);
+      const isAlreadySelected = (selectedValues || []).includes(String(option.id));
       return isMatch && !isAlreadySelected;
     });
   }, [options, search, selectedValues]);
 
-  const toggleOption = (optionName: string) => {
+  const toggleOption = (optionId: string | number) => {
     const currentSelected = selectedValues || [];
-    if (currentSelected.includes(optionName)) {
-      onChange(currentSelected.filter((v) => v !== optionName));
+    const idStr = String(optionId);
+    if (currentSelected.includes(idStr)) {
+      onChange(currentSelected.filter((v) => v !== idStr));
     } else {
-      onChange([...currentSelected, optionName]);
+      onChange([...currentSelected, idStr]);
     }
     setSearch("");
   };
@@ -96,7 +99,7 @@ export function MultiSelectPills({
             key={val}
             className="flex items-center gap-1.5 bg-primary text-white pl-3 pr-1.5 py-1.5 rounded-full text-[11px] font-black animate-in scale-in duration-200 shadow-md group/pill"
           >
-            <span className="truncate max-w-[150px]">{val}</span>
+            <span className="truncate max-w-[250px]">{valueLabelMap[val] || val}</span>
             <button
               type="button"
               onClick={(e) => removeOption(val, e)}
@@ -132,7 +135,7 @@ export function MultiSelectPills({
                   <button
                     key={option.id}
                     type="button"
-                    onClick={() => toggleOption(option.name)}
+                    onClick={() => toggleOption(option.id)}
                     className="w-full px-5 py-3 text-left hover:bg-primary/5 transition-all flex items-center justify-between group"
                   >
                     <div className="flex flex-col">

@@ -187,11 +187,21 @@ export function Shell({ children }: { children: React.ReactNode }) {
         >
           <nav className="space-y-1 flex flex-col items-stretch w-full">
             {mainNav.filter(item => {
-              if (item.name === "Comments Management") {
-                const isSuperadmin = user?.user_type?.toLowerCase() === 'superadmin';
-                const isAnalytics = !!user?.is_analytics_enabled;
-                return isSuperadmin || isAnalytics;
+              const isSuperadmin = user?.user_type?.toLowerCase() === 'superadmin';
+              const hasOffices = user?.offices && user.offices.length > 0;
+              const isAnalytics = !!user?.is_analytics_enabled;
+              const isCommentsAnalytics = !!user?.is_comments_analytics_enabled;
+
+              // Dashboard visibility: Everyone except those with no office assignment (Superadmins always see it)
+              if (item.name === "Dashboard") {
+                return isSuperadmin || hasOffices;
               }
+
+              // Comments Management visibility
+              if (item.name === "Comments Management") {
+                return isSuperadmin || isCommentsAnalytics || isAnalytics;
+              }
+              
               return true;
             }).map((item) => {
               if (!mounted) return null;

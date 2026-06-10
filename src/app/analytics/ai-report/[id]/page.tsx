@@ -9,6 +9,7 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
+  if (id === 'new') return { title: "New AI Analysis | PGLU" };
   const report = await getAIReport(id);
   return {
     title: report ? `${report.title} | PGLU AI` : "AI Report",
@@ -18,7 +19,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function AIReportPage({ params }: Props) {
   const { id } = await params;
-  const report = await getAIReport(id);
+  let report;
+  if (id === 'new') {
+    report = {
+      id: 'new',
+      title: 'Customer Feedback Analysis Report',
+      content: null,
+      year: '',
+      timeScope: '',
+      period: '',
+      createdAt: new Date(),
+    };
+  } else {
+    report = await getAIReport(id);
+  }
 
   if (!report) {
     notFound();

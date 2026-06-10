@@ -109,6 +109,9 @@ export async function getDashboardMetrics(offices: string[], month: string | str
     }
   }
 
+  // 2.5 Fetch all assignees once to avoid N+1 lookups during mapping
+  const assigneeMap = await import("./officeService").then(m => m.getAllOfficeAssignees());
+
   // 3. Post-Aggregation: Ensure unique rows by mapping Name/ID overlaps and resolving Readable Names
   const finalMap = new Map<string, DashboardMetrics>();
   results.forEach(m => {
@@ -127,16 +130,19 @@ export async function getDashboardMetrics(offices: string[], month: string | str
       finalMap.set(key, {
         ...m,
         department: displayDepartment,
+        fullname: m.fullname || assigneeMap.get(canonical?.id || m.department) || assigneeMap.get(canonical?.name || m.department),
         officeName: canonical?.fullName || displayDepartment
       });
     } else {
       // Merge values if we somehow got multiple
       const existing = finalMap.get(key)!;
       const merged = mergeReports(existing, m, m.month);
+      const currentFullname = m.fullname || assigneeMap.get(canonical?.id || m.department) || assigneeMap.get(canonical?.name || m.department);
+      
       finalMap.set(key, {
         ...merged,
         department: displayDepartment,
-        fullname: m.fullname || merged.fullname,
+        fullname: currentFullname || merged.fullname,
         officeName: canonical?.fullName || displayDepartment
       });
     }
@@ -415,14 +421,14 @@ function mergeReports(offline: any, online: any, month: string): DashboardMetric
 
   for (let i = 0; i <= 9; i++) {
     const key = `Q${i}`;
-    const q1 = offline.qValues[key]['1'] + online.qValues[key]['1'];
-    const q2 = offline.qValues[key]['2'] + online.qValues[key]['2'];
-    const q3 = offline.qValues[key]['3'] + online.qValues[key]['3'];
-    const q4 = offline.qValues[key]['4'] + online.qValues[key]['4'];
-    const q5 = offline.qValues[key]['5'] + online.qValues[key]['5'];
-    const qNA = offline.qValues[key].NA + online.qValues[key].NA;
+    const q1 = (offline.qValues?.[key]?.['1'] || 0) + (online.qValues?.[key]?.['1'] || 0);
+    const q2 = (offline.qValues?.[key]?.['2'] || 0) + (online.qValues?.[key]?.['2'] || 0);
+    const q3 = (offline.qValues?.[key]?.['3'] || 0) + (online.qValues?.[key]?.['3'] || 0);
+    const q4 = (offline.qValues?.[key]?.['4'] || 0) + (online.qValues?.[key]?.['4'] || 0);
+    const q5 = (offline.qValues?.[key]?.['5'] || 0) + (online.qValues?.[key]?.['5'] || 0);
+    const qNA = (offline.qValues?.[key]?.NA || 0) + (online.qValues?.[key]?.NA || 0);
 
-    const total = offline.collection + online.collection;
+    const total = (offline.collection || 0) + (online.collection || 0);
     const rate = calculateQuestionRate(
       { '1': q1, '2': q2, '3': q3, '4': q4, '5': q5, NA: qNA },
       total
@@ -437,14 +443,18 @@ function mergeReports(offline: any, online: any, month: string): DashboardMetric
 
   const { sysRate, staffRate, overrate } = calculateSatisfactionAverages(qRates);
 
+  // CRITICAL: Preserve the split between online and offline during recursive merges
+  const onlineCount = (online.online !== undefined) ? (online.online + (offline.online || 0)) : online.collection;
+  const offlineCount = (offline.offline !== undefined) ? (offline.offline + (online.offline || 0)) : offline.collection;
+
   return {
-    department: offline.department,
+    department: offline.department || online.department,
     month,
     primaryGroup: Object.entries(SATELLITE_GROUPS).find(([_, list]) => (list as string[]).includes(offline.department))?.[0],
-    collection: offline.collection + online.collection,
-    online: online.collection,
-    offline: offline.collection,
-    visitor: offline.visitor + online.visitor,
+    collection: (offline.collection || 0) + (online.collection || 0),
+    online: onlineCount,
+    offline: offlineCount,
+    visitor: (offline.visitor || 0) + (online.visitor || 0),
     overrate,
     sysRate,
     staffRate,
@@ -471,24 +481,24 @@ function mergeReports(offline: any, online: any, month: string): DashboardMetric
     },
     qValues,
     gender: {
-      Male: offline.gender.Male + online.gender.Male,
-      Female: offline.gender.Female + online.gender.Female,
-      LGBTQ: offline.gender.LGBTQ + online.gender.LGBTQ,
-      Others: offline.gender.Others + online.gender.Others,
+      Male: (offline.gender?.Male || 0) + (online.gender?.Male || 0),
+      Female: (offline.gender?.Female || 0) + (online.gender?.Female || 0),
+      LGBTQ: (offline.gender?.LGBTQ || 0) + (online.gender?.LGBTQ || 0),
+      Others: (offline.gender?.Others || 0) + (online.gender?.Others || 0),
     },
     clientType: {
-      Citizen: (offline.clientType.Citizen || 0) + (online.clientType.Citizen || 0),
-      Business: (offline.clientType.Business || 0) + (online.clientType.Business || 0),
-      Government: (offline.clientType.Government || 0) + (online.clientType.Government || 0),
-      Others: (offline.clientType.Others || 0) + (online.clientType.Others || 0),
+      Citizen: (offline.clientType?.Citizen || 0) + (online.clientType?.Citizen || 0),
+      Business: (offline.clientType?.Business || 0) + (online.clientType?.Business || 0),
+      Government: (offline.clientType?.Government || 0) + (online.clientType?.Government || 0),
+      Others: (offline.clientType?.Others || 0) + (online.clientType?.Others || 0),
     },
     comments: {
-      positive: [...offline.comments.positive, ...online.comments.positive],
-      negative: [...offline.comments.negative, ...online.comments.negative],
-      suggestions: [...offline.comments.suggestions, ...online.comments.suggestions],
+      positive: [...(offline.comments?.positive || []), ...(online.comments?.positive || [])],
+      negative: [...(offline.comments?.negative || []), ...(online.comments?.negative || [])],
+      suggestions: [...(offline.comments?.suggestions || []), ...(online.comments?.suggestions || [])],
     },
-    dateCollected: offline.dateCollected,
-    collectionRate: calculateCollectionRate(offline.collection + online.collection, offline.visitor + online.visitor)
+    dateCollected: offline.dateCollected || online.dateCollected,
+    collectionRate: calculateCollectionRate((offline.collection || 0) + (online.collection || 0), (offline.visitor || 0) + (online.visitor || 0))
   };
 }
 

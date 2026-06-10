@@ -70,11 +70,11 @@ export function FilterBar() {
         </label>
         <div className="relative group">
           <select
-            value={selectedOffices.length === officeList.length && officeList.length > 1 ? "ALL_AUTHORIZED" : (selectedOffices.length > 1 ? "MULTIPLE" : (selectedOffices[0] || ""))}
+            value={selectedOffices.length === 1 && selectedOffices[0] === "ALL" ? "ALL_AUTHORIZED" : (selectedOffices.length > 1 ? "MULTIPLE" : (selectedOffices[0] || ""))}
             onChange={(e) => {
               const val = e.target.value;
               if (val === "ALL_AUTHORIZED") {
-                setFilters({ offices: officeList.map((o: any) => o.name) });
+                setFilters({ offices: ["ALL"] });
               } else if (val === "MULTIPLE") {
                 // Keep current multiple or do nothing
               } else {
@@ -96,7 +96,7 @@ export function FilterBar() {
               <option value="MULTIPLE" disabled>Multiple Selected ({selectedOffices.length})</option>
             )}
             {officeList?.map((off: any) => (
-              <option key={off.id} value={off.name}>{off.name}</option>
+              <option key={off.id} value={off.id}>{off.name}</option>
             ))}
           </select>
           <Map className="absolute left-4 top-[14px] w-4 h-4 text-primary" />

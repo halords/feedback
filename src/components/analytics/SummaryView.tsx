@@ -20,30 +20,53 @@ export function SummaryView() {
 
   // Aggregated totals for the top stats bar
   const totals = useMemo(() => {
-    if (!displayData.length) return { clients: 0, avgRate: 0, topOffice: "N/A" };
+    if (!displayData.length) return { clients: 0, avgRate: 0, topOffice: "N/A", avgColRate: "0.00%" };
 
     let totalClients = 0;
     let sumRate = 0;
     let countRate = 0;
-    let maxRate = -1;
+    
+    let sumColRate = 0;
+    let countColRate = 0;
+
+    // Find max collection for normalization
+    const maxCollection = Math.max(...displayData.map((o: any) => o.collection || 0)) || 1;
+
+    let maxScore = -1;
     let topOffice = "N/A";
 
     displayData.forEach((o: any) => {
       totalClients += o.collection;
+      
+      // Calculate Average Satisfaction Rate
       if (o.overrate !== "N/A") {
         const r = parseFloat(o.overrate);
         sumRate += r;
         countRate++;
-        if (r > maxRate) {
-          maxRate = r;
-          topOffice = o.department;
-        }
+      }
+
+      // Calculate Average Collection Rate
+      if (o.collectionRate && o.collectionRate !== "N/A") {
+        const cr = parseFloat(o.collectionRate.replace("%", ""));
+        sumColRate += cr;
+        countColRate++;
+      }
+
+      // Peak Office Logic: 60% Responses, 40% Rating
+      const normalizedResponses = (o.collection || 0) / maxCollection;
+      const normalizedRating = o.overrate !== "N/A" ? parseFloat(o.overrate) / 100 : 0;
+      
+      const score = (normalizedResponses * 0.6) + (normalizedRating * 0.4);
+      if (score > maxScore) {
+        maxScore = score;
+        topOffice = o.department;
       }
     });
 
     return {
       clients: totalClients,
-      avgRate: countRate > 0 ? (sumRate / countRate).toFixed(2) : "N/A",
+      avgRate: countRate > 0 ? (sumRate / countRate).toFixed(2) + "%" : "N/A",
+      avgColRate: countColRate > 0 ? (sumColRate / countColRate).toFixed(2) + "%" : "0.00%",
       topOffice
     };
   }, [displayData]);
@@ -51,8 +74,8 @@ export function SummaryView() {
   if (isActuallyLoading) {
     return (
       <div className="space-y-6 animate-pulse">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {Array(3).fill(0).map((_, i) => (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {Array(4).fill(0).map((_, i) => (
             <div key={i} className="h-24 bg-on-surface/5 rounded-3xl" />
           ))}
         </div>
@@ -70,22 +93,31 @@ export function SummaryView() {
 
   return (
     <div className={clsx("space-y-6 pb-20 transition-opacity duration-300", isValidating && "opacity-50 pointer-events-none")}>
-      {/* Reduced Height Highlights */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Highlights */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <HighlightCard
           label="Total Reach"
           value={String(totals.clients)}
           icon={<Users className="w-4 h-4 text-primary" />}
+          watermark={Users}
         />
         <HighlightCard
           label="Org. Average Rate"
           value={String(totals.avgRate)}
-          icon={<TrendingUp className="w-4 h-4 text-tertiary" />}
+          icon={<TrendingUp className="w-4 h-4 text-primary" />}
+          watermark={TrendingUp}
+        />
+        <HighlightCard
+          label="Avg. Collection Rate"
+          value={totals.avgColRate}
+          icon={<TrendingUp className="w-4 h-4 text-primary" />}
+          watermark={TrendingUp}
         />
         <HighlightCard
           label="Peak Office"
           value={totals.topOffice}
           icon={<CheckCircle2 className="w-4 h-4 text-primary" />}
+          watermark={CheckCircle2}
         />
       </div>
 
@@ -176,10 +208,17 @@ export function SummaryView() {
   );
 }
 
-function HighlightCard({ label, value, icon }: { label: string, value: string, icon: any }) {
+function HighlightCard({ label, value, icon, watermark: Watermark }: { label: string, value: string, icon: any, watermark?: any }) {
   return (
     <Card className="p-4 bg-surface-low border border-border-strong/50 relative overflow-hidden group hover:border-primary/20 transition-all">
-      <div className="flex items-center justify-between">
+      {/* Background Watermark */}
+      {Watermark && (
+        <div className="absolute -right-2 -bottom-2 opacity-[0.03] text-primary group-hover:scale-110 group-hover:-rotate-12 transition-all duration-700 pointer-events-none">
+          <Watermark size={80} strokeWidth={2.5} />
+        </div>
+      )}
+      
+      <div className="flex items-center justify-between relative z-10">
         <div>
           <p className="text-[9px] font-black uppercase tracking-widest text-on-surface/30 mb-1">{label}</p>
           <p className="text-xl font-black text-on-surface truncate max-w-[150px]">{value}</p>

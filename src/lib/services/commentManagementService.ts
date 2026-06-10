@@ -319,6 +319,17 @@ export async function getCommentAnalytics(year: string) {
     .sort((a, b) => b.negative - a.negative)
     .slice(0, 10);
 
+  const topResponders = Object.entries(officeStats)
+    .map(([name, stats]) => {
+      const actionable = stats.negative + stats.suggestion;
+      const resolved = stats.resolved + stats.resolvedSuggestion;
+      const rate = actionable > 0 ? (resolved / actionable) * 100 : 0;
+      return { name, actionable, resolved, rate };
+    })
+    .filter(o => o.actionable > 0)
+    .sort((a, b) => b.rate - a.rate || b.actionable - a.actionable)
+    .slice(0, 10);
+
   const repetitiveComments = await getSmartClusters(allDocs.filter(d => d.sentiment === "Negative").map(d => d.commentText));
 
   return {
@@ -338,6 +349,7 @@ export async function getCommentAnalytics(year: string) {
       totalResolved: yearlyStats.resolvedNegative + yearlyStats.resolvedSuggestions
     },
     topOffices,
+    topResponders,
     allOffices: Object.entries(officeStats)
       .sort((a, b) => {
         const combinedA = a[1].negative + a[1].suggestion;
@@ -360,12 +372,18 @@ export async function getOfficeAnalytics(year: string, officeName: string) {
   const startOfYear = new Date(parseInt(year), 0, 1);
   const endOfYear = new Date(parseInt(year), 11, 31, 23, 59, 59);
 
-  const snapshot = await db.collection("comment_management")
-    .where("office", "==", canonicalId)
-    .get();
+  const snapshot = await db.collection("comment_management").get();
 
+  const canonicalName = office.name.toLowerCase();
   const docs = snapshot.docs.map(d => ({ ...(d.data() as ManagedComment), id: d.id }))
-    .filter(d => d.month && d.month.includes(year));
+    .filter(d => 
+      d.month && 
+      d.month.includes(year) && 
+      (
+        (d.office || "").toLowerCase() === canonicalId.toLowerCase() ||
+        (d.office || "").toLowerCase() === canonicalName
+      )
+    );
 
   const monthlyData = months.map(m => ({
     month: m,
@@ -401,11 +419,13 @@ export async function getOfficeAnalytics(year: string, officeName: string) {
       data.suggestion++;
       if (isResolved) data.resolvedSuggestion++;
     }
+  });
 
-    // Calculate monthly rate so far
-    if (data.negative > 0) {
-      data.resolutionRate = (data.resolvedNegative / data.negative) * 100;
-    }
+  // Calculate resolution rates AFTER all docs are processed per month
+  monthlyData.forEach(m => {
+    const totalActionable = m.negative + m.suggestion;
+    const totalResolved = m.resolvedNegative + m.resolvedSuggestion;
+    m.resolutionRate = totalActionable > 0 ? (totalResolved / totalActionable) * 100 : 0;
   });
 
   const totals = {
@@ -415,7 +435,9 @@ export async function getOfficeAnalytics(year: string, officeName: string) {
     resolvedSuggestion: monthlyData.reduce((acc, m) => acc + m.resolvedSuggestion, 0),
   };
 
-  const overallResolutionRate = totals.negative > 0 ? (totals.resolvedNegative / totals.negative) * 100 : 0;
+  const totalActionable = totals.negative + totals.suggestion;
+  const totalResolved = totals.resolvedNegative + totals.resolvedSuggestion;
+  const overallResolutionRate = totalActionable > 0 ? (totalResolved / totalActionable) * 100 : 0;
   const repetitiveComplaints = await getSmartClusters(docs.filter(d => d.sentiment === "Negative").map(d => d.commentText));
 
   return {

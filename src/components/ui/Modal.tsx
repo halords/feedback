@@ -12,9 +12,10 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   maxWidth?: string;
+  padding?: string;
 }
 
-export function Modal({ isOpen, onClose, title, children, maxWidth = "max-w-6xl" }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, maxWidth = "max-w-6xl", padding = "p-4 md:p-10" }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -48,7 +49,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = "max-w-6xl"
               <X className="w-6 h-6" />
             </button>
           </div>
-          <div className="overflow-y-auto p-4 md:p-10 custom-scrollbar-reports flex-grow">
+          <div className={clsx("overflow-y-auto custom-scrollbar-reports flex-grow", padding)}>
             {children}
           </div>
         </div>

@@ -4,6 +4,7 @@ import React, { useMemo, useEffect } from "react";
 import { useAnalytics } from "@/context/AnalyticsContext";
 import { useAuth } from "@/context/AuthContext";
 import { ChevronDown, Calendar, FileText, Search, Loader2, Users, Brain } from "lucide-react";
+import { AIAnalysisModal } from "./AIAnalysisModal";
 import useSWR from "swr";
 import { Button } from "@/components/ui/Button";
 import { clsx } from "clsx";
@@ -17,6 +18,7 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
   const { user } = useAuth();
   const { month, year, search, selectedUserId, setFilters, isGraphsReady, isLoading, isValidating, targetOffices, availablePersonnel } = useAnalytics();
   const [isAIAnalyzing, setIsAIAnalyzing] = React.useState(false);
+  const [isAIModalOpen, setIsAIModalOpen] = React.useState(false);
   
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -45,26 +47,22 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
   }, [availableMonths, month, setFilters]);
   
 
-  const handleAIAnalysis = async () => {
+  const handleAIAnalysis = async (config: { timeScope: "month" | "quarter" | "year"; value: string }) => {
     setIsAIAnalyzing(true);
     try {
-       const res = await fetch('/api/ai/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ year, scope: 'organization' })
-       });
-       const data = await res.json();
-       if (data.reportId) {
-          window.open(`/analytics/ai-report/${data.reportId}`, '_blank');
-       } else {
-          alert(data.error || "AI Analysis failed. Check if GEMINI_API_KEY is configured.");
-       }
+        const params = new URLSearchParams({ 
+           year, 
+           timeScope: config.timeScope,
+           value: config.value
+        });
+        window.open(`/analytics/ai-report/new?${params.toString()}`, '_blank');
+        setIsAIModalOpen(false);
     } catch (err) {
        alert("Failed to connect to AI engine");
     } finally {
        setIsAIAnalyzing(false);
     }
- };
+  };
 
   return (
     <div className="bg-surface-low rounded-2xl p-3 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 shadow-sm border border-border-strong/50 w-full transition-colors duration-300">
@@ -98,8 +96,8 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
         {/* Filters Group - Only show on Data View tab for granular browsing */}
         {activeTab === "data" && (
           <div className="flex flex-1 flex-col md:flex-row items-center gap-3">
-            {/* User Dropdown for Superadmin */}
-            {isSuperadmin && (
+            {/* User Dropdown for Superadmin or Global Access */}
+            {(isSuperadmin || !!user?.can_access_all_reports) && (
               <div className="relative w-full md:w-64 group">
                 <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface/30 group-focus-within:text-primary transition-colors" />
                 <select
@@ -142,7 +140,7 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
               (isAIAnalyzing || isLoading || isValidating) ? "opacity-50 cursor-not-allowed" : ""
             )}
             disabled={isAIAnalyzing || isLoading || isValidating}
-            onClick={handleAIAnalysis}
+            onClick={() => setIsAIModalOpen(true)}
           >
             {isAIAnalyzing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -201,6 +199,15 @@ export function AnalyticsFilterBar({ activeTab }: { activeTab: string }) {
           * Extracting dashboard data...
         </span>
       )}
+      
+      <AIAnalysisModal 
+        isOpen={isAIModalOpen}
+        onClose={() => setIsAIModalOpen(false)}
+        onAnalyze={handleAIAnalysis}
+        currentMonth={month}
+        currentYear={year}
+        isAnalyzing={isAIAnalyzing}
+      />
     </div>
   );
 }

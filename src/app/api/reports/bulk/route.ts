@@ -48,8 +48,27 @@ export const GET = withAuth(async (request, context, user, scopedOffices) => {
     // Filter and Sort
     let activeMetrics = allMetrics.filter(m => m.collection > 0);
     
+    // 2.5 Apply scoping for non-superadmins (Assigned Offices + Historical Assignments)
+    const isSuperadmin = user.user_type?.toLowerCase() === "superadmin";
+    const canAccessAll = !!user.can_access_all_reports;
+    
+    if (!isSuperadmin && !canAccessAll) {
+      const userOffices = (user.offices || []).map(o => o.toLowerCase());
+      const userFullName = user.full_name?.toUpperCase();
+
+      activeMetrics = activeMetrics.filter(m => {
+        const itemOffice = (m.department || "").toLowerCase();
+        const itemFullname = (m.fullname || "").toUpperCase();
+        
+        const isCurrentlyAssigned = userOffices.includes(itemOffice);
+        const isHistoricalAssignee = itemFullname && itemFullname === userFullName;
+        
+        return isCurrentlyAssigned || isHistoricalAssignee;
+      });
+    }
+
     const userId = searchParams.get("userId");
-    if (userId) {
+    if (userId && (isSuperadmin || canAccessAll)) { // Only allow personnel filter for superadmins or global access
       activeMetrics = activeMetrics.filter(m => {
         const assignee = m.fullname || assigneeMap.get(m.department) || "";
         return assignee === userId;

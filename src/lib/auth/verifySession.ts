@@ -12,6 +12,9 @@ export interface SessionUser {
   offices: string[];
   requiresPasswordChange?: boolean;
   is_analytics_enabled?: boolean;
+  is_comments_analytics_enabled?: boolean;
+  can_access_all_reports?: boolean;
+  position?: string;
 }
 
 /**
@@ -64,13 +67,37 @@ export async function getSessionUser(): Promise<SessionUser | null> {
         offices: [...new Set(offices)],
         requiresPasswordChange: !!userData.requiresPasswordChange,
         is_analytics_enabled: !!profileData.is_analytics_enabled,
+        is_comments_analytics_enabled: !!profileData.is_comments_analytics_enabled,
+        can_access_all_reports: !!profileData.can_access_all_reports,
+        position: profileData.position || "Administrative Officer",
       };
     }
 
     // 3. Map Firebase claims back to our SessionUser structure
+    // NOTE: For permission flags that can be changed by admins (like is_comments_analytics_enabled),
+    // we always read from Firestore to ensure changes take effect without requiring re-login.
+    const idnoFromClaims = decodedClaims.idno as string || "";
+    let livePosition = decodedClaims.position as string || "";
+    let liveCommentsAnalytics = decodedClaims.is_comments_analytics_enabled as boolean || false;
+    let liveCanAccessAll = decodedClaims.can_access_all_reports as boolean || false;
+    
+    if (idnoFromClaims) {
+      try {
+        const liveProfile = await db.collection("user_data").where("idnumber", "==", idnoFromClaims).limit(1).get();
+        if (!liveProfile.empty) {
+          const pd = liveProfile.docs[0].data();
+          liveCommentsAnalytics = !!pd.is_comments_analytics_enabled;
+          liveCanAccessAll = !!pd.can_access_all_reports;
+          if (!livePosition) livePosition = pd.position || "Administrative Officer";
+        }
+      } catch {
+        // Non-critical — fall back to claim value if Firestore read fails
+      }
+    }
+
     return {
       uid: decodedClaims.uid,
-      idno: decodedClaims.idno as string || "",
+      idno: idnoFromClaims,
       username: decodedClaims.username as string || "",
       email: decodedClaims.email || "",
       user_type: decodedClaims.user_type as string || "Office Admin",
@@ -78,6 +105,9 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       offices: decodedClaims.offices as string[] || [],
       requiresPasswordChange: decodedClaims.requiresPasswordChange as boolean || false,
       is_analytics_enabled: decodedClaims.is_analytics_enabled as boolean || false,
+      is_comments_analytics_enabled: liveCommentsAnalytics,
+      can_access_all_reports: liveCanAccessAll,
+      position: livePosition || "Administrative Officer",
     };
   } catch (error: any) {
     // If the cookie is invalid or formatted for the old JWT system, we treat it as no session.

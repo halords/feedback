@@ -2,6 +2,8 @@
 
 import React from "react";
 import DashboardClient from "./DashboardClient";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 import { useDashboard } from "@/context/DashboardContext";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { Card } from "@/components/ui/Card";
@@ -14,6 +16,22 @@ import { CCTable } from "@/components/dashboard/CCTable";
 import { CollectionTable } from "@/components/dashboard/CollectionTable";
 
 export default function DashboardPage() {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  React.useEffect(() => {
+    if (!isLoading && user) {
+      const isSuperadmin = user.user_type?.toLowerCase() === "superadmin";
+      const hasOffices = user.offices && user.offices.length > 0;
+
+      if (!isSuperadmin && !hasOffices) {
+        router.replace("/responses");
+      }
+    }
+  }, [user, isLoading, router]);
+
+  if (isLoading) return <div className="animate-pulse bg-surface h-screen" />;
+
   return (
     <DashboardClient>
       <DashboardContent />

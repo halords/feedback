@@ -11,6 +11,8 @@ export interface UserProfile {
   username: string;
   officeAssignments: string[];
   isAnalyticsEnabled?: boolean;
+  isCommentsAnalyticsEnabled?: boolean;
+  canAccessAllReports?: boolean;
 }
 
 /**
@@ -77,7 +79,9 @@ export async function getAllUsers(): Promise<UserProfile[]> {
         position: profile.position || "Unknown",
         office: profile.office || "Unknown",
         officeAssignments: [...new Set(offices)], // Ensure uniqueness
-        isAnalyticsEnabled: !!profile.is_analytics_enabled
+        isAnalyticsEnabled: !!profile.is_analytics_enabled,
+        isCommentsAnalyticsEnabled: !!profile.is_comments_analytics_enabled,
+        canAccessAllReports: !!profile.can_access_all_reports
       };
     });
   } catch (error) {
@@ -97,6 +101,7 @@ export async function addUser(userData: {
   user_type: string;
   office_assignment: string[];
   is_analytics_enabled?: boolean;
+  can_access_all_reports?: boolean;
 }) {
   try {
     const rawPassword = "p@ssw0rd";
@@ -119,7 +124,8 @@ export async function addUser(userData: {
         idno: userData.idno,
         user_type: userData.user_type,
         full_name: userData.full_name,
-        is_analytics_enabled: !!userData.is_analytics_enabled
+        is_analytics_enabled: !!userData.is_analytics_enabled,
+        can_access_all_reports: !!userData.can_access_all_reports
       });
     } catch (authError: any) {
       if (authError.code === 'auth/uid-already-exists' || authError.code === 'auth/email-already-exists') {
@@ -150,6 +156,7 @@ export async function addUser(userData: {
       office: userData.office || "Unknown",
       position: userData.position,
       is_analytics_enabled: userData.is_analytics_enabled || false,
+      can_access_all_reports: userData.can_access_all_reports || false,
       createdAt: new Date().toISOString()
     });
 
@@ -222,7 +229,7 @@ export async function updateAssignments(idno: string, offices: string[]) {
 /**
  * Updates the analytics permission flag for a specific user.
  */
-export async function updateUserAnalyticsFlag(idno: string, isEnabled: boolean) {
+export async function updateUserAnalyticsFlag(idno: string, isEnabled: boolean, isCommentsEnabled?: boolean, canAccessAll?: boolean) {
   try {
     const snapshot = await db.collection("user_data")
       .where("idnumber", "==", idno)
@@ -234,7 +241,14 @@ export async function updateUserAnalyticsFlag(idno: string, isEnabled: boolean) 
     }
 
     const docRef = snapshot.docs[0].ref;
-    await docRef.update({ is_analytics_enabled: isEnabled });
+    const updateData: any = { is_analytics_enabled: isEnabled };
+    if (isCommentsEnabled !== undefined) {
+      updateData.is_comments_analytics_enabled = isCommentsEnabled;
+    }
+    if (canAccessAll !== undefined) {
+      updateData.can_access_all_reports = canAccessAll;
+    }
+    await docRef.update(updateData);
 
     try {
       await auth.revokeRefreshTokens(idno);

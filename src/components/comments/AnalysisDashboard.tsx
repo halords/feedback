@@ -72,6 +72,12 @@ interface AnalyticsData {
     resolved: number;
     total: number;
   }[];
+  topResponders: {
+    name: string;
+    actionable: number;
+    resolved: number;
+    rate: number;
+  }[];
   allOffices: string[];
   repetitiveComments: {
     text: string;
@@ -174,6 +180,52 @@ export function AnalysisDashboard({ year }: { year: string }) {
           tension: 0.4,
           borderDash: [5, 5],
           borderWidth: 1,
+        }
+      ]
+    };
+  }, [data]);
+
+  const resolutionTrendChartData = useMemo(() => {
+    if (!data) return null;
+    return {
+      labels: data.monthlyData.map(m => m.month.substring(0, 3)),
+      datasets: [
+        {
+          label: 'Overall Rate',
+          data: data.monthlyData.map(m => {
+            const total = m.negative + m.suggestion;
+            const resolved = m.resolvedNegative + m.resolvedSuggestion;
+            return total > 0 ? parseFloat(((resolved / total) * 100).toFixed(1)) : 0;
+          }),
+          borderColor: 'rgb(16, 185, 129)',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          fill: true,
+          tension: 0.4,
+          borderWidth: 3,
+        },
+        {
+          label: 'Negative Rate',
+          data: data.monthlyData.map(m => 
+            m.negative > 0 ? parseFloat(((m.resolvedNegative / m.negative) * 100).toFixed(1)) : 0
+          ),
+          borderColor: 'rgb(239, 68, 68)',
+          backgroundColor: 'transparent',
+          fill: false,
+          tension: 0.4,
+          borderWidth: 2,
+          borderDash: [5, 5],
+        },
+        {
+          label: 'Suggestion Rate',
+          data: data.monthlyData.map(m => 
+            m.suggestion > 0 ? parseFloat(((m.resolvedSuggestion / m.suggestion) * 100).toFixed(1)) : 0
+          ),
+          borderColor: 'rgb(245, 158, 11)',
+          backgroundColor: 'transparent',
+          fill: false,
+          tension: 0.4,
+          borderWidth: 2,
+          borderDash: [2, 2],
         }
       ]
     };
@@ -392,10 +444,77 @@ export function AnalysisDashboard({ year }: { year: string }) {
         )}
       </Card>
 
-      {/* Bottom Row - Office Breakdown & Repetitive Analysis */}
+      {/* Resolution Rate Trends */}
+      <Card className="p-8 border border-border-strong/50 shadow-xl bg-surface-low relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-5">
+           <TrendingUp className="w-32 h-32" />
+        </div>
+        <div className="flex items-center justify-between mb-8 overflow-hidden">
+          <div>
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Performance Metrics</h3>
+            <h2 className="text-2xl font-black text-on-surface/80">Monthly Resolution Trends</h2>
+          </div>
+        </div>
+
+        <div className="relative w-full h-[300px]">
+          {resolutionTrendChartData && (
+            <Line 
+              data={resolutionTrendChartData} 
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { 
+                    display: true, 
+                    position: 'top' as const,
+                    align: 'end' as const,
+                    labels: {
+                      boxWidth: 8,
+                      boxHeight: 8,
+                      usePointStyle: true,
+                      pointStyle: 'circle',
+                      font: { size: 10, weight: 'bold' }
+                    }
+                  },
+                  datalabels: {
+                    display: true,
+                    align: 'top',
+                    offset: 4,
+                    font: { size: 9, weight: 'bold' },
+                    formatter: (val: number) => val === 0 ? '' : `${val}%`,
+                    color: (ctx) => (ctx.dataset.borderColor as string),
+                  },
+                  tooltip: {
+                    backgroundColor: '#1e293b',
+                    padding: 12,
+                    titleFont: { size: 12, weight: 'bold' },
+                    bodyFont: { size: 12 },
+                    cornerRadius: 12,
+                    callbacks: {
+                      label: (ctx: any) => `${ctx.dataset.label}: ${ctx.parsed.y}%`
+                    }
+                  }
+                },
+                scales: {
+                  x: { grid: { display: false }, border: { display: false } },
+                  y: { 
+                    min: 0,
+                    max: 100,
+                    grid: { color: 'rgba(0,0,0,0.03)' }, 
+                    border: { display: false },
+                    ticks: { callback: (v) => `${v}%`, font: { size: 10, weight: 'bold' }, color: 'rgba(0,0,0,0.3)' }
+                  }
+                }
+              }} 
+            />
+          )}
+        </div>
+      </Card>
+
+      {/* Bottom Row - Office Breakdown, Responders, & Repetitive Analysis */}
       <div className={clsx(
         "grid gap-6 min-w-0",
-        data.repetitiveComments.length > 0 ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"
+        data.repetitiveComments.length > 0 ? "grid-cols-1 lg:grid-cols-3" : "grid-cols-1 lg:grid-cols-2"
       )}>
         {/* Top Offices */}
         <Card className="p-8 border border-border-strong/50 shadow-xl bg-surface-low relative min-w-0 overflow-hidden">
@@ -440,6 +559,80 @@ export function AnalysisDashboard({ year }: { year: string }) {
               />
             )}
           </div>
+        </Card>
+
+        {/* Top Responders */}
+        <Card className="p-8 border border-border-strong/50 shadow-xl bg-surface-low relative min-w-0 overflow-hidden">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/5 flex items-center justify-center border border-emerald-500/10">
+              <CheckCircle className="w-5 h-5 text-emerald-500" />
+            </div>
+            <div>
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-on-surface/40">Top Responders</h3>
+              <h2 className="text-lg font-black text-on-surface/80">Highest Resolution Rates</h2>
+            </div>
+          </div>
+
+          {data.topResponders && data.topResponders.length > 0 ? (
+            <div className="relative w-full h-[300px]">
+              <Bar
+                data={{
+                  labels: data.topResponders.map((r: any) => r.name),
+                  datasets: [
+                    {
+                      label: 'Resolution Rate (%)',
+                      data: data.topResponders.map((r: any) => parseFloat(r.rate.toFixed(1))),
+                      backgroundColor: 'rgba(16, 185, 129, 0.75)',
+                      borderRadius: 6,
+                      borderSkipped: false,
+                    }
+                  ]
+                }}
+                options={{
+                  indexAxis: 'y' as const,
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                      display: true,
+                      color: '#ffffff',
+                      font: { weight: 'bold', size: 10 },
+                      anchor: 'end',
+                      align: 'start',
+                      formatter: (val: number) => val === 0 ? '' : `${val}%`,
+                    },
+                    tooltip: {
+                      callbacks: {
+                        label: (ctx: any) => {
+                          const r = data.topResponders[ctx.dataIndex];
+                          return ` ${r.resolved} / ${r.actionable} resolved (${ctx.parsed.x}%)`;
+                        }
+                      }
+                    }
+                  },
+                  scales: {
+                    x: {
+                      min: 0,
+                      max: 100,
+                      grid: { display: false },
+                      border: { display: false },
+                      ticks: { callback: (v: any) => `${v}%`, font: { size: 9, weight: 'bold' }, color: 'rgba(0,0,0,0.3)' }
+                    },
+                    y: {
+                      grid: { display: false },
+                      border: { display: false },
+                      ticks: { font: { size: 10, weight: 'bold' } }
+                    }
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <div className="p-8 text-center border-2 border-dashed border-on-surface/5 rounded-2xl">
+              <p className="text-xs font-black uppercase tracking-widest text-on-surface/30">No Actionable Data</p>
+            </div>
+          )}
         </Card>
 
         {/* Repetitive Comments */}
@@ -604,7 +797,7 @@ function OfficeSpotlight({ data, isLoading, onClose }: { data: any; isLoading: b
                       {
                         label: 'Resolved Negatives',
                         data: data.monthlyData.map((m: any) => m.resolvedNegative),
-                        backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                        backgroundColor: 'rgba(16, 185, 129, 0.85)',
                         borderRadius: 4,
                       },
                       {
@@ -618,7 +811,7 @@ function OfficeSpotlight({ data, isLoading, onClose }: { data: any; isLoading: b
                       {
                         label: 'Resolved Suggestions',
                         data: data.monthlyData.map((m: any) => m.resolvedSuggestion),
-                        backgroundColor: 'rgba(245, 158, 11, 0.8)',
+                        backgroundColor: 'rgba(16, 185, 129, 0.65)',
                         borderRadius: 4,
                       }
                     ]

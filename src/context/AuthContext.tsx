@@ -12,6 +12,9 @@ interface UserProfile {
   offices: string[];
   requiresPasswordChange?: boolean;
   is_analytics_enabled?: boolean;
+  is_comments_analytics_enabled?: boolean;
+  can_access_all_reports?: boolean;
+  position?: string;
 }
 
 interface AuthContextType {

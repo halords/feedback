@@ -13,6 +13,13 @@ export const GET = withAuth(async (request, context, user) => {
     const year = searchParams.get("year") || new Date().getFullYear().toString();
     const office = searchParams.get("office") || undefined;
 
+    // Allow superadmins OR users with comments analytics access
+    const isSuperadmin = (user.user_type || "").toLowerCase() === "superadmin";
+    const hasCommentsAccess = !!(user as any).is_comments_analytics_enabled;
+    if (!isSuperadmin && !hasCommentsAccess) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     let analytics;
     if (office) {
       analytics = await getOfficeAnalytics(year, office);
@@ -24,4 +31,4 @@ export const GET = withAuth(async (request, context, user) => {
     console.error("Comment Analytics API Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}, { role: "superadmin" });
+});

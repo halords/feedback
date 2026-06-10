@@ -1,6 +1,7 @@
 import { PDFDocument, rgb, StandardFonts, TextAlignment } from 'pdf-lib';
 import fs from 'fs';
 import path from 'path';
+import { groupRepeatedComments } from '../utils/parsingUtils';
 
 export interface ReportData {
   department: string;
@@ -66,7 +67,7 @@ function getNestedValue(obj: any, key: string) {
 function cleanseText(text: string) {
   if (!text) return "";
   return text
-    .replace(/[^a-zA-Z0-9\s]/g, '')
+    .replace(/[^a-zA-Z0-9\s.,!?( )*]/g, '')
     .replace(/\n/g, ' ')
     .replace(/\r/g, '')
     .replace(/\t/g, ' ')
@@ -161,9 +162,9 @@ export async function generateIndividualReport(data: ReportData) {
   }
 
   // Handle Comments
-  const pos = data.comments.positive || [];
-  const neg = data.comments.negative || [];
-  const sug = data.comments.suggestions || [];
+  const pos = groupRepeatedComments(data.comments.positive || []);
+  const neg = groupRepeatedComments(data.comments.negative || []);
+  const sug = groupRepeatedComments(data.comments.suggestions || []);
   const allComments = [...pos, ...neg, ...sug];
   let shouldUseAttachment = false;
 
@@ -219,7 +220,7 @@ async function addAttachmentPage(pdfDoc: PDFDocument, data: ReportData, font: an
   const lineHeight = 16;
   const fontSize = 12;
   const maxWidth = FOLIO[0] - (margin * 2);
-  
+
   let currentPage = pdfDoc.addPage(FOLIO);
   let y = FOLIO[1] - margin;
 
@@ -237,7 +238,7 @@ async function addAttachmentPage(pdfDoc: PDFDocument, data: ReportData, font: an
 
     // Check if we need a new page for the label
     checkPageOverflow(lineHeight * 2);
-    
+
     currentPage.drawText(label, { x: margin, y, size: fontSize, font, color: rgb(0, 0, 0) });
     y -= lineHeight;
 
@@ -253,13 +254,13 @@ async function addAttachmentPage(pdfDoc: PDFDocument, data: ReportData, font: an
         y -= lineHeight;
       });
     });
-    
+
     y -= 15; // Extra gap between sections
   };
 
-  drawSection('Commendations:', data.comments.positive);
-  drawSection('Complaints:', data.comments.negative);
-  drawSection('Suggestions:', data.comments.suggestions);
+  drawSection('Commendations:', groupRepeatedComments(data.comments.positive));
+  drawSection('Complaints:', groupRepeatedComments(data.comments.negative));
+  drawSection('Suggestions:', groupRepeatedComments(data.comments.suggestions));
 }
 
 export async function mergeReportPDFs(buffers: Uint8Array[]) {
@@ -279,7 +280,7 @@ export async function generateSummaryReport(formData: any, month: string, year: 
   const templatePath = path.join(process.cwd(), 'public', 'templates', 'conso.pdf');
   const existingPdfBytes = fs.readFileSync(templatePath);
   const pdfDoc = await PDFDocument.load(existingPdfBytes);
-  
+
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontSize = 7;
@@ -294,13 +295,13 @@ export async function generateSummaryReport(formData: any, month: string, year: 
   const colWidths = Array(14).fill(62);
 
   const tableHeaders = [
-    [ 
+    [
       { text: 'DEPARTMENT/ OFFICE', colspan: 1, rowspan: 3, bgColor: rgb(0.8, 0.9, 1) },
       { text: 'NUMBER OF RESPONDENTS', colspan: 1, rowspan: 3 },
       { text: 'NUMBER OF REGISTERED CLIENTS', colspan: 1, rowspan: 3 },
       { text: 'GENDER', colspan: 4, rowspan: 1 },
       { text: 'CRITERIA', colspan: 3, rowspan: 1 },
-      { text: 'GENERAL RATING', colspan: 1, rowspan: 3, bgColor: rgb(1.0, 0.502, 0.502)},
+      { text: 'GENERAL RATING', colspan: 1, rowspan: 3, bgColor: rgb(1.0, 0.502, 0.502) },
       { text: 'COMMENTS', colspan: 3, rowspan: 1 },
     ],
     [
@@ -377,7 +378,7 @@ export async function generateSummaryReport(formData: any, month: string, year: 
 
   // Draw Data Rows
   const offices = Array.isArray(formData) ? formData : Object.values(formData);
-  
+
   for (const office of offices) {
     const total = (office.online || 0) + (office.offline || 0) || office.collection || 0;
     let rowData: any[] = [];
@@ -414,35 +415,35 @@ export async function generateSummaryReport(formData: any, month: string, year: 
     let rx = startX;
     let currCol = 0;
     for (let i = 0; i < rowData.length; i++) {
-        const cell = rowData[i];
-        const span = cell.colspan || 1;
-        const sWidth = colWidths.slice(currCol, currCol + span).reduce((s, w) => s + w, 0);
+      const cell = rowData[i];
+      const span = cell.colspan || 1;
+      const sWidth = colWidths.slice(currCol, currCol + span).reduce((s, w) => s + w, 0);
 
-        page.drawRectangle({
-            x: rx,
-            y: y - rowHeight,
-            width: sWidth,
-            height: rowHeight,
-            borderColor: rgb(0, 0, 0),
-            borderWidth: 1,
-            color: cell.bgColor || undefined
-        });
+      page.drawRectangle({
+        x: rx,
+        y: y - rowHeight,
+        width: sWidth,
+        height: rowHeight,
+        borderColor: rgb(0, 0, 0),
+        borderWidth: 1,
+        color: cell.bgColor || undefined
+      });
 
-        if (cell.text) {
-            const lines = splitTextIntoLinesInternal(String(cell.text), sWidth - (cellPadding * 2), regularFont, fontSize);
-            const tH = regularFont.heightAtSize(fontSize);
-            let ty = y - (rowHeight / 2) + ((lines.length * tH) / 2) - tH;
+      if (cell.text) {
+        const lines = splitTextIntoLinesInternal(String(cell.text), sWidth - (cellPadding * 2), regularFont, fontSize);
+        const tH = regularFont.heightAtSize(fontSize);
+        let ty = y - (rowHeight / 2) + ((lines.length * tH) / 2) - tH;
 
-            for (const line of lines) {
-                const lw = regularFont.widthOfTextAtSize(line, fontSize);
-                let tx = rx + (sWidth / 2) - (lw / 2);
-                if (i === 0 || cell.align === 'left') tx = rx + cellPadding;
-                page.drawText(line, { x: tx, y: ty, size: fontSize, font: regularFont, color: rgb(0, 0, 0) });
-                ty -= tH;
-            }
+        for (const line of lines) {
+          const lw = regularFont.widthOfTextAtSize(line, fontSize);
+          let tx = rx + (sWidth / 2) - (lw / 2);
+          if (i === 0 || cell.align === 'left') tx = rx + cellPadding;
+          page.drawText(line, { x: tx, y: ty, size: fontSize, font: regularFont, color: rgb(0, 0, 0) });
+          ty -= tH;
         }
-        rx += sWidth;
-        currCol += span;
+      }
+      rx += sWidth;
+      currCol += span;
     }
     y -= rowHeight;
   }
@@ -453,27 +454,278 @@ export async function generateSummaryReport(formData: any, month: string, year: 
     const monthYearField = form.getTextField('monthYear');
     monthYearField.setText(`${month} ${year}`.toUpperCase());
   } catch (e) {
-      console.warn("Could not find monthYear field in conso.pdf");
+    console.warn("Could not find monthYear field in conso.pdf");
   }
 
   form.flatten();
   return await pdfDoc.save();
 }
 
-function splitTextIntoLinesInternal(text: string, maxWidth: number, font: any, size: number) {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-  for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    const testWidth = font.widthOfTextAtSize(testLine, size);
-    if (testWidth <= maxWidth) {
-      currentLine = testLine;
-    } else {
-      if (currentLine) lines.push(currentLine);
-      currentLine = word;
+/**
+ * Generates a premium multi-page AI Intelligence Report PDF.
+ */
+export async function generateAIReport(content: any, images: string[], period: string, year: string, preparedBy?: string, position?: string) {
+  const pdfDoc = await PDFDocument.create();
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const FOLIO: [number, number] = [612, 936]; // 8.5" x 13"
+  const margin = 50;
+  const contentWidth = FOLIO[0] - (margin * 2);
+
+  let currentPage = pdfDoc.addPage(FOLIO);
+  let y = FOLIO[1] - 60;
+
+  const drawHeader = (page: any) => {
+    const headerY = FOLIO[1] - 60;
+    page.drawText('PROVINCIAL GOVERNMENT OF LA UNION', { x: margin, y: headerY, size: 14, font: boldFont, color: rgb(0, 0, 0) });
+    page.drawText('OFFICE OF THE PROVINCIAL GOVERNOR', { x: margin, y: headerY - 18, size: 12, font: regularFont, color: rgb(0.2, 0.2, 0.2) });
+    page.drawLine({ start: { x: margin, y: headerY - 25 }, end: { x: FOLIO[0] - margin, y: headerY - 25 }, thickness: 1.5, color: rgb(0.31, 0.27, 0.9) });
+    return headerY - 60;
+  };
+
+  const checkPage = (needed: number) => {
+    if (y - needed < 60) {
+      currentPage = pdfDoc.addPage(FOLIO);
+      y = drawHeader(currentPage);
+    }
+  };
+
+  const drawJustifiedText = (text: string, size: number, font: any, maxWidth: number, color = rgb(0, 0, 0)) => {
+    const paragraphs = text.split('\n');
+    for (const p of paragraphs) {
+      if (!p.trim()) { y -= size; continue; }
+      const words = p.split(/\s+/);
+      let line: string[] = [];
+      let lineWidth = 0;
+      for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+        const wordWidth = font.widthOfTextAtSize(word, size);
+        const spaceWidth = font.widthOfTextAtSize(' ', size);
+        if (lineWidth + wordWidth + spaceWidth > maxWidth) {
+          checkPage(size * 1.5);
+          const totalSpaces = line.length - 1;
+          if (totalSpaces > 0) {
+            const extraSpace = (maxWidth - (lineWidth - spaceWidth)) / totalSpaces;
+            let currentX = margin;
+            for (let j = 0; j < line.length; j++) {
+              currentPage.drawText(line[j], { x: currentX, y, size, font, color });
+              currentX += font.widthOfTextAtSize(line[j], size) + spaceWidth + extraSpace;
+            }
+          } else {
+            currentPage.drawText(line[0], { x: margin, y, size, font, color });
+          }
+          y -= (size * 1.4);
+          line = [word];
+          lineWidth = wordWidth + spaceWidth;
+        } else {
+          line.push(word);
+          lineWidth += wordWidth + spaceWidth;
+        }
+      }
+      if (line.length > 0) {
+        checkPage(size * 1.5);
+        currentPage.drawText(line.join(' '), { x: margin, y, size, font, color });
+        y -= (size * 1.8);
+      }
+    }
+  };
+
+  y = drawHeader(currentPage);
+
+  // 1. Report Title
+  currentPage.drawText('CUSTOMER FEEDBACK ANALYSIS REPORT', { x: margin, y, size: 18, font: boldFont, color: rgb(0, 0, 0) });
+  y -= 20;
+  currentPage.drawText(`PERIOD: ${period.toUpperCase()} ${year}`, { x: margin, y, size: 10, font: boldFont, color: rgb(0.5, 0.5, 0.5) });
+  y -= 40;
+
+  // 2. Executive Summary
+  checkPage(100);
+  currentPage.drawText('I. EXECUTIVE SUMMARY', { x: margin, y, size: 12, font: boldFont, color: rgb(0, 0, 0) });
+  y -= 20;
+  drawJustifiedText(content.executiveSummary || "No summary available.", 10, regularFont, contentWidth);
+  y -= 10;
+
+  // 3. Strategic Insights
+  checkPage(100);
+  currentPage.drawText('II. KEY STRATEGIC INSIGHTS', { x: margin, y, size: 12, font: boldFont, color: rgb(0, 0, 0) });
+  y -= 20;
+  const insights = content.keyInsights || [];
+  for (const insight of insights) {
+    checkPage(40);
+    currentPage.drawCircle({ x: margin + 5, y: y + 3, size: 2, color: rgb(0.31, 0.27, 0.9) });
+    const lines = wrapText(insight, regularFont, 10, contentWidth - 30);
+    for (const line of lines) {
+      currentPage.drawText(line, { x: margin + 20, y, size: 10, font: regularFont, color: rgb(0, 0, 0) });
+      y -= 13;
+    }
+    y -= 8;
+  }
+  y -= 20;
+
+  // 4. Performance Metrics Grid
+  checkPage(150);
+  currentPage.drawText('III. CORE METRICS OVERVIEW', { x: margin, y, size: 12, font: boldFont, color: rgb(0, 0, 0) });
+  y -= 20;
+  const metrics = content.metrics || {};
+  const metricLabels = [
+    ['Satisfaction', `${metrics.avgSatisfaction}%`],
+    ['Collection', `${metrics.avgCollection}%`],
+    ['Digital Adoption', `${metrics.digitalAdoptionRate}%`],
+    ['CC Compliance', `${metrics.ccComplianceScore}%`]
+  ];
+
+  let mx = margin;
+  for (const [label, val] of metricLabels) {
+    currentPage.drawRectangle({ x: mx, y: y - 35, width: 120, height: 45, color: rgb(0.96, 0.97, 1), borderColor: rgb(0, 0, 0), borderWidth: 0.5 });
+    currentPage.drawText(label.toUpperCase(), { x: mx + 10, y: y - 12, size: 7, font: boldFont, color: rgb(0.4, 0.4, 0.4) });
+    currentPage.drawText(val, { x: mx + 10, y: y - 28, size: 14, font: boldFont, color: rgb(0.31, 0.27, 0.9) });
+    mx += 130;
+  }
+  y -= 60;
+  if (content.chartExplanations?.metricsOverview) {
+    drawJustifiedText(content.chartExplanations.metricsOverview, 10, regularFont, contentWidth, rgb(0, 0, 0));
+  }
+  y -= 20;
+
+  // 4. Analytical Visualizations
+  if (images && images.length > 0) {
+    checkPage(400);
+    currentPage.drawText('IV. ANALYTICAL VISUALIZATIONS & TRENDS', { x: margin, y, size: 12, font: boldFont, color: rgb(0, 0, 0) });
+    y -= 30;
+
+    const chartExps = [content.chartExplanations?.satisfactionTrend, content.chartExplanations?.collectionTrend];
+
+    for (let i = 0; i < images.length; i++) {
+      try {
+        const base64 = images[i];
+        const imageBytes = Buffer.from(base64.split(',')[1], 'base64');
+        const embeddedImage = await pdfDoc.embedPng(imageBytes);
+        const imgWidth = contentWidth - 40;
+        const imgHeight = (embeddedImage.height / embeddedImage.width) * imgWidth;
+
+        checkPage(imgHeight + 100);
+        currentPage.drawImage(embeddedImage, { x: margin + 20, y: y - imgHeight, width: imgWidth, height: imgHeight });
+        y -= (imgHeight + 20);
+
+        if (chartExps[i]) {
+          drawJustifiedText(chartExps[i], 10, regularFont, contentWidth, rgb(0, 0, 0));
+        }
+        y -= 20;
+      } catch (err) {
+        console.error("Failed to embed image:", err);
+      }
     }
   }
-  if (currentLine) lines.push(currentLine);
-  return lines;
+
+  // 5. Departmental Performance Audit (Table Layout)
+  checkPage(100);
+  currentPage.drawText('V. DEPARTMENTAL PERFORMANCE AUDIT', { x: margin, y, size: 12, font: boldFont, color: rgb(0, 0, 0) });
+  y -= 30;
+
+  const tableHeaders = ['DEPARTMENT', 'SAT.', 'ANALYSIS & PERFORMANCE AUDIT', 'STRENGTH / GROWTH'];
+  const colWidths = [120, 40, 240, 112];
+
+  // Header Row
+  currentPage.drawRectangle({ x: margin, y: y - 20, width: contentWidth, height: 20, color: rgb(0.9, 0.9, 0.95), borderColor: rgb(0, 0, 0), borderWidth: 0.5 });
+  let tx = margin + 5;
+  for (let i = 0; i < tableHeaders.length; i++) {
+    currentPage.drawText(tableHeaders[i], { x: tx, y: y - 13, size: 7, font: boldFont });
+    tx += colWidths[i];
+  }
+  y -= 20;
+
+  const departments = content.departmentBreakdown || [];
+  for (const dept of departments) {
+    const analysisLines = splitTextIntoLinesInternal(dept.performance, contentWidth - 270, regularFont, 7);
+    const strengthLines = splitTextIntoLinesInternal(`Strength: ${dept.strength}\nGrowth: ${dept.weakness}`, 110, regularFont, 7);
+    const rowHeight = Math.max(analysisLines.length * 9, strengthLines.length * 9, 30) + 10;
+
+    checkPage(rowHeight);
+
+    currentPage.drawRectangle({ x: margin, y: y - rowHeight, width: contentWidth, height: rowHeight, borderColor: rgb(0.8, 0.8, 0.8), borderWidth: 0.5 });
+
+    // Dept Name
+    const deptLines = splitTextIntoLinesInternal(dept.name.toUpperCase(), 110, boldFont, 8);
+    let dy = y - 15;
+    for (const l of deptLines) {
+      currentPage.drawText(l, { x: margin + 5, y: dy, size: 8, font: boldFont });
+      dy -= 10;
+    }
+
+    // Saturation
+    currentPage.drawText(`${dept.satisfaction}%`, { x: margin + 125, y: y - 15, size: 8, font: boldFont, color: rgb(0.31, 0.27, 0.9) });
+
+    // Analysis
+    let ay = y - 12;
+    for (const l of analysisLines) {
+      currentPage.drawText(l, { x: margin + 165, y: ay, size: 7, font: regularFont });
+      ay -= 9;
+    }
+
+    // Strength
+    let sy = y - 12;
+    for (const l of strengthLines) {
+      currentPage.drawText(l, { x: margin + 405, y: sy, size: 7, font: regularFont });
+      sy -= 9;
+    }
+
+    y -= rowHeight;
+  }
+
+  // 6. Strategic Recommendations
+  checkPage(100);
+  y -= 20;
+  currentPage.drawText('VI. STRATEGIC ROADMAP & RECOMMENDATIONS', { x: margin, y, size: 14, font: boldFont, color: rgb(0, 0, 0) });
+  y -= 30;
+
+  const recs = content.recommendations || [];
+  for (const rec of recs) {
+    checkPage(40);
+    currentPage.drawCircle({ x: margin + 5, y: y + 3, size: 3, color: rgb(0.31, 0.27, 0.9) });
+    const lines = wrapText(rec, regularFont, 10, contentWidth - 30);
+    for (const line of lines) {
+      currentPage.drawText(line, { x: margin + 20, y, size: 10, font: regularFont, color: rgb(0, 0, 0) });
+      y -= 14;
+    }
+    y -= 10;
+  }
+
+  // 7. Signature Block
+  checkPage(120);
+  y -= 50;
+  currentPage.drawText('Prepared By:', { x: margin, y, size: 10, font: regularFont });
+  y -= 40;
+  currentPage.drawText(preparedBy?.toUpperCase() || "PGLU STAFF", { x: margin, y: y + 10, size: 11, font: boldFont });
+  currentPage.drawLine({ start: { x: margin, y }, end: { x: margin + 250, y }, thickness: 1 });
+  currentPage.drawText(position?.toUpperCase() || "ADMINISTRATIVE OFFICER", { x: margin, y: y - 15, size: 9, font: regularFont });
+
+  return await pdfDoc.save();
+}
+
+function splitTextIntoLinesInternal(text: string, maxWidth: number, font: any, size: number) {
+  const paragraphs = String(text).split('\n');
+  const allLines: string[] = [];
+
+  for (const paragraph of paragraphs) {
+    const words = paragraph.split(' ');
+    let currentLine = '';
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      try {
+        const testWidth = font.widthOfTextAtSize(testLine, size);
+        if (testWidth <= maxWidth) {
+          currentLine = testLine;
+        } else {
+          if (currentLine) allLines.push(currentLine);
+          currentLine = word;
+        }
+      } catch (e) {
+        // Fallback for character encoding issues
+        if (currentLine) allLines.push(currentLine);
+        currentLine = word;
+      }
+    }
+    if (currentLine) allLines.push(currentLine);
+  }
+  return allLines;
 }

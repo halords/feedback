@@ -51,6 +51,7 @@ export async function POST(request: Request) {
     const profileData = !userInfoSnapshot.empty ? userInfoSnapshot.docs[0].data() : {};
     const fullName = profileData.full_name || "Unknown User";
     const isAnalyticsEnabled = !!profileData.is_analytics_enabled;
+    const isCommentsAnalyticsEnabled = !!profileData.is_comments_analytics_enabled;
 
     // 4. Fetch office assignments
     const officeSnapshot = await db.collection("office_assignment").where("idno", "==", idno).get();
@@ -74,6 +75,7 @@ export async function POST(request: Request) {
       offices: [...new Set(offices)],
       requiresPasswordChange: userData.requiresPasswordChange === true,
       is_analytics_enabled: isAnalyticsEnabled,
+      is_comments_analytics_enabled: isCommentsAnalyticsEnabled,
     };
 
     // 5. Enhance Firebase Token with Custom Claims for future verification
@@ -85,6 +87,7 @@ export async function POST(request: Request) {
       full_name: sessionUser.full_name,
       offices: sessionUser.offices,
       is_analytics_enabled: sessionUser.is_analytics_enabled,
+      is_comments_analytics_enabled: sessionUser.is_comments_analytics_enabled,
       requiresPasswordChange: sessionUser.requiresPasswordChange
     });
 

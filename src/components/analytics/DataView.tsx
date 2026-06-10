@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 import { Modal } from "@/components/ui/Modal";
+import { groupRepeatedComments } from "@/lib/utils/parsingUtils";
 
 const FEEDBACK_STATEMENTS = [
   "0. I am satisfied with the service that I availed.",
@@ -53,10 +54,8 @@ export function DataView() {
     let filtered: any[] = data;
 
     // Server now handles 'disabled' office filtering based on period context
-    // We only need to apply local search and user assignment filters
-    if (!isSuperadmin) {
-      filtered = filtered.filter((o: any) => userOffices.includes(o.department));
-    }
+    // and strictly scopes results to the user's assigned offices (RBAC).
+    // We only need to apply the local search filter here.
 
     if (!search) return filtered;
     const s = search.toLowerCase();
@@ -346,12 +345,14 @@ function Badge({ label, value }: { label: string, value: any }) {
 }
 
 function FeedbackList({ title, data, color, bg, dot }: { title: string, data: string[], color: string, bg: string, dot: string }) {
+  const groupedData = groupRepeatedComments(data);
+
   return (
     <Card className={clsx(bg, "border border-border-strong/50 p-6 shadow-xl")}>
       <h3 className={clsx("text-[10px] font-black uppercase tracking-widest mb-6", color)}>{title}</h3>
       <div className="space-y-4 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar-reports text-xs">
-        {data.length > 0 ? (
-          data.map((c, i) => (
+        {groupedData.length > 0 ? (
+          groupedData.map((c, i) => (
             <div key={i} className="flex gap-3 group">
               <div className={clsx("w-1 h-1 rounded-full mt-1.5 flex-shrink-0", dot)} />
               <p className="font-semibold text-on-surface/60 leading-relaxed italic">&ldquo;{c}&rdquo;</p>

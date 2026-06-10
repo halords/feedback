@@ -26,14 +26,38 @@ export default function UsersTable() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
+  const officeNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    if (offices && Array.isArray(offices)) {
+      offices.forEach((o: any) => {
+        map[o.id] = o.name || o.id;
+        // Also map acronym for fallback
+        map[o.name] = o.name;
+      });
+    }
+    return map;
+  }, [offices]);
+
+  const allAssignedOffices = useMemo(() => {
+    if (!users || !Array.isArray(users)) return new Set<string>();
+    const set = new Set<string>();
+    users.forEach((u: any) => {
+      u.officeAssignments?.forEach((off: string) => {
+        if (off) set.add(off);
+      });
+    });
+    return set;
+  }, [users]);
+
   const filteredUsers = useMemo(() => {
     if (!users || !Array.isArray(users)) return [];
     return users.filter((u: any) => 
       u.fullName?.toLowerCase().includes(search.toLowerCase()) ||
       u.idno?.toLowerCase().includes(search.toLowerCase()) ||
-      u.office?.toLowerCase().includes(search.toLowerCase())
+      u.office?.toLowerCase().includes(search.toLowerCase()) ||
+      (officeNameMap[u.office]?.toLowerCase().includes(search.toLowerCase()))
     );
-  }, [users, search]);
+  }, [users, search, officeNameMap]);
 
   const paginatedUsers = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
@@ -46,17 +70,6 @@ export default function UsersTable() {
   React.useEffect(() => {
     setCurrentPage(1);
   }, [search]);
-
-  const allAssignedOffices = useMemo(() => {
-    if (!users || !Array.isArray(users)) return new Set<string>();
-    const set = new Set<string>();
-    users.forEach((u: any) => {
-      u.officeAssignments?.forEach((off: string) => {
-        if (off) set.add(off);
-      });
-    });
-    return set;
-  }, [users]);
 
   return (
     <div className="space-y-4">
@@ -138,14 +151,14 @@ export default function UsersTable() {
                       </td>
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-1.5 text-on-surface/60 font-bold">
-                          <span>{user.office}</span>
+                          <span>{officeNameMap[user.office] || user.office}</span>
                         </div>
                       </td>
                       <td className="px-4 py-2.5">
                         <div className="flex flex-wrap gap-1">
                             {user.officeAssignments?.slice(0, 3).map((off: string) => (
                                 <span key={off} className="bg-surface-low border border-on-surface/5 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tighter text-on-surface/30">
-                                    {off}
+                                    {officeNameMap[off] || off}
                                 </span>
                             ))}
                             {user.officeAssignments?.length > 3 && (
@@ -155,12 +168,26 @@ export default function UsersTable() {
                         </div>
                       </td>
                       <td className="px-4 py-2.5 text-center">
-                        <span className={clsx(
-                          "px-2 py-0.5 rounded-md font-black text-[8px] uppercase tracking-widest border transition-colors",
-                          user.isAnalyticsEnabled ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-on-surface/5 text-on-surface/20 border-on-surface/10"
-                        )}>
-                          {user.isAnalyticsEnabled ? "ENABLED" : "DISABLED"}
-                        </span>
+                        <div className="flex flex-col gap-1 items-center justify-center">
+                          <span className={clsx(
+                            "px-2 py-0.5 rounded-md font-black text-[8px] uppercase tracking-widest border transition-colors",
+                            user.isAnalyticsEnabled ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-on-surface/5 text-on-surface/20 border-on-surface/10"
+                          )}>
+                            Global: {user.isAnalyticsEnabled ? "ON" : "OFF"}
+                          </span>
+                          <span className={clsx(
+                            "px-2 py-0.5 rounded-md font-black text-[8px] uppercase tracking-widest border transition-colors",
+                            user.isCommentsAnalyticsEnabled ? "bg-blue-500/10 text-blue-600 border-blue-500/20" : "bg-on-surface/5 text-on-surface/20 border-on-surface/10"
+                          )}>
+                            Analysis: {user.isCommentsAnalyticsEnabled ? "ON" : "OFF"}
+                          </span>
+                          <span className={clsx(
+                            "px-2 py-0.5 rounded-md font-black text-[8px] uppercase tracking-widest border transition-colors",
+                            user.canAccessAllReports ? "bg-orange-500/10 text-orange-600 border-orange-500/20" : "bg-on-surface/5 text-on-surface/20 border-on-surface/10"
+                          )}>
+                            Access All: {user.canAccessAllReports ? "ON" : "OFF"}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-4 py-2.5 text-right">
                         <button 
@@ -228,6 +255,7 @@ export default function UsersTable() {
         offices={offices}
         allAssignedOffices={allAssignedOffices}
         onSuccess={() => mutate()}
+        officeNameMap={officeNameMap}
       />
 
       <AssignModal 
@@ -237,6 +265,7 @@ export default function UsersTable() {
         allOffices={offices}
         allAssignedOffices={allAssignedOffices}
         onSuccess={() => mutate()}
+        officeNameMap={officeNameMap}
       />
     </div>
   );
@@ -245,7 +274,7 @@ export default function UsersTable() {
 /**
  * Add User Modal Component
  */
-function AddUserModal({ isOpen, onClose, offices, allAssignedOffices, onSuccess }: any) {
+function AddUserModal({ isOpen, onClose, offices, allAssignedOffices, onSuccess, officeNameMap }: any) {
   const [formData, setFormData] = useState({
     full_name: "",
     idno: "",
@@ -317,13 +346,22 @@ function AddUserModal({ isOpen, onClose, offices, allAssignedOffices, onSuccess 
             value={formData.position}
             onChange={(e) => setFormData({...formData, position: e.target.value})}
           />
-          <Input 
-            label="Primary Office" 
-            required 
-            placeholder="e.g. OPA-ASMU"
-            value={formData.office}
-            onChange={(e) => setFormData({...formData, office: e.target.value})}
-          />
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-on-surface/60 px-1">Primary Office</label>
+            <select 
+              required
+              value={formData.office}
+              onChange={(e) => setFormData({...formData, office: e.target.value})}
+              className="w-full bg-[#e0e3e5] border-b-2 border-transparent rounded-t-lg px-4 py-3 text-sm font-medium focus:border-primary transition-all outline-none cursor-pointer appearance-none"
+            >
+              <option value="">Select Primary Office...</option>
+              {offices?.filter((o: any) => o.status === "active").map((o: any) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="space-y-1 px-1">
             <label className="block text-xs font-semibold uppercase tracking-wider text-on-surface/60">User Type</label>
             <div className="flex gap-4">
@@ -349,10 +387,11 @@ function AddUserModal({ isOpen, onClose, offices, allAssignedOffices, onSuccess 
         <div className="space-y-4">
           <MultiSelectPills 
             label="Grant Office Access"
-            options={offices?.filter((o: any) => o.status === "active" && !allAssignedOffices.has(o.name)) || []}
+            options={offices?.filter((o: any) => o.status === "active" && !allAssignedOffices.has(o.id)) || []}
             selectedValues={formData.office_assignment}
             onChange={(vals) => setFormData({...formData, office_assignment: vals})}
             placeholder="Search and add unassigned offices..."
+            valueLabelMap={officeNameMap}
           />
         </div>
 
@@ -370,18 +409,21 @@ function AddUserModal({ isOpen, onClose, offices, allAssignedOffices, onSuccess 
 /**
  * Assign Modal Component
  */
-function AssignModal({ isOpen, onClose, user, allOffices, allAssignedOffices, onSuccess }: any) {
+function AssignModal({ isOpen, onClose, user, allOffices, allAssignedOffices, onSuccess, officeNameMap }: any) {
   const [selected, setSelected] = useState<string[]>([]);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
+  const [commentsAnalyticsEnabled, setCommentsAnalyticsEnabled] = useState(false);
+  const [canAccessAllReports, setCanAccessAllReports] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const { showToast } = useToast();
 
-  // Initialize selected offices and flags when user changes
   React.useEffect(() => {
     if (user) {
       setSelected(user.officeAssignments || []);
       setAnalyticsEnabled(!!user.isAnalyticsEnabled);
+      setCommentsAnalyticsEnabled(!!user.isCommentsAnalyticsEnabled);
+      setCanAccessAllReports(!!user.canAccessAllReports);
     }
   }, [user]);
 
@@ -399,11 +441,11 @@ function AssignModal({ isOpen, onClose, user, allOffices, allAssignedOffices, on
         body: JSON.stringify({ idno: user.idno, offices: selected })
       });
 
-      // 2. Update Analytics Flag
+      // 2. Update Analytics Flags
       const resAnalytics = await fetch(`/api/users/${user.idno}`, {
         method: "PATCH",
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ analyticsEnabled })
+        body: JSON.stringify({ analyticsEnabled, commentsAnalyticsEnabled, canAccessAllReports })
       });
 
       if (resAssign.ok && resAnalytics.ok) {
@@ -442,12 +484,13 @@ function AssignModal({ isOpen, onClose, user, allOffices, allAssignedOffices, on
              label="Assigned Offices"
              options={allOffices?.filter((o: any) => {
                const isActive = o.status === "active";
-               const isAssignedToOthers = allAssignedOffices.has(o.name) && !user?.officeAssignments?.includes(o.name);
+               const isAssignedToOthers = allAssignedOffices.has(o.id) && !user?.officeAssignments?.includes(o.id);
                return isActive && !isAssignedToOthers;
              }) || []}
              selectedValues={selected}
              onChange={setSelected}
              placeholder="Add office access..."
+             valueLabelMap={officeNameMap}
            />
            <p className="text-[10px] text-on-surface/30 px-1 font-bold italic">
              * To remove access, click the &apos;x&apos; on the pill. Only unassigned active offices can be added.
@@ -457,15 +500,12 @@ function AssignModal({ isOpen, onClose, user, allOffices, allAssignedOffices, on
         <div className="space-y-4 pt-4 border-t border-on-surface/5">
            <div className="flex items-center justify-between bg-surface p-4 rounded-2xl border border-on-surface/5">
               <div>
-                <p className="text-xs font-black uppercase tracking-widest text-on-surface">Analytics Access</p>
+                <p className="text-xs font-black uppercase tracking-widest text-on-surface">Global Analytics Access</p>
                 <p className="text-[10px] text-on-surface/40 font-bold">Allows user to view global Summary and Graphs reports.</p>
               </div>
               <button 
                 type="button"
-                onClick={() => {
-                  console.log(`[AssignModal] Toggling Analytics to: ${!analyticsEnabled}`);
-                  setAnalyticsEnabled(!analyticsEnabled);
-                }}
+                onClick={() => setAnalyticsEnabled(!analyticsEnabled)}
                 className={clsx(
                   "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 border-2",
                   analyticsEnabled ? "bg-primary border-primary" : "bg-on-surface/10 border-on-surface/20"
@@ -475,6 +515,50 @@ function AssignModal({ isOpen, onClose, user, allOffices, allAssignedOffices, on
                   className={clsx(
                     "inline-block h-4 w-4 transform rounded-full bg-white transition-all shadow-sm",
                     analyticsEnabled ? "translate-x-6" : "translate-x-0.5"
+                  )}
+                />
+              </button>
+           </div>
+           
+           <div className="flex items-center justify-between bg-surface p-4 rounded-2xl border border-on-surface/5">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-on-surface">Comments Analysis Tab</p>
+                <p className="text-[10px] text-on-surface/40 font-bold">Grants access to the detailed AI Analysis Dashboard in Comments section.</p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setCommentsAnalyticsEnabled(!commentsAnalyticsEnabled)}
+                className={clsx(
+                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 border-2",
+                  commentsAnalyticsEnabled ? "bg-primary border-primary" : "bg-on-surface/10 border-on-surface/20"
+                )}
+              >
+                <span
+                  className={clsx(
+                    "inline-block h-4 w-4 transform rounded-full bg-white transition-all shadow-sm",
+                    commentsAnalyticsEnabled ? "translate-x-6" : "translate-x-0.5"
+                  )}
+                />
+              </button>
+           </div>
+
+           <div className="flex items-center justify-between bg-surface p-4 rounded-2xl border border-on-surface/5">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-on-surface">Access All Reports (Data View)</p>
+                <p className="text-[10px] text-on-surface/40 font-bold">Allows user to view ALL individual reports in the Data View tab, regardless of office assignment.</p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setCanAccessAllReports(!canAccessAllReports)}
+                className={clsx(
+                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 border-2",
+                  canAccessAllReports ? "bg-orange-500 border-orange-500" : "bg-on-surface/10 border-on-surface/20"
+                )}
+              >
+                <span
+                  className={clsx(
+                    "inline-block h-4 w-4 transform rounded-full bg-white transition-all shadow-sm",
+                    canAccessAllReports ? "translate-x-6" : "translate-x-0.5"
                   )}
                 />
               </button>

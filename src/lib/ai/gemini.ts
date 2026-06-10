@@ -6,7 +6,7 @@ export const AI_MODEL = "gemini-2.5-flash";
 
 export interface AIAnalysisRequest {
   year: string;
-  data: any[]; // Aggregated data from physical_report
+  data: any; // Aggregated data from physical_report
   scope: "office" | "organization";
   officeName?: string;
 }

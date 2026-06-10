@@ -65,8 +65,15 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       else setOffices([]); // Defaults to empty (0 reads) for Superadmin
     } else {
       if (fromUrl.length > 0) {
+        // If they requested "ALL", allow it (global view parity with Reports)
+        if (fromUrl.length === 1 && fromUrl[0] === "ALL") {
+          setOffices(["ALL"]);
+          return;
+        }
+
         // Intersect requested offices with assigned ones
-        const intersection = fromUrl.filter(o => userOffices.includes(o));
+        const normalizedAssignments = userOffices.map(o => o.toLowerCase());
+        const intersection = fromUrl.filter(o => normalizedAssignments.includes(o.toLowerCase()));
         setOffices(intersection);
         
         // Correct URL if it contains unauthorized offices
@@ -81,7 +88,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         // Default behavior: If exactly 1 office, auto-load it. Otherwise, show "Select an office..."
-        // to prevent unnecessary bulk fetches on page load for multi-office users.
         if (userOffices.length === 1) {
           setOffices(userOffices);
         } else {
@@ -99,7 +105,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       // Hard check non-superadmins against their assignments
       const isSuperadmin = user?.user_type?.toLowerCase() === "superadmin";
       const userOffices = user?.offices || [];
-      const validated = isSuperadmin ? newOffices : newOffices.filter((o: string) => userOffices.includes(o));
+      const normalizedAssignments = userOffices.map(o => o.toLowerCase());
+
+      // Allow "ALL" for everyone, otherwise intersect specific selections
+      const validated = (isSuperadmin || (newOffices.length === 1 && newOffices[0] === "ALL"))
+        ? newOffices 
+        : newOffices.filter((o: string) => normalizedAssignments.includes(o.toLowerCase()));
 
       setOffices(validated);
       params.set("offices", validated.join(","));

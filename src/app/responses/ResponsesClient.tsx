@@ -36,7 +36,17 @@ export function ResponsesClient() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOffice, setSelectedOffice] = useState("ALL");
   const [isClassifyModalOpen, setIsClassifyModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"my" | "all">("my");
+  const isSuperadmin = user?.user_type?.toLowerCase() === "superadmin";
+  const hasOffices = user?.offices && user.offices.length > 0;
+  const canSeeAllResponses = isSuperadmin || !!user?.is_analytics_enabled;
+
+  const [activeTab, setActiveTab] = useState<"my" | "all">(hasOffices ? "my" : "all");
+
+  React.useEffect(() => {
+    if (!hasOffices && activeTab === "my") {
+      setActiveTab("all");
+    }
+  }, [hasOffices, activeTab]);
 
   const availableYears = useMemo(() => {
     return Array.from(
@@ -61,8 +71,6 @@ export function ResponsesClient() {
   }, [availableMonths, selectedMonth]);
 
   const { data: offices } = useSWR("/api/offices", (url) => fetch(url).then(res => res.json()));
-
-  const isSuperadmin = user?.user_type?.toLowerCase() === "superadmin";
 
   // Office selection logic based on tab
   const targetOffices = useMemo(() => {
@@ -99,15 +107,14 @@ export function ResponsesClient() {
 
   const unclassifiedCount = useMemo(() => {
     if (!responses || !Array.isArray(responses)) return 0;
+    const userOffices = user?.offices || [];
     return responses.filter((res: any) => {
       const isUnclassified = !res.classification || res.classification === "Unclassified" || res.classification === "";
       const hasComment = res.comment && res.comment.trim().length > 2;
-      return isUnclassified && hasComment;
+      const belongsToUser = isSuperadmin || userOffices.includes(res.officeId || res.office);
+      return isUnclassified && hasComment && belongsToUser;
     }).length;
-  }, [responses]);
-
-  const isAnalyticsEnabled = !!user?.is_analytics_enabled;
-  const canSeeAllResponses = isSuperadmin || isAnalyticsEnabled;
+  }, [responses, isSuperadmin, user?.offices]);
 
   if (authLoading || (targetOffices.length > 0 && isLoading && !responses)) {
     return (
@@ -148,15 +155,17 @@ export function ResponsesClient() {
         <div className="flex flex-col sm:flex-row items-center gap-4 flex-grow">
           {/* Tabs */}
           <div className="bg-surface-low p-1 rounded-2xl flex items-center gap-1 border border-on-surface/5 w-full sm:w-auto">
-            <button
-              onClick={() => setActiveTab("my")}
-              className={clsx(
-                "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
-                activeTab === "my" ? "bg-white text-primary shadow-sm" : "text-on-surface/40 hover:text-on-surface/60"
-              )}
-            >
-              My Assignments
-            </button>
+            {hasOffices && (
+              <button
+                onClick={() => setActiveTab("my")}
+                className={clsx(
+                  "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                  activeTab === "my" ? "bg-white text-primary shadow-sm" : "text-on-surface/40 hover:text-on-surface/60"
+                )}
+              >
+                My Assignments
+              </button>
+            )}
             {canSeeAllResponses && (
               <button
                 onClick={() => setActiveTab("all")}

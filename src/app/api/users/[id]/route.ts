@@ -19,14 +19,16 @@ export const PATCH = withAuth(async (request, { params }, admin) => {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    const { analyticsEnabled } = result.data!;
+    const { analyticsEnabled, commentsAnalyticsEnabled, canAccessAllReports } = result.data!;
 
-    const updateResult = await updateUserAnalyticsFlag(id, analyticsEnabled);
+    const updateResult = await updateUserAnalyticsFlag(id, analyticsEnabled, commentsAnalyticsEnabled, canAccessAllReports);
 
     // Audit Log
     await logAction(admin.idno, "USER_ANALYTICS_UPDATED", { 
       targetUserId: id, 
-      analyticsEnabled 
+      analyticsEnabled,
+      commentsAnalyticsEnabled,
+      canAccessAllReports
     });
 
     return NextResponse.json(updateResult);

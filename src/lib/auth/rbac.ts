@@ -24,8 +24,8 @@ export function resolveAuthorizedOffices(
     ? [requestedOffices] 
     : requestedOffices;
 
-  // 1. Super Admin logic: Full organizational visibility
-  if (hasGlobalAccess(user)) {
+  // 1. Super Admin or Global Access logic: Full organizational visibility
+  if (hasGlobalAccess(user) || !!user.can_access_all_reports) {
     // If they requested specific offices, return them
     if (requested && requested.length > 0) {
       return requested;
@@ -34,26 +34,17 @@ export function resolveAuthorizedOffices(
     return ["ALL"];
   }
 
-  // 2. Restricted User logic
+  // 2. Restricted User logic: 
   const userOffices = user.offices || [];
 
-  // 2a. Analytics Enabled logic
-  if (user.is_analytics_enabled) {
-    // If they explicitly requested "ALL" or no scope specified
-    if (!requested || requested.length === 0 || (requested.length === 1 && requested[0] === "ALL")) {
-      return ["ALL"];
-    }
-    // Granular/Data-View requests: Strictly intersect with assigned offices
-    return requested.filter(office => userOffices.includes(office));
-  }
-
-  // 2b. Standard User logic (No Analytics)
-  // If no specific offices requested, or if they requested "ALL"
+  // 2a. Global Access logic:
+  // If they explicitly requested "ALL" or no scope specified, allow it.
+  // This supports the Global Summary and Graphs views for all users.
   if (!requested || requested.length === 0 || (requested.length === 1 && requested[0] === "ALL")) {
-    console.log(`[RBAC] Scoping ${user.email} (Non-Admin) to assignments: ${JSON.stringify(userOffices)}`);
-    return userOffices;
+    return ["ALL"];
   }
 
-  // Intersect specific requests with assigned offices
-  return requested.filter(office => userOffices.includes(office));
+  // 2b. Granular/Data-View requests: Strictly intersect with assigned offices
+  const normalizedAssignments = userOffices.map(o => o.toLowerCase());
+  return requested.filter(office => normalizedAssignments.includes(office.toLowerCase()));
 }
