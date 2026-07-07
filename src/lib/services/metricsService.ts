@@ -205,7 +205,12 @@ async function getOnlineReportInRange(offices: string[], startDate: string, endD
         res.collection++;
         res.visitor++;
 
-        const gender = data.Gender || 'Others';
+        let genderRaw = (data.Gender || 'Others').trim().toLowerCase();
+        let gender = 'Others';
+        if (genderRaw === 'male') gender = 'Male';
+        else if (genderRaw === 'female') gender = 'Female';
+        else if (genderRaw.includes('lgbtq')) gender = 'LGBTQ';
+
         res.gender[gender] = (res.gender[gender] || 0) + 1;
 
         for (let i = 0; i <= 9; i++) {
@@ -238,12 +243,23 @@ async function getOnlineReportInRange(offices: string[], startDate: string, endD
           }
         }
 
-        const cc1 = data.CC1 || 'N/A';
-        if (res.cc1[cc1] !== undefined) res.cc1[cc1]++;
-        const cc2 = data.CC2 || 'N/A';
-        if (res.cc2[cc2] !== undefined) res.cc2[cc2]++;
-        const cc3 = data.CC3 || 'N/A';
-        if (res.cc3[cc3] !== undefined) res.cc3[cc3]++;
+        const cc1Raw = String(data.CC1 || 'N/A').trim().toLowerCase();
+        if (cc1Raw === 'yes') res.cc1.Yes++;
+        else if (cc1Raw === 'just now') res.cc1['Just Now']++;
+        else if (cc1Raw === 'no') res.cc1.No++;
+
+        const cc2Raw = String(data.CC2 || 'N/A').trim().toLowerCase();
+        if (cc2Raw === 'visible') res.cc2.Visible++;
+        else if (cc2Raw === 'somewhat visible') res.cc2['Somewhat Visible']++;
+        else if (cc2Raw === 'difficult to see') res.cc2['Difficult to see']++;
+        else if (cc2Raw === 'not visible') res.cc2['Not Visible']++;
+        else res.cc2['N/A']++;
+
+        const cc3Raw = String(data.CC3 || 'N/A').trim().toLowerCase();
+        if (cc3Raw === 'very much') res.cc3['Very Much']++;
+        else if (cc3Raw === 'somewhat') res.cc3.Somewhat++;
+        else if (cc3Raw === 'did not help') res.cc3['Did Not Help']++;
+        else res.cc3['N/A']++;
       }
     });
   });
@@ -317,9 +333,9 @@ async function getOfflineReportInRange(offices: string[], monthArray: string[], 
 
       const key = `${officeId}_${docMonth}`;
 
-      // Strict Deduplication: Always overwrite with the latest valid document for this month/office
-      // This prevents rogue duplicates from secretly adding their numbers (like 8 + 9 = 17)
-      results[key] = createEmptyResult(officeId, docMonth);
+      if (!results[key]) {
+        results[key] = createEmptyResult(officeId, docMonth);
+      }
       const res = results[key];
 
       const safeInt = (val: any) => {

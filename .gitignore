@@ -99,7 +99,7 @@ artifacts/
 # Documentation & Markdown
 # Ignore all markdown files
 *.md
-
+!README.md
 
 # Infrastructure
 model_capabilities.yaml
