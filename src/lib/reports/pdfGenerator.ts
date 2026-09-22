@@ -274,25 +274,41 @@ export async function mergeReportPDFs(buffers: Uint8Array[]) {
 }
 
 /**
- * Replicates the legacy consolidated matrix report using 'conso.pdf' template.
+ * Replicates the legacy consolidated matrix report using 'conso.pdf' template,
+ * with multi-page support when office rows overflow. Each page retains the
+ * official header, table column headers, and footer.
  */
 export async function generateSummaryReport(formData: any, month: string, year: string) {
   const templatePath = path.join(process.cwd(), 'public', 'templates', 'conso.pdf');
-  const existingPdfBytes = fs.readFileSync(templatePath);
-  const pdfDoc = await PDFDocument.load(existingPdfBytes);
+  const templateBytes = fs.readFileSync(templatePath);
+
+  // 1. Prepare base template with flattened monthYear field
+  const prepDoc = await PDFDocument.load(templateBytes);
+  const prepBold = await prepDoc.embedFont(StandardFonts.HelveticaBold);
+  const form = prepDoc.getForm();
+  try {
+    const monthYearField = form.getTextField('monthYear');
+    monthYearField.setText(`${month} ${year}`.toUpperCase());
+    monthYearField.updateAppearances(prepBold);
+  } catch (e) {
+    console.warn("Could not find monthYear field in conso.pdf");
+  }
+  form.flatten();
+  const flattenedTemplateBytes = await prepDoc.save();
+
+  // 2. Create the working PDF document
+  const pdfDoc = await PDFDocument.create();
+  const templateDoc = await PDFDocument.load(flattenedTemplateBytes);
 
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontSize = 7;
   const cellPadding = 5;
 
-  const page = pdfDoc.getPage(0);
-  const { height } = page.getSize();
-
   const startX = 35;
-  const startY = height - 130;
   const rowHeight = 12.5;
   const colWidths = Array(14).fill(62);
+  const bottomFooterLimit = 40; // Keep clear above ADM-042-5 footer (located at y ~ 24)
 
   const tableHeaders = [
     [
@@ -318,68 +334,89 @@ export async function generateSummaryReport(formData: any, month: string, year: 
     ]
   ];
 
-  let y = startY;
-  const cellState: Record<string, boolean> = {};
+  function drawTableHeader(targetPage: any, startY: number): number {
+    let y = startY;
+    const cellState: Record<string, boolean> = {};
 
-  for (let r = 0; r < tableHeaders.length; r++) {
-    let x = startX;
-    let physCol = 0;
-    const row = tableHeaders[r];
+    for (let r = 0; r < tableHeaders.length; r++) {
+      let x = startX;
+      let physCol = 0;
+      const row = tableHeaders[r];
 
-    for (let lCol = 0; lCol < row.length; lCol++) {
-      while (cellState[`${r},${physCol}`]) {
-        x += colWidths[physCol];
-        physCol++;
-      }
-
-      const cell: any = row[lCol];
-      const cSpan = cell.colspan || 1;
-      const rSpan = cell.rowspan || 1;
-      let cellWidth = 0;
-      for (let i = 0; i < cSpan; i++) cellWidth += colWidths[physCol + i];
-      const cellHeight = rowHeight * rSpan;
-
-      page.drawRectangle({
-        x: x,
-        y: y - (cellHeight - rowHeight),
-        width: cellWidth,
-        height: cellHeight,
-        borderColor: rgb(0, 0, 0),
-        borderWidth: 1,
-        color: cell.bgColor || undefined
-      });
-
-      const lines = splitTextIntoLinesInternal(cell.text, cellWidth - (cellPadding * 2), boldFont, fontSize);
-      const tHeight = boldFont.heightAtSize(fontSize);
-      let textY = (y - (cellHeight - rowHeight)) + (cellHeight / 2) + ((lines.length * tHeight) / 2) - tHeight;
-
-      for (const line of lines) {
-        const lWidth = boldFont.widthOfTextAtSize(line, fontSize);
-        page.drawText(line, {
-          x: x + (cellWidth / 2) - (lWidth / 2),
-          y: textY,
-          size: fontSize,
-          font: boldFont,
-          color: rgb(0, 0, 0)
-        });
-        textY -= tHeight;
-      }
-
-      if (rSpan > 1) {
-        for (let rs = 1; rs < rSpan; rs++) {
-          for (let cs = 0; cs < cSpan; cs++) cellState[`${r + rs},${physCol + cs}`] = true;
+      for (let lCol = 0; lCol < row.length; lCol++) {
+        while (cellState[`${r},${physCol}`]) {
+          x += colWidths[physCol];
+          physCol++;
         }
+
+        const cell: any = row[lCol];
+        const cSpan = cell.colspan || 1;
+        const rSpan = cell.rowspan || 1;
+        let cellWidth = 0;
+        for (let i = 0; i < cSpan; i++) cellWidth += colWidths[physCol + i];
+        const cellHeight = rowHeight * rSpan;
+
+        targetPage.drawRectangle({
+          x: x,
+          y: y - (cellHeight - rowHeight),
+          width: cellWidth,
+          height: cellHeight,
+          borderColor: rgb(0, 0, 0),
+          borderWidth: 1,
+          color: cell.bgColor || undefined
+        });
+
+        const lines = splitTextIntoLinesInternal(cell.text, cellWidth - (cellPadding * 2), boldFont, fontSize);
+        const tHeight = boldFont.heightAtSize(fontSize);
+        let textY = (y - (cellHeight - rowHeight)) + (cellHeight / 2) + ((lines.length * tHeight) / 2) - tHeight;
+
+        for (const line of lines) {
+          const lWidth = boldFont.widthOfTextAtSize(line, fontSize);
+          targetPage.drawText(line, {
+            x: x + (cellWidth / 2) - (lWidth / 2),
+            y: textY,
+            size: fontSize,
+            font: boldFont,
+            color: rgb(0, 0, 0)
+          });
+          textY -= tHeight;
+        }
+
+        if (rSpan > 1) {
+          for (let rs = 1; rs < rSpan; rs++) {
+            for (let cs = 0; cs < cSpan; cs++) cellState[`${r + rs},${physCol + cs}`] = true;
+          }
+        }
+        x += cellWidth;
+        physCol += cSpan;
       }
-      x += cellWidth;
-      physCol += cSpan;
+      y -= rowHeight;
     }
-    y -= rowHeight;
+    return y;
   }
+
+  // First page setup
+  let [currentPage] = await pdfDoc.copyPages(templateDoc, [0]);
+  pdfDoc.addPage(currentPage);
+  const { height } = currentPage.getSize();
+  const tableTopY = height - 130;
+
+  // Draw header table on first page
+  let currentY = drawTableHeader(currentPage, tableTopY);
 
   // Draw Data Rows
   const offices = Array.isArray(formData) ? formData : Object.values(formData);
 
   for (const office of offices) {
+    // Check if drawing this row would overflow or overlap with footer
+    if (currentY - rowHeight < bottomFooterLimit) {
+      // Page break: copy template page to preserve official title, logo, header text, and footer
+      [currentPage] = await pdfDoc.copyPages(templateDoc, [0]);
+      pdfDoc.addPage(currentPage);
+      // Redraw table column headers at the top of the new page
+      currentY = drawTableHeader(currentPage, tableTopY);
+    }
+
     const total = (office.online || 0) + (office.offline || 0) || office.collection || 0;
     let rowData: any[] = [];
     let officeName = office.department;
@@ -419,9 +456,9 @@ export async function generateSummaryReport(formData: any, month: string, year: 
       const span = cell.colspan || 1;
       const sWidth = colWidths.slice(currCol, currCol + span).reduce((s, w) => s + w, 0);
 
-      page.drawRectangle({
+      currentPage.drawRectangle({
         x: rx,
-        y: y - rowHeight,
+        y: currentY - rowHeight,
         width: sWidth,
         height: rowHeight,
         borderColor: rgb(0, 0, 0),
@@ -432,32 +469,22 @@ export async function generateSummaryReport(formData: any, month: string, year: 
       if (cell.text) {
         const lines = splitTextIntoLinesInternal(String(cell.text), sWidth - (cellPadding * 2), regularFont, fontSize);
         const tH = regularFont.heightAtSize(fontSize);
-        let ty = y - (rowHeight / 2) + ((lines.length * tH) / 2) - tH;
+        let ty = currentY - (rowHeight / 2) + ((lines.length * tH) / 2) - tH;
 
         for (const line of lines) {
           const lw = regularFont.widthOfTextAtSize(line, fontSize);
           let tx = rx + (sWidth / 2) - (lw / 2);
           if (i === 0 || cell.align === 'left') tx = rx + cellPadding;
-          page.drawText(line, { x: tx, y: ty, size: fontSize, font: regularFont, color: rgb(0, 0, 0) });
+          currentPage.drawText(line, { x: tx, y: ty, size: fontSize, font: regularFont, color: rgb(0, 0, 0) });
           ty -= tH;
         }
       }
       rx += sWidth;
       currCol += span;
     }
-    y -= rowHeight;
+    currentY -= rowHeight;
   }
 
-  // Fill monthYear field
-  const form = pdfDoc.getForm();
-  try {
-    const monthYearField = form.getTextField('monthYear');
-    monthYearField.setText(`${month} ${year}`.toUpperCase());
-  } catch (e) {
-    console.warn("Could not find monthYear field in conso.pdf");
-  }
-
-  form.flatten();
   return await pdfDoc.save();
 }
 
